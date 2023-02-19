@@ -45,6 +45,8 @@ private:
     std::vector<VkImage> swapChainImages; //stores images retrieved from swapchain
     VkFormat swapChainImageFormat; //Format for swap chain images
     VkExtent2D swapChainExenet; //window extents for the images
+    std::vector<VkImageView> swapChainImageViews; //Creates an object to use the images from swapchain. its literally a view into an image. Describes how to access the image
+
 
     struct QueueFamilyIndices {
         std::optional<uint32_t> graphicsFamily;
@@ -170,7 +172,33 @@ private:
         pickPhysicalDevice();
         createLogicalDevice();
         createSwapChain();
-        
+        createImageViews();
+    }
+    void createImageViews() {
+        swapChainImageViews.resize(swapChainImages.size()); //Should be same size as the amount of images
+        for (size_t i = 0; i < swapChainImages.size(); i++) {
+            VkImageViewCreateInfo createInfo{};
+            createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+            createInfo.image = swapChainImages[i];
+            createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+            createInfo.format = swapChainImageFormat;
+            //Allows you to assign monochrome textures to these channels
+            //Sticking with default mapping
+            createInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+            createInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+            createInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+            createInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+            //subresource Range descibes the images's purpose and what part should be accesssed
+            //THese imges are color targets without any mpimpaping levels or multiple layers
+            createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            createInfo.subresourceRange.baseMipLevel = 0;
+            createInfo.subresourceRange.levelCount = 1;
+            createInfo.subresourceRange.baseArrayLayer = 0;
+            createInfo.subresourceRange.layerCount = 1; //Multiple layers for steroscopic 3D
+            if (vkCreateImageView(device, &createInfo, nullptr, &swapChainImageViews[i]) != VK_SUCCESS) {
+                throw std::runtime_error("failed to create image views!");
+            }
+        }
     }
     void createSwapChain() {
         SwapChainSupportDetails swapChainSupport = querySwapChainSupport(physicalDevice);
@@ -454,9 +482,12 @@ private:
             glfwPollEvents();
         }
     }
-
+    //Cleaan up everything EXPLICITLY CREATED by us!
     void cleanup() {
         //std::cout << "CLEAN UP\n";
+        for (auto imageView : swapChainImageViews) {
+            vkDestroyImageView(device, imageView, nullptr);
+        }
         vkDestroySwapchainKHR(device, swapChain, nullptr);
         vkDestroyDevice(device, nullptr);
         if (enableValidationLayers) {
