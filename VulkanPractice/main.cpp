@@ -42,6 +42,9 @@ private:
     VkQueue presentQueue; //The queue for submitting windows surface commands
     VkSurfaceKHR surface; //Handles apis between vulkan and the window system to present results to screen
     VkSwapchainKHR swapChain; //Handles the swapchain
+    std::vector<VkImage> swapChainImages; //stores images retrieved from swapchain
+    VkFormat swapChainImageFormat; //Format for swap chain images
+    VkExtent2D swapChainExenet; //window extents for the images
 
     struct QueueFamilyIndices {
         std::optional<uint32_t> graphicsFamily;
@@ -213,6 +216,11 @@ private:
         if (vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapChain) != VK_SUCCESS) {
             throw std::runtime_error("failed to create swapchain");
         }
+        vkGetSwapchainImagesKHR(device, swapChain, &imageCount, nullptr);
+        swapChainImages.resize(imageCount);
+        vkGetSwapchainImagesKHR(device, swapChain, &imageCount, swapChainImages.data());
+        swapChainExenet = extent;
+        swapChainImageFormat = surfaceFormat.format;
     }
     void createSurface() {
         if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS) {
