@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <cstdlib>
 #include <vector>
+#include <optional>
 
 class HelloTriangleApplication {
 public:
@@ -30,6 +31,14 @@ private:
     GLFWwindow* window; //Reference to the window we draw for vulkan
     VkInstance instance; //An instance is the connection between the app and the vulkan lib
     VkDebugUtilsMessengerEXT debugMessenger; //Debug messenger must be made for debug callbacks to be used
+    VkPhysicalDevice physicalDevice = VK_NULL_HANDLE; //Manages API for the physical hardware
+    struct QueueFamilyIndices {
+        std::optional<uint32_t> graphicsFamily;
+
+        bool isComplete() {
+            return graphicsFamily.has_value();
+        }
+    };
 
     void initWindow() {
         glfwInit();
@@ -138,6 +147,59 @@ private:
     void initVulkan() {
         createInstance();
         setupDebugMessenger();
+        pickPhysicalDevice();
+    }
+    void pickPhysicalDevice() {
+        uint32_t deviceCount = 0;
+        vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
+        if (deviceCount < 1) {
+            throw std::runtime_error("failed to find GPUs with Vulkan support");
+        }
+        //Check to see if there is a GPU for Vulkan to use
+        std::vector<VkPhysicalDevice> devices(deviceCount);
+        vkEnumeratePhysicalDevices(instance,&deviceCount,devices.data());
+        for (const auto& devcive : devices) {
+            if (isDeviceSuitable(devcive)) {
+                physicalDevice = devcive;
+                break;
+            }
+        }
+        if (physicalDevice == VK_NULL_HANDLE) {
+            throw std::runtime_error("Failed to find a suitable GPU!");
+        }
+    }
+    bool isDeviceSuitable(VkPhysicalDevice device) {
+        //We can query some details about the device to determine suitablity
+        QueueFamilyIndices indices = findQueueFamilies(device);
+        //Right now we will select any GPU that works
+        //Later on we can add code to deterine which GPU is best for our purposes 
+        //and could even rank them by some heuristic and select the best one!
+        return indices.isComplete();
+    }
+    //Everything in  vulkan rquires commands to be submitted to a queue
+    //Different kinds of queues are come from different queue families
+    //We need to able to check which kinds of queue families are supported by the device
+    QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) {
+        QueueFamilyIndices indices;
+        //Retrive a list of queue familes
+        uint32_t queueFamilyCount = 0;
+        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+        std::vector<VkQueueFamilyProperties>queueFamilies(queueFamilyCount);
+        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+        //QueuFamilyProperies contains details like what operations are acceptiable and the number of queues that cant be created 
+        int i = 0;
+        for (const auto& queueFamiliy : queueFamilies) {
+            //Look for a queueFamily that supports Grpahics
+            if (queueFamiliy.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+                indices.graphicsFamily = i;
+            }
+            if (indices.isComplete()) {
+                break;
+            }
+            i++;
+        }
+        return indices;
+
     }
     VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
         auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
