@@ -32,6 +32,9 @@ private:
     VkInstance instance; //An instance is the connection between the app and the vulkan lib
     VkDebugUtilsMessengerEXT debugMessenger; //Debug messenger must be made for debug callbacks to be used
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE; //Manages API for the physical hardware
+    VkDevice device; //Logical device to interface with the physical device
+    VkQueue graphicsQueue; //The queue for submitting graphics commands
+
     struct QueueFamilyIndices {
         std::optional<uint32_t> graphicsFamily;
 
@@ -148,6 +151,44 @@ private:
         createInstance();
         setupDebugMessenger();
         pickPhysicalDevice();
+        createLogicalDevice();
+    }
+    void createLogicalDevice() {
+        QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
+        //Describes the umber of queues we want for a single queue family
+        VkDeviceQueueCreateInfo queueCreateInfo{};
+        queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queueCreateInfo.queueFamilyIndex = indices.graphicsFamily.value();
+        queueCreateInfo.queueCount = 1;
+        //Controls the priority of queues for multithreading purposes
+        //This is required even if there is only 1 queue
+        float queuePriority = 1.0f;
+        queueCreateInfo.pQueuePriorities = &queuePriority;
+        //Specify which features we are going to be using
+        VkPhysicalDeviceFeatures deviceFeatures{};
+
+        VkDeviceCreateInfo createInfo{};
+        createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+        createInfo.pQueueCreateInfos = &queueCreateInfo;
+        createInfo.queueCreateInfoCount = 1;
+
+        createInfo.pEnabledFeatures = &deviceFeatures;
+        //Will look like the instance create info but it is device specific
+        createInfo.enabledExtensionCount = 0;
+        //Validation layers will are ignored by up to date implemnations
+        //Still good to keep assigned to keep them compatible
+        if (enableValidationLayers) {
+            createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+            createInfo.ppEnabledLayerNames = validationLayers.data();
+        }
+        else {
+            createInfo.enabledLayerCount = 0;
+        }
+
+        if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create logical device!");
+        }
+        vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
     }
     void pickPhysicalDevice() {
         uint32_t deviceCount = 0;
@@ -240,11 +281,12 @@ private:
 
     void cleanup() {
         //std::cout << "CLEAN UP\n";
+        vkDestroyDevice(device, nullptr);
         if (enableValidationLayers) {
             DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
         }
         vkDestroyInstance(instance, nullptr); //Clean up instance, not adding a callback for now
-
+        
         glfwDestroyWindow(window); //Free up memory used by window
 
         glfwTerminate(); //Clean up GLFW
