@@ -45,8 +45,9 @@ private:
     VkSwapchainKHR swapChain; //Handles the swapchain
     std::vector<VkImage> swapChainImages; //stores images retrieved from swapchain
     VkFormat swapChainImageFormat; //Format for swap chain images
-    VkExtent2D swapChainExenet; //window extents for the images
+    VkExtent2D swapChainExtent; //window extents for the images
     std::vector<VkImageView> swapChainImageViews; //Creates an object to use the images from swapchain. its literally a view into an image. Describes how to access the image
+    std::vector<VkFramebuffer> swapChainFramebuffers; //references all imageview objects that represent attachments
     VkRenderPass renderPass; //The render pass used to render images
     VkPipelineLayout pipelineLayout; //Holds uniform values you pass to the shaders
     VkPipeline graphicsPipeline; //The actual graphics pipeline that will be used to draw the triangle
@@ -195,6 +196,31 @@ private:
         createRenderPass();
         //This is where you would start to make pipelines for different shaders 
         createGraphicsPipeline();
+        //Create framebuffers to draw the actual images with
+        createFramebuffers();
+    }
+    //Create framebuffers for drawing images
+    void createFramebuffers() {
+        swapChainFramebuffers.resize(swapChainImageViews.size());
+        //Iterate through images view and frame frame buffers from them
+        for (size_t i = 0; i < swapChainImageViews.size(); i++) {
+            VkImageView attachments[] = {
+        swapChainImageViews[i]
+            };
+
+            VkFramebufferCreateInfo framebufferInfo{};
+            framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+            framebufferInfo.renderPass = renderPass;
+            framebufferInfo.attachmentCount = 1;
+            framebufferInfo.pAttachments = attachments;
+            framebufferInfo.width = swapChainExtent.width;
+            framebufferInfo.height = swapChainExtent.height;
+            framebufferInfo.layers = 1;
+
+            if (vkCreateFramebuffer(device, &framebufferInfo, nullptr, &swapChainFramebuffers[i]) != VK_SUCCESS) {
+                throw std::runtime_error("failed to create framebuffer!");
+            }
+        }
     }
     //Creates a render pass object which tells Vulkan about framebuffer attachemnts, color and depth buffers
     //How many samples to use for each of the them, and how their contents should be handled throughout rendering process
@@ -469,7 +495,7 @@ private:
         vkGetSwapchainImagesKHR(device, swapChain, &imageCount, nullptr);
         swapChainImages.resize(imageCount);
         vkGetSwapchainImagesKHR(device, swapChain, &imageCount, swapChainImages.data());
-        swapChainExenet = extent;
+        swapChainExtent = extent;
         swapChainImageFormat = surfaceFormat.format;
     }
     void createSurface() {
@@ -707,6 +733,9 @@ private:
     //Cleaan up everything EXPLICITLY CREATED by us!
     void cleanup() {
         //std::cout << "CLEAN UP\n";
+        for (auto framebuffer : swapChainFramebuffers) {
+            vkDestroyFramebuffer(device, framebuffer, nullptr);
+        }
         vkDestroyPipeline(device, graphicsPipeline, nullptr);
         vkDestroyPipelineLayout(device,pipelineLayout,nullptr);
         vkDestroyRenderPass(device, renderPass, nullptr);
