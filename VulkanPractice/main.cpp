@@ -8,6 +8,7 @@
 #include <optional>
 #include <set>
 #include <algorithm>
+#include <fstream>
 
 class HelloTriangleApplication {
 public:
@@ -46,7 +47,7 @@ private:
     VkFormat swapChainImageFormat; //Format for swap chain images
     VkExtent2D swapChainExenet; //window extents for the images
     std::vector<VkImageView> swapChainImageViews; //Creates an object to use the images from swapchain. its literally a view into an image. Describes how to access the image
-
+    VkPipelineLayout pipelineLayout; //Holds uniform values you pass to the shaders
 
     struct QueueFamilyIndices {
         std::optional<uint32_t> graphicsFamily;
@@ -61,6 +62,21 @@ private:
         std::vector<VkSurfaceFormatKHR>formats; //What surface formats do we have?
         std::vector<VkPresentModeKHR> presentModes; //What available presentation formats?
     };
+    static std::vector<char> readFile(const std::string& filename) {
+        std::ifstream file(filename, std::ios::ate | std::ios::binary);
+
+        if (!file.is_open()) {
+            throw std::runtime_error("failed to open file!");
+        }
+        //start at the beginning to see the file size and allocate buffer
+        size_t fileSize = (size_t)file.tellg();
+        std::vector<char> buffer(fileSize);
+        file.seekg(0);
+        file.read(buffer.data(), fileSize);
+        file.close();
+
+        return buffer;
+    }
     void initWindow() {
         glfwInit();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); //Disable openGL API
@@ -166,6 +182,7 @@ private:
         }
     }
     void initVulkan() {
+        //These are manditory for all graphics pipelines
         createInstance();
         setupDebugMessenger();
         createSurface();
@@ -173,6 +190,149 @@ private:
         createLogicalDevice();
         createSwapChain();
         createImageViews();
+        //This is where you would start to make pipelines for different shaders 
+        createGraphicsPipeline();
+    }
+    void createGraphicsPipeline() {
+        auto vertShaderCode = readFile("shaders/vert.spv");
+        auto fragShaderCode = readFile("shaders/frag.spv");
+
+        VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
+        VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
+        //Shader stage pipeline creation section (vert shader)
+        VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
+        vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO; //Obligatory Type 
+        vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT; //Which pipeline stage will be used
+        vertShaderModule = vertShaderModule;
+        vertShaderStageInfo.module = vertShaderModule; //Module containing the code;
+        vertShaderStageInfo.pName = "main"; //Entrypoint to invoke
+        //can use pSpecializationInfo to add constants assoiated with the shader
+        VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
+        fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+        fragShaderStageInfo.module = fragShaderModule;
+        fragShaderStageInfo.pName = "main";
+        VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
+        
+        //Vertex Input: Describes that spacing between data and wether data is per vertex or per instance
+        //Also handles attribute descriptions: types of attibutes passed to the vertex shader, which binding
+        //Leaving this blank for now since vertex info is currently hard coded
+        VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
+        vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+        vertexInputInfo.vertexBindingDescriptionCount = 0;
+        vertexInputInfo.pVertexBindingDescriptions = nullptr;
+        vertexInputInfo.vertexAttributeDescriptionCount = 0;
+        vertexInputInfo.pVertexAttributeDescriptions = nullptr;
+        //Input assembly stage: describes what kind of geometery will be drawn from the vertices and if primateitve restart is enabled
+        VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
+        inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+        inputAssembly.primitiveRestartEnable = VK_FALSE;
+        inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST; //What geometry will be drawn: We want triangles
+        /*Going to be handled layer. This should be enable if these werent in the dynamic state                                                            
+        //Viewports and scissors
+        //Viewport: Region of the framebuffer the output will be rendered to
+        VkViewport viewport{};
+        viewport.x = 0.0f;
+        viewport.y = 0.0f;
+        viewport.width = (float)swapChainExenet.width; //Want to width to match the extent of the images from swapchain
+        viewport.height = (float)swapChainExenet.height; //same with height
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+        //Scissors: Cut out sections of the image when rendering. Acts like a filter
+        VkRect2D scissor{};
+        scissor.offset = { 0,0 };
+        scissor.extent = swapChainExenet;
+        */
+        //Without dynamic st
+        VkPipelineViewportStateCreateInfo viewportState{};
+        viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+        viewportState.viewportCount = 1;
+        viewportState.scissorCount = 1;
+
+        //This stage contains the few properites that can be changed without recreating the pipeline
+        //Simplfies setup as having viewport and scissor state be dynamic is more flexible then having them baked in
+        std::vector<VkDynamicState> dynamicStates = {
+            VK_DYNAMIC_STATE_VIEWPORT,
+            VK_DYNAMIC_STATE_SCISSOR
+        };
+
+        VkPipelineDynamicStateCreateInfo dynamicState{};
+        dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+        dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
+        dynamicState.pDynamicStates = dynamicStates.data();
+        //Rasterizer setup: converts the geomerty into fragments that can be colored
+        VkPipelineRasterizationStateCreateInfo rasterizer{};
+        rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+        rasterizer.depthClampEnable = VK_FALSE; //If true, the frags that are beyond the near/far plane are clamped rather than discared
+        rasterizer.rasterizerDiscardEnable = VK_FALSE; //if true, discards the geometry. disables any output to framebuffer
+        rasterizer.polygonMode = VK_POLYGON_MODE_FILL; //Determiens if polygons are filled, drawn as outline, or are just points
+        rasterizer.lineWidth = 1.0f; //determines the line width
+        rasterizer.cullMode = VK_CULL_MODE_BACK_BIT; //enables back culling
+        rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE; //determines how to find the front face
+        rasterizer.depthBiasEnable = VK_FALSE; //Can create a bias to alter depth values based on frag slope
+        rasterizer.depthBiasConstantFactor = 0.0f; //optional
+        rasterizer.depthBiasClamp = 0.0; //optional
+        rasterizer.depthBiasSlopeFactor = 0.0f; //optional
+        //Multisampling setup: One of the ways to peform anit aliasing
+        //combines fragment shader results of multiple polygons that rasterizze to the same pixel
+        //Disabled for now, will come back to this later
+        VkPipelineMultisampleStateCreateInfo multisampling{};
+        multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+        multisampling.sampleShadingEnable = VK_FALSE;
+        multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+        multisampling.minSampleShading = 1.0f; // Optional
+        multisampling.pSampleMask = nullptr; // Optional
+        multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
+        multisampling.alphaToOneEnable = VK_FALSE; // Optional
+        //Need to enable depth testing and stencil testing if using their respective buffers
+        //Will be skipping both for ow
+        //Color blending
+        //This is the first struct needed for it that handles the config per attached frame buffer
+        VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+        colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+        colorBlendAttachment.blendEnable = VK_FALSE;
+        colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE; // Optional
+        colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
+        colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD; // Optional
+        colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE; // Optional
+        colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
+        colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD; // Optional
+        //Second struct that handles global color blending settings
+        VkPipelineColorBlendStateCreateInfo colorBlending{};
+        colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+        colorBlending.logicOpEnable = VK_FALSE;
+        colorBlending.logicOp = VK_LOGIC_OP_COPY; // Optional
+        colorBlending.attachmentCount = 1;
+        colorBlending.pAttachments = &colorBlendAttachment;
+        colorBlending.blendConstants[0] = 0.0f; // Optional
+        colorBlending.blendConstants[1] = 0.0f; // Optional
+        colorBlending.blendConstants[2] = 0.0f; // Optional
+        colorBlending.blendConstants[3] = 0.0f; // Optional
+        //Pipeline layout creation: Handles uniform values and dynamic values pushed to shaders
+        VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+        pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        pipelineLayoutInfo.setLayoutCount = 0; // Optional
+        pipelineLayoutInfo.pSetLayouts = nullptr; // Optional
+        pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
+        pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
+
+        if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create pipeline layout!");
+        }
+        vkDestroyShaderModule(device, fragShaderModule, nullptr);
+        vkDestroyShaderModule(device, vertShaderModule, nullptr);
+    }
+    //Module to handle shader programs compiled into the vulkan byte code
+    VkShaderModule createShaderModule(const std::vector<char>& code) {
+        VkShaderModuleCreateInfo createInfo{};
+        createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+        createInfo.codeSize = code.size();
+        createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data()); //The bytecode pointer is a uint32 and not a char, hence the cast
+        VkShaderModule shaderModule;
+        if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create shader module!");
+        }
+        return shaderModule; //A thin wrapper around the byte code. Compliation + linking occurs at graphics pipeline time
     }
     void createImageViews() {
         swapChainImageViews.resize(swapChainImages.size()); //Should be same size as the amount of images
@@ -485,6 +645,7 @@ private:
     //Cleaan up everything EXPLICITLY CREATED by us!
     void cleanup() {
         //std::cout << "CLEAN UP\n";
+        vkDestroyPipelineLayout(device,pipelineLayout,nullptr);
         for (auto imageView : swapChainImageViews) {
             vkDestroyImageView(device, imageView, nullptr);
         }
