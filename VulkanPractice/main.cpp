@@ -834,6 +834,9 @@ private:
             glfwPollEvents();
             drawFrame();
         }
+        //Wait for drawing and presnetation operations to stop
+        //Stops cleanup from trying to free up semaphores while to program is still running
+        vkDeviceWaitIdle(device);
     }
     //Draw the present the frame set by the command buffer, broad plan as follows:
         //Acquire an image from the swap chain
