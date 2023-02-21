@@ -9,6 +9,8 @@
 #include <set>
 #include <algorithm>
 #include <fstream>
+#include <glm/glm.hpp>
+#include <array>
 
 class HelloTriangleApplication {
 public:
@@ -57,6 +59,8 @@ private:
     std::vector<VkSemaphore> imageAvailableSemaphores; //Need to synchronize the GPU calls using semaphores
     std::vector<VkSemaphore> renderFinishedSemaphores;
     std::vector <VkFence> inFlightFences; //Used to for order execution on the cpu to sync with gpu
+    VkBuffer vertexBuffer; //The vertex buffer we pass during the vertex shader step
+    VkDeviceMemory vertexBufferMemory; //handle to deal with allocated memory to vertex buffer
     uint32_t currentFrame = 0;
     bool framebufferResized = false;
 
@@ -67,6 +71,41 @@ private:
         bool isComplete() {
             return graphicsFamily.has_value() && presentFamily.has_value();
         }
+    };
+    //Vertex attributes: assigned per vertex
+    struct Vertex {
+        glm::vec2 pos;
+        glm::vec3 color;
+        //Our vertex Binding description: how to bind vertex to the shader in the GPU
+        static VkVertexInputBindingDescription getBindingDescription() {
+            //All of our per vertex data is packed in one array. Only need 1 binding
+            VkVertexInputBindingDescription bindingDescription{};
+            bindingDescription.binding = 0; //Index to bind the array to
+            bindingDescription.stride = sizeof(Vertex); //How far are the data points in the array?
+            bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX; //Movee to the next data entry after each vertex
+            return bindingDescription;
+        }
+        static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions() {
+            std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{}; //one for vertex pos, one for vetex color
+            attributeDescriptions[0].binding = 0; //Which binding our we getting our vertex info from?
+            attributeDescriptions[0].location = 0; //Which location in the vertex shader should this go to?
+            attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+            attributeDescriptions[0].offset = offsetof(Vertex, pos); //num of bytes from the start of the per vetex data to read from
+            //The above is for positions, so we offset to the start of the pos var in the struct
+
+            attributeDescriptions[1].binding = 0; //Which binding our we getting our vertex info from?
+            attributeDescriptions[1].location = 1; //Which location in the vertex shader should this go to?
+            attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT; //How much data are we providing to each channel?
+            attributeDescriptions[1].offset = offsetof(Vertex, color); //num of bytes from the start of the per vetex data to read from
+
+            return attributeDescriptions;
+        }
+    };
+    //Our sample set of vertices we are passing into the vertex buffer
+    const std::vector<Vertex> vertices = {
+        {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+        {{0.5f, 0.5f}, {1.0f, 1.0f, 0.0f}},
+        {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
     };
     struct SwapChainSupportDetails {
         VkSurfaceCapabilitiesKHR capabilities; //What basic surface capabilities does the swap chain have?
@@ -215,8 +254,54 @@ private:
         createFramebuffers();
         //create command pool for command buffers
         createCommandPool();
+        //Create vertex buffer for vertex shader
+        createVertexBuffer();
         createCommandBuffers();
         createSyncObjects(); //create objects for syncing cpu with gpu
+    }
+    //Checking the physical memory of our GPU to see if we have room
+    uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+        //Check the physical memory of our device
+        VkPhysicalDeviceMemoryProperties memProperties;
+        vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
+        //Find a memory type that will work for our buffer
+        for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+            if (typeFilter & (1 << i) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) { //Use a bitmask to specify the bit field of suitible memory types
+                return i;
+            }
+        }
+
+        throw std::runtime_error("failed to find suitable memory type!");
+    }
+    void createVertexBuffer() {
+        VkBufferCreateInfo bufferInfo{};
+        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        bufferInfo.size = sizeof(vertices[0]) * vertices.size(); //size of our vertex buffer
+        bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT; //what kind of buffer is this?
+        bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        if (vkCreateBuffer(device, &bufferInfo, nullptr, &vertexBuffer) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create vertex buffer!");
+        }
+        //Query the memory requirements to make sure we have enough space to allocate for the vertex buffer
+        VkMemoryRequirements memRequirements;
+        vkGetBufferMemoryRequirements(device, vertexBuffer, &memRequirements);
+        //Allocate memory for the buffer
+        VkMemoryAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        allocInfo.allocationSize = memRequirements.size;
+        allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        if (vkAllocateMemory(device, &allocInfo, nullptr, &vertexBufferMemory) != VK_SUCCESS) {
+            throw std::runtime_error("failed to allocate vertex buffer memory!");
+        }
+        //Bind the allocated memory to the vertex buffer
+        vkBindBufferMemory(device, vertexBuffer, vertexBufferMemory, 0);
+        //Create a memory map between the vertex buffer (CPU) and the shader (GPU)
+        //This allows both sides to access the data
+        void* data;
+        vkMapMemory(device, vertexBufferMemory, 0, bufferInfo.size,0,&data);
+        memcpy(data, vertices.data(), (size_t)bufferInfo.size);
+        vkUnmapMemory(device, vertexBufferMemory);
     }
     void createSyncObjects() {
         //make sure there are semaphores and fences for each concurrent frame
@@ -275,6 +360,7 @@ private:
         vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
         //Bind the commandBuffer to the pipeline
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+
         //Setup the viewport and scissors state
         VkViewport viewport{};
         viewport.x = 0.0f;
@@ -289,8 +375,12 @@ private:
         scissor.offset = { 0, 0 };
         scissor.extent = swapChainExtent;
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+        //Assign the vertex buffer to the command buffer
+        VkBuffer vertexBuffers[] = { vertexBuffer };
+        VkDeviceSize offsets[] = { 0 };
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
         //The actual draw call!
-        vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+        vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
         vkCmdEndRenderPass(commandBuffer);
         if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
             throw std::runtime_error("failed to record command buffer!");
@@ -407,11 +497,13 @@ private:
         //Also handles attribute descriptions: types of attibutes passed to the vertex shader, which binding
         //Leaving this blank for now since vertex info is currently hard coded
         VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
+        auto bindingDescription = Vertex::getBindingDescription();
+        auto attributeDescriptions = Vertex::getAttributeDescriptions();
         vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-        vertexInputInfo.vertexBindingDescriptionCount = 0;
-        vertexInputInfo.pVertexBindingDescriptions = nullptr;
-        vertexInputInfo.vertexAttributeDescriptionCount = 0;
-        vertexInputInfo.pVertexAttributeDescriptions = nullptr;
+        vertexInputInfo.vertexBindingDescriptionCount = 1;
+        vertexInputInfo.pVertexBindingDescriptions = &bindingDescription; //Provide the binding description for vertices
+        vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+        vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data(); //Provide the attribute descriptions for vertices
         //Input assembly stage: describes what kind of geometery will be drawn from the vertices and if primateitve restart is enabled
         VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
         inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -960,6 +1052,8 @@ private:
     void cleanup() {
         //std::cout << "CLEAN UP\n";
         cleanupSwapChain();
+        vkDestroyBuffer(device, vertexBuffer, nullptr);
+        vkFreeMemory(device, vertexBufferMemory, nullptr); //Free the memory assoiated with vertex buffer
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
             vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
             vkDestroySemaphore(device, imageAvailableSemaphores[i], nullptr);
