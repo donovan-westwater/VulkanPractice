@@ -26,7 +26,8 @@ private:
     const uint32_t WIDTH = 800;
     const uint32_t HEIGHT = 600;
     const std::vector<const char*> validationLayers = {
-    "VK_LAYER_KHRONOS_validation"
+    "VK_LAYER_KHRONOS_validation",
+    "VK_LAYER_LUNARG_monitor"
     }; //Provides a list of required validation layers for the system
     const std::vector<const char*> deviceExtensions = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME
@@ -102,7 +103,7 @@ private:
         }
     };
     //Our sample set of vertices we are passing into the vertex buffer
-    const std::vector<Vertex> vertices = {
+    std::vector<Vertex> vertices = {
         {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
         {{0.5f, 0.5f}, {1.0f, 1.0f, 0.0f}},
         {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
@@ -970,10 +971,22 @@ private:
             throw std::runtime_error("failed to set up debug messenger!");
         }
     }
+    //Timer for animating triangle in quick and dirty way
+    //float timer = 0;
     void mainLoop() {
         while (!glfwWindowShouldClose(window)) {
             glfwPollEvents();
+            //This is a quick and dirty way to animate the triangle. I don't think it is remotely ideal for a bunch of reasons
+            /*
+            vertices[0].color.r = abs(cos(timer));
+            vertices[1].color.g = abs(sin(timer));
+            void* data;
+            vkMapMemory(device, vertexBufferMemory, 0, sizeof(vertices[0])*vertices.size(), 0, &data);
+            memcpy(data, vertices.data(), (size_t)(sizeof(vertices[0]) * vertices.size()));
+            vkUnmapMemory(device, vertexBufferMemory);
+            */
             drawFrame();
+            //timer += 0.01f;
         }
         //Wait for drawing and presnetation operations to stop
         //Stops cleanup from trying to free up semaphores while to program is still running
