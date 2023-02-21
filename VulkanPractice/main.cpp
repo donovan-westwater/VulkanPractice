@@ -58,6 +58,7 @@ private:
     std::vector<VkSemaphore> renderFinishedSemaphores;
     std::vector <VkFence> inFlightFences; //Used to for order execution on the cpu to sync with gpu
     uint32_t currentFrame = 0;
+    bool framebufferResized = false;
 
     struct QueueFamilyIndices {
         std::optional<uint32_t> graphicsFamily;
@@ -90,8 +91,15 @@ private:
     void initWindow() {
         glfwInit();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); //Disable openGL API
-        glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE); //Diable window resizing as that will be handled later
         window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
+        glfwSetWindowUserPointer(window, this);
+        //Create a callback for window resizing
+        glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
+    }
+    //Call back for when we want to resize the widow. Static GLFW doesn't know what to do with a member function version
+    static void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
+        auto app = reinterpret_cast<HelloTriangleApplication*>(glfwGetWindowUserPointer(window));
+        app->framebufferResized = true;
     }
     //Check if validation layers if validation layers are available
     // These layers are important for checcking for any mistakes made in coding process
@@ -563,6 +571,36 @@ private:
             }
         }
     }
+    //Cleans up swapChain related resources
+    void cleanupSwapChain() {
+        for (size_t i = 0; i < swapChainFramebuffers.size(); i++) {
+            vkDestroyFramebuffer(device, swapChainFramebuffers[i], nullptr);
+        }
+
+        for (size_t i = 0; i < swapChainImageViews.size(); i++) {
+            vkDestroyImageView(device, swapChainImageViews[i], nullptr);
+        }
+
+        vkDestroySwapchainKHR(device, swapChain, nullptr);
+    }
+    //Should create a new swap chain when the window is updated
+    void recreateSwapChain() {
+        //We should pause the rendering when the window is minimized
+        //Otherwise Vulkan will freak out because the frame buffer size will become zero!
+        int width = 0, height = 0;
+        glfwGetFramebufferSize(window, &width, &height);
+        while (width == 0 || height == 0) {
+            glfwGetFramebufferSize(window, &width, &height);
+            glfwWaitEvents();
+        }
+        //We shouldn't recreate anything until we know it isn't being used!
+        vkDeviceWaitIdle(device);
+        //Clean everything up before creating new ones!
+        cleanupSwapChain();
+        createSwapChain();
+        createImageViews();
+        createFramebuffers();
+    }
     void createSwapChain() {
         SwapChainSupportDetails swapChainSupport = querySwapChainSupport(physicalDevice);
 
@@ -857,11 +895,22 @@ private:
     void drawFrame() {
         //Wait for frame to be finished drawing
         vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
+        uint32_t imageIndex;
+        //Make sure the chain is fresh so we know we can use it. This allows us to delay a fense reset and stop a deadlock
+        VkResult result = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+
+        if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+            recreateSwapChain();
+            return;
+        }
+        else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+            throw std::runtime_error("failed to acquire swap chain image!");
+        }
+
         //Reset signaling so since we have retrieved the frame now
         vkResetFences(device, 1, &inFlightFences[currentFrame]);
         //Acquire the image we waited on
-        uint32_t imageIndex;
-        vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+        //vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
         vkResetCommandBuffer(commandBuffers[currentFrame], 0);
         recordCommandBuffer(commandBuffers[currentFrame], imageIndex); //Record the draw calls we want
         //submit the command buffer
@@ -896,28 +945,37 @@ private:
         presentInfo.pSwapchains = swapChains;
         presentInfo.pImageIndices = &imageIndex;
         //Presents the triangle we submitted to the queue
-        vkQueuePresentKHR(presentQueue, &presentInfo);
+        result = vkQueuePresentKHR(presentQueue, &presentInfo);
+        //If the swapchain is out dated, then we need to recreate it!
+        if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized) {
+            framebufferResized = false;
+            recreateSwapChain();
+        }
+        else if (result != VK_SUCCESS) {
+            throw std::runtime_error("failed to present swap chain image!");
+        }
         currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT; //Make sure we know which of the in flight frames we are updating
     }
     //Cleaan up everything EXPLICITLY CREATED by us!
     void cleanup() {
         //std::cout << "CLEAN UP\n";
+        cleanupSwapChain();
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
             vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
             vkDestroySemaphore(device, imageAvailableSemaphores[i], nullptr);
             vkDestroyFence(device, inFlightFences[i], nullptr);
         }
         vkDestroyCommandPool(device, commandPool, nullptr);
-        for (auto framebuffer : swapChainFramebuffers) {
-            vkDestroyFramebuffer(device, framebuffer, nullptr);
-        }
+        //for (auto framebuffer : swapChainFramebuffers) {
+        //     vkDestroyFramebuffer(device, framebuffer, nullptr);
+        //}
         vkDestroyPipeline(device, graphicsPipeline, nullptr);
         vkDestroyPipelineLayout(device,pipelineLayout,nullptr);
         vkDestroyRenderPass(device, renderPass, nullptr);
-        for (auto imageView : swapChainImageViews) {
-            vkDestroyImageView(device, imageView, nullptr);
-        }
-        vkDestroySwapchainKHR(device, swapChain, nullptr);
+        //for (auto imageView : swapChainImageViews) {
+        //    vkDestroyImageView(device, imageView, nullptr);
+        //}
+        //vkDestroySwapchainKHR(device, swapChain, nullptr);
         vkDestroyDevice(device, nullptr);
         if (enableValidationLayers) {
             DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
