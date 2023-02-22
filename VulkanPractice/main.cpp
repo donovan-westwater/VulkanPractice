@@ -9,7 +9,11 @@
 #include <set>
 #include <algorithm>
 #include <fstream>
+#define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
+#include <chrono>
 #include <array>
 
 class HelloTriangleApplication {
@@ -53,6 +57,9 @@ private:
     std::vector<VkImageView> swapChainImageViews; //Creates an object to use the images from swapchain. its literally a view into an image. Describes how to access the image
     std::vector<VkFramebuffer> swapChainFramebuffers; //references all imageview objects that represent attachments
     VkRenderPass renderPass; //The render pass used to render images
+    VkDescriptorSetLayout descriptorSetLayout; //holds values to setup the descriptor sets
+    std::vector<VkDescriptorSet> descriptorSets; //The actual descr sets
+    VkDescriptorPool descriptorPool; //pool of allocated descr sets
     VkPipelineLayout pipelineLayout; //Holds uniform values you pass to the shaders
     VkPipeline graphicsPipeline; //The actual graphics pipeline that will be used to draw the triangle
     VkCommandPool commandPool; //Manages memory used to store buffers used for command buffers
@@ -64,9 +71,17 @@ private:
     VkDeviceMemory vertexBufferMemory; //handle to deal with allocated memory to vertex buffer
     VkBuffer indexBuffer; //Index buffer to prevent bloat in vertex buffer
     VkDeviceMemory indexBufferMemory; //handle to deal with memory allocated with the index buffer
+    std::vector<VkBuffer> uniformBuffers; //ubo buffer
+    std::vector<VkDeviceMemory> uniformBuffersMemory;//handle to allocated buffer memory
+    std::vector<void*> uniformBuffersMapped; //Buffer for staging 
     uint32_t currentFrame = 0;
     bool framebufferResized = false;
-
+    struct UniformBufferObject {
+        glm::mat4 model;
+        glm::mat4 view;
+        glm::mat4 proj;
+        //glm::vec4 colorAdd;
+    };
     struct QueueFamilyIndices {
         std::optional<uint32_t> graphicsFamily;
         std::optional<uint32_t> presentFamily;
@@ -256,6 +271,7 @@ private:
         createSwapChain();
         createImageViews();
         createRenderPass();
+        createDescriptorSetLayout();
         //This is where you would start to make pipelines for different shaders 
         createGraphicsPipeline();
         //Create framebuffers to draw the actual images with
@@ -266,8 +282,98 @@ private:
         createVertexBuffer();
         //Create index buffer for vertex shader
         createIndexBuffer();
+        //create ubo buffer
+        createUniformBuffers();
+        createDescriptorPool();
+        createDescriptorSets();
         createCommandBuffers();
         createSyncObjects(); //create objects for syncing cpu with gpu
+    }
+    //Create the descriptor sets
+    void createDescriptorSets() {
+        //Allocate data for the descriptor sets
+        std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
+        VkDescriptorSetAllocateInfo allocInfo{};
+        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocInfo.descriptorPool = descriptorPool;
+        allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+        allocInfo.pSetLayouts = layouts.data();
+        descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+        if (vkAllocateDescriptorSets(device, &allocInfo, descriptorSets.data()) != VK_SUCCESS) {
+            throw std::runtime_error("failed to allocate descriptor sets!");
+        }
+        //Configure the sets and pass them to sets
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            VkDescriptorBufferInfo bufferInfo{};
+            bufferInfo.buffer = uniformBuffers[i];
+            bufferInfo.offset = 0;
+            bufferInfo.range = sizeof(UniformBufferObject);
+
+            VkWriteDescriptorSet descriptorWrite{};
+            descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrite.dstSet = descriptorSets[i];
+            descriptorWrite.dstBinding = 0;
+            descriptorWrite.dstArrayElement = 0;
+            descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            descriptorWrite.descriptorCount = 1;
+            descriptorWrite.pBufferInfo = &bufferInfo;
+            descriptorWrite.pImageInfo = nullptr; // Optional
+            descriptorWrite.pTexelBufferView = nullptr; // Optional
+            vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
+        }
+
+    }
+    //Descriptor sets cant be created directly. They must be allocated like command buffers
+    void createDescriptorPool() {
+        VkDescriptorPoolSize poolSize{};
+        poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        poolSize.descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+
+        VkDescriptorPoolCreateInfo poolInfo{};
+        poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        poolInfo.poolSizeCount = 1;
+        poolInfo.pPoolSizes = &poolSize;
+        poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+        if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create descriptor pool!");
+        }
+    }
+    //Create the uniform object buffers
+    void createUniformBuffers() {
+        VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+
+        uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+        uniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
+        uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
+        //Create buffers for the frames that are being worked on in parallel
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i]);
+            //We dont want to remap memory all the time since mem mapping is costly
+            //Having the buffers mapped this way means we can update whenever we want!
+            vkMapMemory(device, uniformBuffersMemory[i], 0, bufferSize, 0, &uniformBuffersMapped[i]);
+
+        }
+        
+    }
+
+    void createDescriptorSetLayout() {
+        //We need a descriptor set to help send the infomation over to the shader
+        VkDescriptorSetLayoutBinding uboLayoutBinding{};
+        uboLayoutBinding.binding = 0; //Which index you want to bind to for the shader
+        uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; //Kind of descriptor set
+        uboLayoutBinding.descriptorCount = 1; //How many descriptor sets in the array
+        uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT; //which stage we are sending it to
+        uboLayoutBinding.pImmutableSamplers = nullptr;
+        //Placing bindings into the layout
+        VkDescriptorSetLayoutCreateInfo layoutInfo{};
+        layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        layoutInfo.bindingCount = 1;
+        layoutInfo.pBindings = &uboLayoutBinding; //Array of bindings
+
+        if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create descriptor set layout!");
+        }
+
     }
     void createIndexBuffer() {
         VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
@@ -457,6 +563,8 @@ private:
         VkDeviceSize offsets[] = { 0 };
         vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
         vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+        //Update descriptor sets
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
         //The actual draw call!
         vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
         vkCmdEndRenderPass(commandBuffer);
@@ -627,7 +735,7 @@ private:
         rasterizer.polygonMode = VK_POLYGON_MODE_FILL; //Determiens if polygons are filled, drawn as outline, or are just points
         rasterizer.lineWidth = 1.0f; //determines the line width
         rasterizer.cullMode = VK_CULL_MODE_BACK_BIT; //enables back culling
-        rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE; //determines how to find the front face
+        rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE; //determines how to find the front face
         rasterizer.depthBiasEnable = VK_FALSE; //Can create a bias to alter depth values based on frag slope
         rasterizer.depthBiasConstantFactor = 0.0f; //optional
         rasterizer.depthBiasClamp = 0.0; //optional
@@ -670,10 +778,10 @@ private:
         //Pipeline layout creation: Handles uniform values and dynamic values pushed to shaders. Can be updated at draw time
         VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        pipelineLayoutInfo.setLayoutCount = 0; // Optional
-        pipelineLayoutInfo.pSetLayouts = nullptr; // Optional
-        pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
-        pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
+        pipelineLayoutInfo.setLayoutCount = 1; // Optional
+        pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout; // Optional
+        //pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
+        //pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
         
         if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
             throw std::runtime_error("failed to create pipeline layout!");
@@ -696,7 +804,7 @@ private:
         pipelineInfo.subpass = 0; //index of the subpass
         //Can create a new graphics pipeline from an existing pipeline
         pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
-        pipelineInfo.basePipelineIndex = -1; // Optional
+        //pipelineInfo.basePipelineIndex = -1; // Optional
         if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
             throw std::runtime_error("failed to create graphics pipeline!");
         }
@@ -1093,6 +1201,7 @@ private:
         vkResetFences(device, 1, &inFlightFences[currentFrame]);
         //Acquire the image we waited on
         //vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+        updateUniformBuffers(currentFrame);
         vkResetCommandBuffer(commandBuffers[currentFrame], 0);
         recordCommandBuffer(commandBuffers[currentFrame], imageIndex); //Record the draw calls we want
         //submit the command buffer
@@ -1138,10 +1247,32 @@ private:
         }
         currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT; //Make sure we know which of the in flight frames we are updating
     }
+    void updateUniformBuffers(uint32_t currentFrame) {
+        //Using chrono to keep track of time independent of framerate
+        static auto startTime = std::chrono::high_resolution_clock::now();
+
+        auto currentTime = std::chrono::high_resolution_clock::now();
+        float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+        UniformBufferObject ubo{};
+        //We create an indentity matrix and rotate based on the time
+        ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f)); 
+        //Create a camera matrix at pos 2,2,2 look at 0 0 0, with up being Z
+        ubo.view = glm::lookAt(glm::vec3(2.0f,cos(time)*2.0f,2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        //Create a perspective based projection matrix for our camera
+        ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
+        ubo.proj[1][1] *= -1; //Y-coord for clip coords is inverted. This fixes that (GLM designed for openGL)
+        memcpy(uniformBuffersMapped[currentFrame], &ubo, sizeof(ubo));
+    }
     //Cleaan up everything EXPLICITLY CREATED by us!
     void cleanup() {
         //std::cout << "CLEAN UP\n";
         cleanupSwapChain();
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            vkDestroyBuffer(device, uniformBuffers[i], nullptr);
+            vkFreeMemory(device, uniformBuffersMemory[i], nullptr);
+        }
+        vkDestroyDescriptorPool(device, descriptorPool, nullptr);
+        vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
         vkDestroyBuffer(device, indexBuffer, nullptr);
         vkFreeMemory(device, indexBufferMemory, nullptr);
 
