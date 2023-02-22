@@ -62,6 +62,8 @@ private:
     std::vector <VkFence> inFlightFences; //Used to for order execution on the cpu to sync with gpu
     VkBuffer vertexBuffer; //The vertex buffer we pass during the vertex shader step
     VkDeviceMemory vertexBufferMemory; //handle to deal with allocated memory to vertex buffer
+    VkBuffer indexBuffer; //Index buffer to prevent bloat in vertex buffer
+    VkDeviceMemory indexBufferMemory; //handle to deal with memory allocated with the index buffer
     uint32_t currentFrame = 0;
     bool framebufferResized = false;
 
@@ -104,9 +106,14 @@ private:
     };
     //Our sample set of vertices we are passing into the vertex buffer
     std::vector<Vertex> vertices = {
-        {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+        {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+        {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
         {{0.5f, 0.5f}, {1.0f, 1.0f, 0.0f}},
         {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+    };
+    //Our indices we are passing into the index buffer
+    const std::vector<uint16_t> indices = {
+    0, 1, 2, 2, 3, 0
     };
     struct SwapChainSupportDetails {
         VkSurfaceCapabilitiesKHR capabilities; //What basic surface capabilities does the swap chain have?
@@ -257,8 +264,29 @@ private:
         createCommandPool();
         //Create vertex buffer for vertex shader
         createVertexBuffer();
+        //Create index buffer for vertex shader
+        createIndexBuffer();
         createCommandBuffers();
         createSyncObjects(); //create objects for syncing cpu with gpu
+    }
+    void createIndexBuffer() {
+        VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
+        //Create staging buffer for to transfer the index buffer with
+        VkBuffer stagingBuffer;
+        VkDeviceMemory stagingBufferMemory;
+        createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+
+        void* data;
+        vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+        memcpy(data, indices.data(), (size_t)bufferSize);
+        vkUnmapMemory(device, stagingBufferMemory);
+
+        createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory);
+
+        copyBuffer(stagingBuffer, indexBuffer, bufferSize);
+
+        vkDestroyBuffer(device, stagingBuffer, nullptr);
+        vkFreeMemory(device, stagingBufferMemory, nullptr);
     }
     //Checking the physical memory of our GPU to see if we have room
     uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
@@ -428,8 +456,9 @@ private:
         VkBuffer vertexBuffers[] = { vertexBuffer };
         VkDeviceSize offsets[] = { 0 };
         vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+        vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
         //The actual draw call!
-        vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
+        vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
         vkCmdEndRenderPass(commandBuffer);
         if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
             throw std::runtime_error("failed to record command buffer!");
@@ -1113,6 +1142,9 @@ private:
     void cleanup() {
         //std::cout << "CLEAN UP\n";
         cleanupSwapChain();
+        vkDestroyBuffer(device, indexBuffer, nullptr);
+        vkFreeMemory(device, indexBufferMemory, nullptr);
+
         vkDestroyBuffer(device, vertexBuffer, nullptr);
         vkFreeMemory(device, vertexBufferMemory, nullptr); //Free the memory assoiated with vertex buffer
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
