@@ -1261,6 +1261,7 @@ private:
         //Create a perspective based projection matrix for our camera
         ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
         ubo.proj[1][1] *= -1; //Y-coord for clip coords is inverted. This fixes that (GLM designed for openGL)
+        //ubo.colorAdd = glm::vec4(abs(cos(time)), abs(sin(time)), abs(tan(time)), 1);
         memcpy(uniformBuffersMapped[currentFrame], &ubo, sizeof(ubo));
     }
     //Cleaan up everything EXPLICITLY CREATED by us!
