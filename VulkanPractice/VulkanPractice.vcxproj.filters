@@ -20,10 +20,10 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\Shaders\shader.vert">
+    <None Include="Shaders\shader.frag">
       <Filter>Resource Files</Filter>
     </None>
-    <None Include="..\Shaders\shader.frag">
+    <None Include="Shaders\shader.vert">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>
