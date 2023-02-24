@@ -4,6 +4,12 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+#define TINYOBJLOADER_IMPLEMENTATION
+#include <tiny_obj_loader.h>
+
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/hash.hpp>
+
 #include <iostream>
 #include <stdexcept>
 #include <cstdlib>
@@ -19,6 +25,69 @@
 
 #include <chrono>
 #include <array>
+#include <unordered_map>
+
+struct UniformBufferObject {
+    glm::mat4 model;
+    glm::mat4 view;
+    glm::mat4 proj;
+    //glm::vec4 colorAdd;
+};
+struct QueueFamilyIndices {
+    std::optional<uint32_t> graphicsFamily;
+    std::optional<uint32_t> presentFamily;
+
+    bool isComplete() {
+        return graphicsFamily.has_value() && presentFamily.has_value();
+    }
+};
+//Vertex attributes: assigned per vertex
+struct Vertex {
+    glm::vec3 pos;
+    glm::vec3 color;
+    glm::vec2 texCoord;
+    //Our vertex Binding description: how to bind vertex to the shader in the GPU
+    static VkVertexInputBindingDescription getBindingDescription() {
+        //All of our per vertex data is packed in one array. Only need 1 binding
+        VkVertexInputBindingDescription bindingDescription{};
+        bindingDescription.binding = 0; //Index to bind the array to
+        bindingDescription.stride = sizeof(Vertex); //How far are the data points in the array?
+        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX; //Movee to the next data entry after each vertex
+        return bindingDescription;
+    }
+    static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions() {
+        std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{}; //one for vertex pos, one for vetex color
+        attributeDescriptions[0].binding = 0; //Which binding our we getting our vertex info from?
+        attributeDescriptions[0].location = 0; //Which location in the vertex shader should this go to?
+        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+        attributeDescriptions[0].offset = offsetof(Vertex, pos); //num of bytes from the start of the per vetex data to read from
+        //The above is for positions, so we offset to the start of the pos var in the struct
+
+        attributeDescriptions[1].binding = 0; //Which binding our we getting our vertex info from?
+        attributeDescriptions[1].location = 1; //Which location in the vertex shader should this go to?
+        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT; //How much data are we providing to each channel?
+        attributeDescriptions[1].offset = offsetof(Vertex, color); //num of bytes from the start of the per vetex data to read from
+
+        attributeDescriptions[2].binding = 0; //Which binding our we getting our vertex info from?
+        attributeDescriptions[2].location = 2; //Which location in the vertex shader should this go to?
+        attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT; //How much data are we providing to each channel?
+        attributeDescriptions[2].offset = offsetof(Vertex, texCoord); //num of bytes from the start of the per vetex data to read from
+
+
+        return attributeDescriptions;
+    }
+    bool operator==(const Vertex& other) const {
+        return pos == other.pos && color == other.color && texCoord == other.texCoord;
+    }
+
+};
+namespace std {
+    template<> struct hash<Vertex> {
+        size_t operator()(Vertex const& vertex) const {
+            return ((hash<glm::vec3>()(vertex.pos) ^ (hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^ (hash<glm::vec2>()(vertex.texCoord) << 1);
+        }
+    };
+}
 
 class HelloTriangleApplication {
 public:
@@ -33,6 +102,9 @@ private:
     const int MAX_FRAMES_IN_FLIGHT = 2; //The amount of frames that can be processed concurrently
     const uint32_t WIDTH = 800;
     const uint32_t HEIGHT = 600;
+    const std::string MODEL_PATH = "Models/Guilmon.obj";
+    const std::string TEXTURE_PATH = "Textures/guilmon.png";
+
     const std::vector<const char*> validationLayers = {
     "VK_LAYER_KHRONOS_validation",
     "VK_LAYER_LUNARG_monitor"
@@ -87,73 +159,12 @@ private:
     std::vector<void*> uniformBuffersMapped; //Buffer for staging 
     uint32_t currentFrame = 0;
     bool framebufferResized = false;
-    struct UniformBufferObject {
-        glm::mat4 model;
-        glm::mat4 view;
-        glm::mat4 proj;
-        //glm::vec4 colorAdd;
-    };
-    struct QueueFamilyIndices {
-        std::optional<uint32_t> graphicsFamily;
-        std::optional<uint32_t> presentFamily;
+    
 
-        bool isComplete() {
-            return graphicsFamily.has_value() && presentFamily.has_value();
-        }
-    };
-    //Vertex attributes: assigned per vertex
-    struct Vertex {
-        glm::vec3 pos;
-        glm::vec3 color;
-        glm::vec2 texCoord;
-        //Our vertex Binding description: how to bind vertex to the shader in the GPU
-        static VkVertexInputBindingDescription getBindingDescription() {
-            //All of our per vertex data is packed in one array. Only need 1 binding
-            VkVertexInputBindingDescription bindingDescription{};
-            bindingDescription.binding = 0; //Index to bind the array to
-            bindingDescription.stride = sizeof(Vertex); //How far are the data points in the array?
-            bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX; //Movee to the next data entry after each vertex
-            return bindingDescription;
-        }
-        static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions() {
-            std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{}; //one for vertex pos, one for vetex color
-            attributeDescriptions[0].binding = 0; //Which binding our we getting our vertex info from?
-            attributeDescriptions[0].location = 0; //Which location in the vertex shader should this go to?
-            attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-            attributeDescriptions[0].offset = offsetof(Vertex, pos); //num of bytes from the start of the per vetex data to read from
-            //The above is for positions, so we offset to the start of the pos var in the struct
-
-            attributeDescriptions[1].binding = 0; //Which binding our we getting our vertex info from?
-            attributeDescriptions[1].location = 1; //Which location in the vertex shader should this go to?
-            attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT; //How much data are we providing to each channel?
-            attributeDescriptions[1].offset = offsetof(Vertex, color); //num of bytes from the start of the per vetex data to read from
-
-            attributeDescriptions[2].binding = 0; //Which binding our we getting our vertex info from?
-            attributeDescriptions[2].location = 2; //Which location in the vertex shader should this go to?
-            attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT; //How much data are we providing to each channel?
-            attributeDescriptions[2].offset = offsetof(Vertex, texCoord); //num of bytes from the start of the per vetex data to read from
-
-
-            return attributeDescriptions;
-        }
-    };
     //Our sample set of vertices we are passing into the vertex buffer
-    std::vector<Vertex> vertices = {
-    {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-    {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-    {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-    {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
-
-    {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-    {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-    {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-    {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
-    };
+    std::vector<Vertex> vertices;
     //Our indices we are passing into the index buffer
-    const std::vector<uint16_t> indices = {
-    0, 1, 2, 2, 3, 0,
-    4, 5, 6, 6, 7, 4
-    };
+    std::vector<uint32_t> indices;
     struct SwapChainSupportDetails {
         VkSurfaceCapabilitiesKHR capabilities; //What basic surface capabilities does the swap chain have?
         std::vector<VkSurfaceFormatKHR>formats; //What surface formats do we have?
@@ -308,6 +319,8 @@ private:
         createTextureImage();
         createImageTextureView();
         createTextureSampler();
+        //Load in the model
+        loadModel();
         //Create vertex buffer for vertex shader
         createVertexBuffer();
         //Create index buffer for vertex shader
@@ -318,6 +331,46 @@ private:
         createDescriptorSets();
         createCommandBuffers();
         createSyncObjects(); //create objects for syncing cpu with gpu
+    }
+    void loadModel() {
+        tinyobj::attrib_t attrib; //Contains positions normals texture coords
+        std::vector<tinyobj::shape_t> shapes; //seperate objects and faces
+        std::vector<tinyobj::material_t> materials;
+        std::string warn, err;
+
+        if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, MODEL_PATH.c_str())) {
+            throw std::runtime_error(warn + err);
+        }
+        std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+        //Going to combine all the faces into to one model
+        for (const auto& shape : shapes) {
+            for (const auto& index : shape.mesh.indices) {
+                Vertex vertex{};
+
+                //array of 'vec3' represented as floats only, hence the 3 *
+                vertex.pos = {
+                    attrib.vertices[3 * index.vertex_index + 0], 
+                    attrib.vertices[3 * index.vertex_index + 1],
+                    attrib.vertices[3 * index.vertex_index + 2]
+                };
+                //array of 'vec2' represented as floats only, hence the 3 *
+                //Invert the y axis because of obj format
+                vertex.texCoord = {
+                    attrib.texcoords[2 * index.texcoord_index + 0],
+                    1.0f-attrib.texcoords[2 * index.texcoord_index + 1]
+                };
+
+                vertex.color = { 1.0f, 1.0f, 1.0f };
+                //Load in the indcies and vertices
+                if (uniqueVertices.count(vertex) == 0) {
+                    uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
+                    vertices.push_back(vertex);
+                }
+
+                indices.push_back(uniqueVertices[vertex]);
+            }
+        }
+
     }
     //create the resources for depth testing
     void createDepthResources() {
@@ -511,7 +564,7 @@ private:
     void createTextureImage() {
         int texWidth, texHeight, texChannels;
         //Takes path and num of channels as args. Returns pointer to first element of array of pixels
-        stbi_uc* pixels = stbi_load("textures/texture.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+        stbi_uc* pixels = stbi_load(TEXTURE_PATH.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
         VkDeviceSize imageSize = texWidth * texHeight * 4; //A pixel is 4 bytes
 
         if (!pixels) {
@@ -891,7 +944,7 @@ private:
         VkBuffer vertexBuffers[] = { vertexBuffer };
         VkDeviceSize offsets[] = { 0 };
         vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-        vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+        vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
         //Update descriptor sets
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
         //The actual draw call!
@@ -1597,9 +1650,14 @@ private:
         float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
         UniformBufferObject ubo{};
         //We create an indentity matrix and rotate based on the time
-        ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f)); 
+        ubo.model = glm::mat4(0.25f);
+        ubo.model[3][3] = 1.0f;
+        ubo.model[3][2] = -1.0f;
+        ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        ubo.model = glm::rotate(ubo.model, time*glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         //Create a camera matrix at pos 2,2,2 look at 0 0 0, with up being Z
-        ubo.view = glm::lookAt(glm::vec3(2.0f,cos(time)*2.0f,2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        ubo.view = glm::lookAt(glm::vec3(2.0f,2.0f,2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
         //Create a perspective based projection matrix for our camera
         ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
         ubo.proj[1][1] *= -1; //Y-coord for clip coords is inverted. This fixes that (GLM designed for openGL)
