@@ -155,6 +155,10 @@ private:
     VkImage depthImage; //Image for depth buffer
     VkDeviceMemory depthImageMemory; //Memory allocated for depth buffer
     VkImageView depthImageView; //View for depth test
+    VkImage colorImage; //Color buffer image used to for multi sampling
+    VkDeviceMemory colorImageMemory; //Handle for memory allocated image used for multi sampling
+    VkImageView colorImageView; //var used to access color buffer used for multisampling
+    VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;//How many times are we sampling for rasterization? reduces jagged edges
     std::vector<VkBuffer> uniformBuffers; //ubo buffer
     std::vector<VkDeviceMemory> uniformBuffersMemory;//handle to allocated buffer memory
     std::vector<void*> uniformBuffersMapped; //Buffer for staging 
@@ -312,6 +316,8 @@ private:
         createGraphicsPipeline();
         //create command pool for command buffers
         createCommandPool();
+        //Create color buffer
+        createColorResources();
         //Create depth buffer
         createDepthResources();
         //Create framebuffers to draw the actual images with
@@ -332,6 +338,22 @@ private:
         createDescriptorSets();
         createCommandBuffers();
         createSyncObjects(); //create objects for syncing cpu with gpu
+    }
+    //Figure out how many samples we can do with our device safely
+    //takes in both color buffer and depth buffers into account
+    VkSampleCountFlagBits getMaxUsableSampleCount() {
+        VkPhysicalDeviceProperties physicalDeviceProperties;
+        vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
+
+        VkSampleCountFlags counts = physicalDeviceProperties.limits.framebufferColorSampleCounts & physicalDeviceProperties.limits.framebufferDepthSampleCounts;
+        if (counts & VK_SAMPLE_COUNT_64_BIT) { return VK_SAMPLE_COUNT_64_BIT; }
+        if (counts & VK_SAMPLE_COUNT_32_BIT) { return VK_SAMPLE_COUNT_32_BIT; }
+        if (counts & VK_SAMPLE_COUNT_16_BIT) { return VK_SAMPLE_COUNT_16_BIT; }
+        if (counts & VK_SAMPLE_COUNT_8_BIT) { return VK_SAMPLE_COUNT_8_BIT; }
+        if (counts & VK_SAMPLE_COUNT_4_BIT) { return VK_SAMPLE_COUNT_4_BIT; }
+        if (counts & VK_SAMPLE_COUNT_2_BIT) { return VK_SAMPLE_COUNT_2_BIT; }
+
+        return VK_SAMPLE_COUNT_1_BIT;
     }
     void loadModel() {
         tinyobj::attrib_t attrib; //Contains positions normals texture coords
@@ -372,11 +394,17 @@ private:
             }
         }
 
+    }//Create the resources for the color buffer used for multisampling
+    void createColorResources() {
+        VkFormat colorFormat = swapChainImageFormat;
+
+        createImage(swapChainExtent.width, swapChainExtent.height, 1, msaaSamples, colorFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, colorImage, colorImageMemory);
+        colorImageView = createImageView(colorImage, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
     }
     //create the resources for depth testing
     void createDepthResources() {
         VkFormat depthFormat = findDepthFormat();
-        createImage(swapChainExtent.width, swapChainExtent.height,1, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage, depthImageMemory);
+        createImage(swapChainExtent.width, swapChainExtent.height,1,msaaSamples,depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage, depthImageMemory);
         depthImageView = createImageView(depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT,1);
         //I want to keep the transition explicit even though it isn't nesseary
         transitionImageLayout(depthImage, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED
@@ -583,7 +611,7 @@ private:
         memcpy(data, pixels, static_cast<size_t>(imageSize));
         vkUnmapMemory(device, stagingBufferMemory);
         stbi_image_free(pixels);
-        createImage(texWidth, texHeight,mipLevels, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL
+        createImage(texWidth, texHeight,mipLevels,VK_SAMPLE_COUNT_1_BIT ,VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL
             , VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
             , textureImage, textureImageMemory);
         //Transfer image to to layout
@@ -596,7 +624,7 @@ private:
         vkDestroyBuffer(device, stagingBuffer, nullptr);
         vkFreeMemory(device, stagingBufferMemory, nullptr);
         //Generate the mipmaps
-        //generateMipmaps(textureImage, VK_FORMAT_R8G8B8A8_SRGB, texWidth, texHeight, mipLevels);
+        generateMipmaps(textureImage, VK_FORMAT_R8G8B8A8_SRGB, texWidth, texHeight, mipLevels);
     }
     //Generate minmaps
     void generateMipmaps(VkImage image,VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels) {
@@ -683,7 +711,7 @@ private:
         endSingleTimeCommands(commandBuffer);
     }
     //Create, allocate, and bind the image to memory
-    void createImage(uint32_t width, uint32_t height,uint32_t mipLevels ,VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage
+    void createImage(uint32_t width, uint32_t height,uint32_t mipLevels ,VkSampleCountFlagBits numSamples,VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage
         , VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory) {
         //Settings for the image
         VkImageCreateInfo imageInfo{};
@@ -700,7 +728,7 @@ private:
         imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED; //discard textuals first transition
         imageInfo.usage = usage;
         imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        imageInfo.samples = VK_SAMPLE_COUNT_1_BIT; //Used for multisampling
+        imageInfo.samples = numSamples; //Used for multisampling
         imageInfo.flags = 0; // Optional
 
         if (vkCreateImage(device, &imageInfo, nullptr, &image) != VK_SUCCESS) {
@@ -1061,9 +1089,10 @@ private:
         swapChainFramebuffers.resize(swapChainImageViews.size());
         //Iterate through images view and frame frame buffers from them
         for (size_t i = 0; i < swapChainImageViews.size(); i++) {
-            std::array<VkImageView, 2> attachments = {
-                swapChainImageViews[i],
-                depthImageView
+            std::array<VkImageView, 3> attachments = {
+                colorImageView,
+                depthImageView,
+                swapChainImageViews[i]
             };
             VkFramebufferCreateInfo framebufferInfo{};
             framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -1084,7 +1113,7 @@ private:
     void createRenderPass() {
         VkAttachmentDescription colorAttachment{};
         colorAttachment.format = swapChainImageFormat; //should match format of swapchain
-        colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT; //Not multisampling
+        colorAttachment.samples = msaaSamples; //multisampling
         colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR; //Should clear before renderig
         colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE; //should store after rendering
         //Stenicl ops: We dont care about stencils right now since we aren't using it
@@ -1092,17 +1121,33 @@ private:
         colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         //This bit is important for texturing
         colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED; //dont care about inital layout
-        colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR; //Images to be presented in the swap chain
+        colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL; //Images to be presented in the swap chain
+        //Create a second description for color becuase we need to go over the image again to resolve the multiple samples
+        VkAttachmentDescription colorAttachmentResolve{};
+        colorAttachmentResolve.format = swapChainImageFormat;
+        colorAttachmentResolve.samples = VK_SAMPLE_COUNT_1_BIT;
+        colorAttachmentResolve.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        colorAttachmentResolve.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        colorAttachmentResolve.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        colorAttachmentResolve.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        colorAttachmentResolve.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        colorAttachmentResolve.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;                                                                                
         //Subpasses and attachment references
         //Useful to have passes that sequential stack on eachother for post processing
         //sticking to a single pass
         VkAttachmentReference colorAttachmentRef{};
         colorAttachmentRef.attachment = 0; //which attachment to reference by index
         colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL; //species which layout we would like to have during a subpass that uses this reference
+        //Create second attachment for the resolution description
+        VkAttachmentReference colorAttachmentResolveRef{};
+        colorAttachmentResolveRef.attachment = 2;
+        colorAttachmentResolveRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+
         //Depth Testing
         VkAttachmentDescription depthAttachment{};
         depthAttachment.format = findDepthFormat();
-        depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+        depthAttachment.samples = msaaSamples;
         depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -1118,9 +1163,10 @@ private:
         subpass.colorAttachmentCount = 1;
         subpass.pColorAttachments = &colorAttachmentRef;
         subpass.pDepthStencilAttachment = &depthAttachmentRef;
+        subpass.pResolveAttachments = &colorAttachmentResolveRef;
         
         //Finally the render pass itself
-        std::array<VkAttachmentDescription, 2> attachments = { colorAttachment, depthAttachment };
+        std::array<VkAttachmentDescription, 3> attachments = { colorAttachment, depthAttachment,colorAttachmentResolve };
         VkRenderPassCreateInfo renderPassInfo{};
         renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
         renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
@@ -1233,7 +1279,7 @@ private:
         VkPipelineMultisampleStateCreateInfo multisampling{};
         multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
         multisampling.sampleShadingEnable = VK_FALSE;
-        multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+        multisampling.rasterizationSamples = msaaSamples;
         multisampling.minSampleShading = 1.0f; // Optional
         multisampling.pSampleMask = nullptr; // Optional
         multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
@@ -1328,6 +1374,11 @@ private:
     }
     //Cleans up swapChain related resources
     void cleanupSwapChain() {
+        //free color buffer
+        vkDestroyImageView(device, colorImageView, nullptr);
+        vkDestroyImage(device, colorImage, nullptr);
+        vkFreeMemory(device, colorImageMemory, nullptr);
+        //Free depth buffer
         vkDestroyImageView(device, depthImageView, nullptr);
         vkDestroyImage(device, depthImage, nullptr);
         vkFreeMemory(device, depthImageMemory, nullptr);
@@ -1357,6 +1408,7 @@ private:
         cleanupSwapChain();
         createSwapChain();
         createImageViews();
+        createColorResources();
         createDepthResources();
         createFramebuffers();
     }
@@ -1474,6 +1526,7 @@ private:
         for (const auto& devcive : devices) {
             if (isDeviceSuitable(devcive)) {
                 physicalDevice = devcive;
+                msaaSamples = getMaxUsableSampleCount();
                 break;
             }
         }
