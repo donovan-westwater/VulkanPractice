@@ -26,5 +26,8 @@
     <None Include="Shaders\shader.vert">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="Shaders\compute.comp">
+      <Filter>Resource Files</Filter>
+    </None>
   </ItemGroup>
 </Project>
