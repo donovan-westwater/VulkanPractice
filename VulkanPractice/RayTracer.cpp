@@ -338,6 +338,21 @@ public:
 				, 0, nullptr);
 		}
 	}
+	void updateRTDescriptorSets() {
+		//Relink output image in case of change in window size
+		VkDescriptorImageInfo rayTraceImageDescriptorInfo;
+		rayTraceImageDescriptorInfo.sampler = VK_NULL_HANDLE;
+		rayTraceImageDescriptorInfo.imageView = rtColorBufferView;
+		rayTraceImageDescriptorInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+		VkWriteDescriptorSet writeSet;
+		writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		writeSet.dstSet = descriptorSets[0];
+		writeSet.dstBinding = 1;
+		writeSet.dstArrayElement = 0;
+		writeSet.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+		writeSet.descriptorCount = 1;
+		writeSet.pImageInfo = &rayTraceImageDescriptorInfo;
+	}
 	void createTopLevelAS() {
 		//Get the address to pass to the bl instance
 		VkAccelerationStructureDeviceAddressInfoKHR blASdeviceAddressInfo;
