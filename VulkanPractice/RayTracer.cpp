@@ -18,7 +18,7 @@ public:
 	VkSurfaceKHR* mainSurface; //Surface allocated by main
 	VkCommandPool* mainCommandPool; //Should point back to the main pool from the main pipeline
 	VkQueue* mainGraphicsQueue; //Submission queue for the main pool
-	VkImageView rtColorBufferView;
+	VkImageView* rtColorBufferView; //Should point toward color buffer in main
 	VkMemoryAllocateFlagsInfo getDefaultAllocationFlags() {
 		VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo;
 			memoryAllocateFlagsInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
@@ -311,7 +311,7 @@ public:
 
 			VkDescriptorImageInfo imageInfo;
 			imageInfo.imageLayout = {};
-			imageInfo.imageView = rtColorBufferView;
+			imageInfo.imageView = *rtColorBufferView;
 			imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 			std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
 			VkWriteDescriptorSetAccelerationStructureKHR writeStuct;
@@ -338,11 +338,12 @@ public:
 				, 0, nullptr);
 		}
 	}
+	//Call this in the resizing callback function to rebuild image on resize
 	void updateRTDescriptorSets() {
 		//Relink output image in case of change in window size
 		VkDescriptorImageInfo rayTraceImageDescriptorInfo;
 		rayTraceImageDescriptorInfo.sampler = VK_NULL_HANDLE;
-		rayTraceImageDescriptorInfo.imageView = rtColorBufferView;
+		rayTraceImageDescriptorInfo.imageView = *rtColorBufferView;
 		rayTraceImageDescriptorInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 		VkWriteDescriptorSet writeSet;
 		writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -352,6 +353,7 @@ public:
 		writeSet.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 		writeSet.descriptorCount = 1;
 		writeSet.pImageInfo = &rayTraceImageDescriptorInfo;
+		vkUpdateDescriptorSets(*mainLogicalDevice, 1, &writeSet, 0, nullptr);
 	}
 	void createTopLevelAS() {
 		//Get the address to pass to the bl instance
@@ -704,5 +706,12 @@ public:
 		}
 		return indices;
 
+	}
+	void Cleanup() {
+		vkDestroyAccelerationStructureKHR(*mainLogicalDevice, tlAShandle, nullptr);
+		vkDestroyAccelerationStructureKHR(*mainLogicalDevice, blAShandle, nullptr);
+		//Pipeline goes here
+		vkDestroyDescriptorSetLayout(*mainLogicalDevice, descriptorSetLayout, nullptr);
+		vkDestroyDescriptorPool(*mainLogicalDevice, descriptorPool, nullptr);
 	}
 };
