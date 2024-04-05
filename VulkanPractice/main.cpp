@@ -118,6 +118,7 @@ private:
     static void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
         auto app = reinterpret_cast<HelloTriangleApplication*>(glfwGetWindowUserPointer(window));
         app->framebufferResized = true;
+        if(app->r.isEnabled) app->r.updateRTDescriptorSets();
     }
     //Check if validation layers if validation layers are available
     // These layers are important for checcking for any mistakes made in coding process

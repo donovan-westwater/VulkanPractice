@@ -13,6 +13,7 @@ class RayTracer {
 	std::vector<VkDescriptorSet> descriptorSets; //The actual descr sets
 	VkDescriptorPool descriptorPool;
 public:
+	bool isEnabled = true;
 	VkDevice* mainLogicalDevice; //Logical device chosen by main
 	VkPhysicalDevice* mainPhysicalDevice; //physical device chosen by main
 	VkSurfaceKHR* mainSurface; //Surface allocated by main
