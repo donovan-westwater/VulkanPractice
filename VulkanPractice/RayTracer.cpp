@@ -3,8 +3,17 @@
 //Using the following link as a referencce: https://github.com/WilliamLewww/vulkan_ray_tracing_minimal_abstraction/blob/master/ray_pipeline/src/main.cpp
 class RayTracer {
 	const int MAX_FRAMES_IN_FLIGHT = 2; //The amount of frames that can be processed concurrently
+	std::vector<VkRayTracingShaderGroupCreateInfoKHR> raytracingShaderGroups;
 	VkPipeline raytracingPipeline;
 	VkPipelineLayout rayPipelineLayout;
+	struct PushConstantRay
+	{
+		glm::vec4 clearColor;
+		glm::vec3 lightPos;
+		float lightIntensity;
+		int lightType;
+	};
+	PushConstantRay pcRay;
 	VkBuffer bASSBuffer;
 	VkBuffer tASSBuffer;
 	VkAccelerationStructureKHR blAShandle;
@@ -20,6 +29,7 @@ public:
 	VkCommandPool* mainCommandPool; //Should point back to the main pool from the main pipeline
 	VkQueue* mainGraphicsQueue; //Submission queue for the main pool
 	VkImageView* rtColorBufferView; //Should point toward color buffer in main
+	VkDescriptorSetLayout* mainDescSetLayout; //The desc set layout of the rasterization pipeline
 	VkMemoryAllocateFlagsInfo getDefaultAllocationFlags() {
 		VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo;
 			memoryAllocateFlagsInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
@@ -633,51 +643,117 @@ public:
 		allocInfo.commandPool = *mainCommandPool;
 		allocInfo.commandBufferCount = 1;
 		//Memory transfer is executed using command buffers
-		VkCommandBuffer commandBuffer;
-		vkAllocateCommandBuffers(*mainLogicalDevice, &allocInfo, &commandBuffer);
-		//Going to be completely unabstracted do to reference code
-		VkCommandBufferBeginInfo tlCommandBufferBeginInfo;
-		tlCommandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-		tlCommandBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-		if (vkBeginCommandBuffer(commandBuffer, &tlCommandBufferBeginInfo) != VK_SUCCESS) {
-			throw std::runtime_error("Ray tracing command buffer cant start!");
-		}
-		//Add the command we want to submmit, which is to finally build the TLAS!
-		vkCmdBuildAccelerationStructuresKHR(commandBuffer, 1, &tlASBuildGeoInfo, &tlASSBuildRangeInfos);
-		//End Wrap up our command buffer and submit it to the pool to run on the gpu!
-		if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
-			throw std::runtime_error("Ray tracing command buffer cant finish!");
-		}
-		VkSubmitInfo submitInfo{};
-		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &commandBuffer;
-		//Get a fence for transfering the command buffer over
-		VkFenceCreateInfo tlFenceInfo;
-		tlFenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-		VkFence tlFence;
-		if (vkCreateFence(*mainLogicalDevice, &tlFenceInfo, nullptr, &tlFence) != VK_SUCCESS) {
-			throw std::runtime_error("Couldn't make the fence for the TLAS!");
-		}
-		//Submit the command buffer and check on the fences
-		if (vkQueueSubmit(*mainGraphicsQueue, 1, &submitInfo, tlFence) != VK_SUCCESS) {
-			throw std::runtime_error("Couldn't queue command buffer!");
-		}
-		VkResult r = vkWaitForFences(*mainLogicalDevice, 1, &tlFence, true, UINT32_MAX);
-		if (r != VK_SUCCESS && r != VK_TIMEOUT) {
-			throw std::runtime_error("Failed to wait for fences");
-		}
-		//Free up our one time command buffer submission
-		vkFreeCommandBuffers(*mainLogicalDevice, *mainCommandPool, 1, &commandBuffer);	
+VkCommandBuffer commandBuffer;
+vkAllocateCommandBuffers(*mainLogicalDevice, &allocInfo, &commandBuffer);
+//Going to be completely unabstracted do to reference code
+VkCommandBufferBeginInfo tlCommandBufferBeginInfo;
+tlCommandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+tlCommandBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+if (vkBeginCommandBuffer(commandBuffer, &tlCommandBufferBeginInfo) != VK_SUCCESS) {
+	throw std::runtime_error("Ray tracing command buffer cant start!");
+}
+//Add the command we want to submmit, which is to finally build the TLAS!
+vkCmdBuildAccelerationStructuresKHR(commandBuffer, 1, &tlASBuildGeoInfo, &tlASSBuildRangeInfos);
+//End Wrap up our command buffer and submit it to the pool to run on the gpu!
+if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
+	throw std::runtime_error("Ray tracing command buffer cant finish!");
+}
+VkSubmitInfo submitInfo{};
+submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+submitInfo.commandBufferCount = 1;
+submitInfo.pCommandBuffers = &commandBuffer;
+//Get a fence for transfering the command buffer over
+VkFenceCreateInfo tlFenceInfo;
+tlFenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+VkFence tlFence;
+if (vkCreateFence(*mainLogicalDevice, &tlFenceInfo, nullptr, &tlFence) != VK_SUCCESS) {
+	throw std::runtime_error("Couldn't make the fence for the TLAS!");
+}
+//Submit the command buffer and check on the fences
+if (vkQueueSubmit(*mainGraphicsQueue, 1, &submitInfo, tlFence) != VK_SUCCESS) {
+	throw std::runtime_error("Couldn't queue command buffer!");
+}
+VkResult r = vkWaitForFences(*mainLogicalDevice, 1, &tlFence, true, UINT32_MAX);
+if (r != VK_SUCCESS && r != VK_TIMEOUT) {
+	throw std::runtime_error("Failed to wait for fences");
+}
+//Free up our one time command buffer submission
+vkFreeCommandBuffers(*mainLogicalDevice, *mainCommandPool, 1, &commandBuffer);
 	}
 	void createRayTracingPipeline() {
 		VkRayTracingPipelineCreateInfoKHR rtPipeline;
-		rtPipeline.maxPipelineRayRecursionDepth = 1;
+		enum StagesIndies {
+			eRaygen,
+			eMiss,
+			eClosestHit,
+			eShaderGroupCount
+		};
+		//We control the order of execution and dataflow since the order isnt linear
+		std::array<VkPipelineShaderStageCreateInfo, eShaderGroupCount> stages{};
+		//RGen
+		VkPipelineShaderStageCreateInfo stage;
+		stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		stage.pName = "main"; //Entry point for our pipeline
+		stage.module = createShaderModule(readFile("Shaders/rgen.spv"));
+		stage.stage = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+		stages[eRaygen] = stage;
+		//RMiss
+		stage.module = createShaderModule(readFile("Shaders/rmiss.spv"));
+		stage.stage = VK_SHADER_STAGE_MISS_BIT_KHR;
+		stages[eMiss] = stage;
+		//R closest hit
+		stage.module = createShaderModule(readFile("Shaders/rchit.spv"));
+		stage.stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+		stages[eClosestHit] = stage;
 		//Create Shader Groups - Shader instances that will be called every frame!
-		
+		VkRayTracingShaderGroupCreateInfoKHR group;
+		group.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
+		group.anyHitShader = VK_SHADER_UNUSED_KHR;
+		group.closestHitShader = VK_SHADER_UNUSED_KHR;
+		group.generalShader = VK_SHADER_UNUSED_KHR;
+		group.intersectionShader = VK_SHADER_UNUSED_KHR;
+		//Raygen
+		group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
+		group.generalShader = eRaygen;
+		raytracingShaderGroups.push_back(group);
+		//Miss
+		group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
+		group.generalShader = eMiss;
+		raytracingShaderGroups.push_back(group);
+		//Closest Hit
+		//Triangle hit includes any, close, and intersection shaders
+		//We only have closest hit and it 
+		group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
+		group.generalShader = VK_SHADER_UNUSED_KHR;
+		group.closestHitShader = eClosestHit;
+		raytracingShaderGroups.push_back(group);
 		//Create Shader Stages for ray tracing
-
-		//Assign Shader Stages to pipeline
+		VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo;
+		//Push Constants are used to send infomation to all pipeline stages
+		VkPushConstantRange pushConstant;
+		pushConstant.offset = 0;
+		pushConstant.size = sizeof(PushConstantRay);
+		pushConstant.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR
+			| VK_SHADER_STAGE_MISS_BIT_KHR;
+		pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstant;
+		pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+		std::vector<VkDescriptorSetLayout> rtDescSetLayout = { descriptorSetLayout,*mainDescSetLayout };
+		pipelineLayoutCreateInfo.setLayoutCount = static_cast<uint32_t>(rtDescSetLayout.size());
+		pipelineLayoutCreateInfo.pSetLayouts = rtDescSetLayout.data();
+		//Finish the pipeline layout
+		if(vkCreatePipelineLayout(*mainLogicalDevice, &pipelineLayoutCreateInfo, nullptr, &rayPipelineLayout) != VK_SUCCESS){
+			throw std::runtime_error("Failed to make the rt pipeline layout!");
+		}
+		rtPipeline.layout = rayPipelineLayout;
+		rtPipeline.maxPipelineRayRecursionDepth = 1;
+		if (vkCreateRayTracingPipelinesKHR(*mainLogicalDevice, {}, {}, 1, &rtPipeline, nullptr, &raytracingPipeline) != VK_SUCCESS) {
+			throw std::runtime_error("Failed to make the rt pipeline!");
+		}
+		//Get rid of the modules since we don't need them now
+		for (auto& s : stages){
+			vkDestroyShaderModule(*mainLogicalDevice, s.module, nullptr);
+		}
 	}
 	//From Main: FIGURE OUT HOW TO REPLACE THIS AND AVOID COPYING CODE!
 	QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) {
@@ -708,11 +784,40 @@ public:
 		return indices;
 
 	}
+	static std::vector<char> readFile(const std::string& filename) {
+		std::ifstream file(filename, std::ios::ate | std::ios::binary);
+
+		if (!file.is_open()) {
+			throw std::runtime_error("failed to open file!");
+		}
+		//start at the beginning to see the file size and allocate buffer
+		size_t fileSize = (size_t)file.tellg();
+		std::vector<char> buffer(fileSize);
+		file.seekg(0);
+		file.read(buffer.data(), fileSize);
+		file.close();
+
+		return buffer;
+	}
+	//Module to handle shader programs compiled into the vulkan byte code
+	VkShaderModule createShaderModule(const std::vector<char>& code) {
+		VkShaderModuleCreateInfo createInfo{};
+		createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+		createInfo.codeSize = code.size();
+		createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data()); //The bytecode pointer is a uint32 and not a char, hence the cast
+		VkShaderModule shaderModule;
+		if (vkCreateShaderModule(*mainLogicalDevice, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
+			throw std::runtime_error("failed to create shader module!");
+		}
+		return shaderModule; //A thin wrapper around the byte code. Compliation + linking occurs at graphics pipeline time
+	}
 	void Cleanup() {
 		vkDestroyAccelerationStructureKHR(*mainLogicalDevice, tlAShandle, nullptr);
 		vkDestroyAccelerationStructureKHR(*mainLogicalDevice, blAShandle, nullptr);
 		//Pipeline goes here
 		vkDestroyDescriptorSetLayout(*mainLogicalDevice, descriptorSetLayout, nullptr);
 		vkDestroyDescriptorPool(*mainLogicalDevice, descriptorPool, nullptr);
+		vkDestroyPipeline(*mainLogicalDevice, raytracingPipeline, nullptr);
+		vkDestroyPipelineLayout(*mainLogicalDevice, rayPipelineLayout, nullptr);
 	}
 };
