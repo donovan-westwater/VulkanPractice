@@ -21,6 +21,12 @@ class RayTracer {
 	VkDescriptorSetLayout descriptorSetLayout; //holds values to setup the descriptor sets
 	std::vector<VkDescriptorSet> descriptorSets; //The actual descr sets
 	VkDescriptorPool descriptorPool;
+	VkBuffer sbtBuffer;
+	VkStridedDeviceAddressRegionKHR rayGenRegion;
+	VkStridedDeviceAddressRegionKHR rayMissRegion;
+	VkStridedDeviceAddressRegionKHR rayHitRegion;
+	VkStridedDeviceAddressRegionKHR rayCallRegion;
+	VkPhysicalDeviceRayTracingPipelinePropertiesKHR rayTracingProperties;
 public:
 	bool isEnabled = true;
 	VkDevice* mainLogicalDevice; //Logical device chosen by main
@@ -37,6 +43,15 @@ public:
 			memoryAllocateFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT,
 			memoryAllocateFlagsInfo.deviceMask = 0;
 		return memoryAllocateFlagsInfo;
+	}
+	//Check to see if our GPU supports raytracing
+	void initRayTracing()
+	{
+		// Requesting ray tracing properties
+		rayTracingProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
+		VkPhysicalDeviceProperties2 prop2{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
+		prop2.pNext = &rayTracingProperties;
+		vkGetPhysicalDeviceProperties2(*mainPhysicalDevice, &prop2);
 	}
 	void modelToBLAS(VkBuffer &vertexBuffer, VkBuffer&indexBuffer, uint32_t nOfVerts) {
 
@@ -257,7 +272,35 @@ public:
 		vkFreeCommandBuffers(*mainLogicalDevice, *mainCommandPool, 1, &commandBuffer);
 	}
 	void createShaderBindingTable() {
+		//Maps which shaders we should call for different entrypoints
+		//Setting up buffer offsets to store the shader handles in
+		//32bit for RG, 16 for miss,padd out another 16, and finally 16 for hit
+		uint32_t missCount = 1;
+		uint32_t hitCount = 1;
+		auto handleCount = 1 + missCount + hitCount;
+		//Can't guarintee that alignment matches group size or handle so we should round up to nearest bit
+		uint32_t handleSize = rayTracingProperties.shaderGroupHandleSize;
+		uint32_t handleAlign = rayTracingProperties.shaderGroupHandleAlignment;
+		uint32_t baseAlign = rayTracingProperties.shaderGroupBaseAlignment;
 
+		//Aligns handles using handle and base alignments, offset by the size
+		//See this page for formula explaination: https://en.wikipedia.org/wiki/Data_structure_alignment
+		uint32_t handleSizeAligned = (handleSize + (handleAlign-1)) & !(handleAlign - 1);
+		rayGenRegion.stride = (handleSizeAligned + (baseAlign - 1)) & !(baseAlign - 1);
+		rayGenRegion.size = rayGenRegion.stride;
+		rayMissRegion.stride = handleSizeAligned;
+		rayMissRegion.size = (missCount * handleSizeAligned + (baseAlign - 1)) & !(baseAlign - 1);
+		rayHitRegion.stride = handleSizeAligned;
+		rayHitRegion.size = (hitCount * handleSizeAligned + (baseAlign - 1)) & !(baseAlign - 1);
+		//Vector to store the handles to each shader
+		uint32_t dataSize = handleCount * handleSize;
+		std::vector<uint8_t> handles(dataSize);
+		auto result = vkGetRayTracingCaptureReplayShaderGroupHandlesKHR(*mainLogicalDevice, raytracingPipeline, 0, handleCount, dataSize, handles.data());
+		//Im breaking my consistentcy rules because this way is so much better and I want to demonstrate the better way to do this valdiatioN!
+		assert(result == VK_SUCCESS);
+		//Allocate buffer for SBT
+		VkDeviceSize sbtSize = rayGenRegion.size + rayMissRegion.size + rayHitRegion.size;
+		//create and bind buffer for SBT
 	}
 	void createRtDescriptorSetLayout() {
 		//Creating the layout
