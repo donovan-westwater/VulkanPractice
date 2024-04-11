@@ -301,6 +301,71 @@ public:
 		//Allocate buffer for SBT
 		VkDeviceSize sbtSize = rayGenRegion.size + rayMissRegion.size + rayHitRegion.size;
 		//create and bind buffer for SBT
+		VkBufferCreateInfo bufferInfo{};
+		bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		bufferInfo.size = sbtSize; //size of our buffer
+		bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
+			| VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR; //what kind of buffer is this?
+		bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+		if (vkCreateBuffer(*mainLogicalDevice, &bufferInfo, nullptr, &sbtBuffer) != VK_SUCCESS) {
+			throw std::runtime_error("failed to create Shader Binding Table buffer!");
+		}
+		//Query the memory requirements to make sure we have enough space to allocate for the vertex buffer
+		VkMemoryRequirements memRequirements;
+		vkGetBufferMemoryRequirements(*mainLogicalDevice, sbtBuffer, &memRequirements);
+		VkPhysicalDeviceMemoryProperties memProperties;
+		vkGetPhysicalDeviceMemoryProperties(*mainPhysicalDevice, &memProperties);
+		//Check to see what memory our graphics card has for the buffer
+		uint32_t sbtMemoryTypeIndex = -1;
+		for (uint32_t x = 0; x < memProperties.memoryTypeCount;
+			x++) {
+
+			if ((memRequirements
+				.memoryTypeBits &
+				(1 << x)) &&
+				(memProperties.memoryTypes[x].propertyFlags &
+					VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) ==
+				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
+
+				sbtMemoryTypeIndex = x;
+				break;
+			}
+		}
+		//Allocate memory for the buffer
+		VkMemoryAllocateInfo allocInfo{};
+		allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		allocInfo.allocationSize = memRequirements.size;
+		allocInfo.memoryTypeIndex = sbtMemoryTypeIndex;
+		VkDeviceMemory sbtDeviceMemHandle = VK_NULL_HANDLE;
+		if (vkAllocateMemory(*mainLogicalDevice, &allocInfo, nullptr, &sbtDeviceMemHandle) != VK_SUCCESS) {
+			throw std::runtime_error("failed to allocate vertex buffer memory!");
+		}
+		//Bind the allocated memory to the sbt buffer
+		if (vkBindBufferMemory(*mainLogicalDevice, sbtBuffer, sbtDeviceMemHandle, 0)) {
+			throw std::runtime_error("Failed to allocate memory to sbt buffer");
+		}
+		//Storing device addresses for the shader groups
+		VkBufferDeviceAddressInfo info;
+		info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+		info.pNext = nullptr;
+		info.buffer = sbtBuffer;
+		VkDeviceAddress sbtAddress = vkGetBufferDeviceAddress(*mainLogicalDevice, &info);
+		rayGenRegion.deviceAddress = sbtAddress;
+		rayMissRegion.deviceAddress = sbtAddress + rayGenRegion.size;
+		rayHitRegion.deviceAddress = sbtAddress + rayGenRegion.size + rayMissRegion.size;
+		// Helper to retrieve the handle data
+		auto getHandle = [&](int i) { return handles.data() + i * handleSize; };
+		//Map the SBT buffer and write in the handles
+		void* hostSBTMemoryBuffer;
+		if (vkMapMemory(*mainLogicalDevice, sbtDeviceMemHandle, 0, sbtSize, 0, &hostSBTMemoryBuffer)
+			!= VK_SUCCESS) {
+			throw std::runtime_error("Failed to map memory sbt to buffer");
+		}
+		auto* pSBTBuffer = reinterpret_cast<uint8_t*>(hostSBTMemoryBuffer);
+		uint8_t* pData = nullptr;
+		uint32_t handleIdx = 0;
+		//Copy data over
 	}
 	void createRtDescriptorSetLayout() {
 		//Creating the layout
