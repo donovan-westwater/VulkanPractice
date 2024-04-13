@@ -365,7 +365,27 @@ public:
 		auto* pSBTBuffer = reinterpret_cast<uint8_t*>(hostSBTMemoryBuffer);
 		uint8_t* pData = nullptr;
 		uint32_t handleIdx = 0;
-		//Copy data over
+		//Copy data over for Raygen
+		pData = pSBTBuffer;
+		memcpy(pData, getHandle(handleIdx++), handleSize);
+		//Point base of pointer to miss shader(s)
+		pData = pSBTBuffer + rayGenRegion.size;
+		//for loop to copy multiple miss shaders in case we add more
+		for (uint32_t c = 0; c < missCount; c++) {
+			memcpy(pData, getHandle(handleIdx++), handleSize);
+			pData += rayMissRegion.stride;
+		}
+		//Point base of pointer to miss shader(s)
+		pData = pSBTBuffer + rayGenRegion.size +rayMissRegion.size;
+		//for loop to copy multiple miss shaders in case we add more
+		for (uint32_t c = 0; c < hitCount; c++) {
+			memcpy(pData, getHandle(handleIdx++), handleSize);
+			pData += rayHitRegion.stride;
+		}
+		//CLeanup resources
+		vkUnmapMemory(*mainLogicalDevice, sbtDeviceMemHandle);
+		vkDestroyBuffer(*mainLogicalDevice, sbtBuffer, nullptr);
+		vkFreeMemory(*mainLogicalDevice, sbtDeviceMemHandle, nullptr);
 	}
 	void createRtDescriptorSetLayout() {
 		//Creating the layout
