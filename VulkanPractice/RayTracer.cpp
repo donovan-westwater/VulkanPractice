@@ -771,43 +771,43 @@ public:
 		allocInfo.commandPool = *mainCommandPool;
 		allocInfo.commandBufferCount = 1;
 		//Memory transfer is executed using command buffers
-VkCommandBuffer commandBuffer;
-vkAllocateCommandBuffers(*mainLogicalDevice, &allocInfo, &commandBuffer);
-//Going to be completely unabstracted do to reference code
-VkCommandBufferBeginInfo tlCommandBufferBeginInfo;
-tlCommandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-tlCommandBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-if (vkBeginCommandBuffer(commandBuffer, &tlCommandBufferBeginInfo) != VK_SUCCESS) {
-	throw std::runtime_error("Ray tracing command buffer cant start!");
+		VkCommandBuffer commandBuffer;
+		vkAllocateCommandBuffers(*mainLogicalDevice, &allocInfo, &commandBuffer);
+		//Going to be completely unabstracted do to reference code
+		VkCommandBufferBeginInfo tlCommandBufferBeginInfo;
+		tlCommandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		tlCommandBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+		if (vkBeginCommandBuffer(commandBuffer, &tlCommandBufferBeginInfo) != VK_SUCCESS) {
+			throw std::runtime_error("Ray tracing command buffer cant start!");
+		}
+		//Add the command we want to submmit, which is to finally build the TLAS!
+		vkCmdBuildAccelerationStructuresKHR(commandBuffer, 1, &tlASBuildGeoInfo, &tlASSBuildRangeInfos);
+		//End Wrap up our command buffer and submit it to the pool to run on the gpu!
+		if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
+			throw std::runtime_error("Ray tracing command buffer cant finish!");
+		}
+		VkSubmitInfo submitInfo{};
+		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = &commandBuffer;
+		//Get a fence for transfering the command buffer over
+		VkFenceCreateInfo tlFenceInfo;
+		tlFenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+		VkFence tlFence;
+		if (vkCreateFence(*mainLogicalDevice, &tlFenceInfo, nullptr, &tlFence) != VK_SUCCESS) {
+			throw std::runtime_error("Couldn't make the fence for the TLAS!");
+		}
+		//Submit the command buffer and check on the fences
+		if (vkQueueSubmit(*mainGraphicsQueue, 1, &submitInfo, tlFence) != VK_SUCCESS) {
+			throw std::runtime_error("Couldn't queue command buffer!");
+		}
+		VkResult r = vkWaitForFences(*mainLogicalDevice, 1, &tlFence, true, UINT32_MAX);
+		if (r != VK_SUCCESS && r != VK_TIMEOUT) {
+			throw std::runtime_error("Failed to wait for fences");
+		}
+		//Free up our one time command buffer submission
+		vkFreeCommandBuffers(*mainLogicalDevice, *mainCommandPool, 1, &commandBuffer);
 }
-//Add the command we want to submmit, which is to finally build the TLAS!
-vkCmdBuildAccelerationStructuresKHR(commandBuffer, 1, &tlASBuildGeoInfo, &tlASSBuildRangeInfos);
-//End Wrap up our command buffer and submit it to the pool to run on the gpu!
-if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
-	throw std::runtime_error("Ray tracing command buffer cant finish!");
-}
-VkSubmitInfo submitInfo{};
-submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-submitInfo.commandBufferCount = 1;
-submitInfo.pCommandBuffers = &commandBuffer;
-//Get a fence for transfering the command buffer over
-VkFenceCreateInfo tlFenceInfo;
-tlFenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-VkFence tlFence;
-if (vkCreateFence(*mainLogicalDevice, &tlFenceInfo, nullptr, &tlFence) != VK_SUCCESS) {
-	throw std::runtime_error("Couldn't make the fence for the TLAS!");
-}
-//Submit the command buffer and check on the fences
-if (vkQueueSubmit(*mainGraphicsQueue, 1, &submitInfo, tlFence) != VK_SUCCESS) {
-	throw std::runtime_error("Couldn't queue command buffer!");
-}
-VkResult r = vkWaitForFences(*mainLogicalDevice, 1, &tlFence, true, UINT32_MAX);
-if (r != VK_SUCCESS && r != VK_TIMEOUT) {
-	throw std::runtime_error("Failed to wait for fences");
-}
-//Free up our one time command buffer submission
-vkFreeCommandBuffers(*mainLogicalDevice, *mainCommandPool, 1, &commandBuffer);
-	}
 	void createRayTracingPipeline() {
 		VkRayTracingPipelineCreateInfoKHR rtPipeline;
 		enum StagesIndies {
