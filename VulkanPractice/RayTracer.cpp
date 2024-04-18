@@ -29,6 +29,10 @@ class RayTracer {
 	VkPhysicalDeviceRayTracingPipelinePropertiesKHR rayTracingProperties;
 public:
 	bool isEnabled = true;
+	int* currentFrameRef;
+	int* widthRef;
+	int* heightRef;
+	LightSource* rastSource;
 	VkDevice* mainLogicalDevice; //Logical device chosen by main
 	VkPhysicalDevice* mainPhysicalDevice; //physical device chosen by main
 	VkSurfaceKHR* mainSurface; //Surface allocated by main
@@ -36,6 +40,7 @@ public:
 	VkQueue* mainGraphicsQueue; //Submission queue for the main pool
 	VkImageView* rtColorBufferView; //Should point toward color buffer in main
 	VkDescriptorSetLayout* mainDescSetLayout; //The desc set layout of the rasterization pipeline
+	std::vector<VkDescriptorSet>* mainDescSets;
 	VkMemoryAllocateFlagsInfo getDefaultAllocationFlags() {
 		VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo;
 			memoryAllocateFlagsInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
@@ -882,6 +887,23 @@ public:
 		for (auto& s : stages){
 			vkDestroyShaderModule(*mainLogicalDevice, s.module, nullptr);
 		}
+	}
+	void raytrace(VkCommandBuffer& cmdBuf, glm::vec4 clearColor) {
+		//Building pipeline and layout
+		pcRay.clearColor = clearColor;
+		pcRay.lightPos = rastSource->pos;
+		pcRay.lightIntensity = rastSource->intensity;
+		pcRay.lightType = rastSource->type;
+		//Desc sets to bind
+		std::vector<VkDescriptorSet> descSets{ descriptorSets[*currentFrameRef], (mainDescSets->at(*currentFrameRef)) };
+		vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, raytracingPipeline);
+		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
+			rayPipelineLayout, 0, (uint32_t)descSets.size(), descSets.data(), 0, nullptr);
+		vkCmdPushConstants(cmdBuf, rayPipelineLayout
+			, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_MISS_BIT_KHR,
+			0, sizeof(PushConstantRay), &pcRay);
+		vkCmdTraceRaysKHR(cmdBuf, &rayGenRegion,&rayHitRegion, &rayMissRegion, &rayCallRegion
+			, *widthRef, *heightRef, 1);
 	}
 	//From Main: FIGURE OUT HOW TO REPLACE THIS AND AVOID COPYING CODE!
 	QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) {

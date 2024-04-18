@@ -43,6 +43,12 @@ struct QueueFamilyIndices {
         return graphicsFamily.has_value() && presentFamily.has_value();
     }
 };
+struct LightSource {
+    glm::vec3 pos;
+    glm::vec3 dir;
+    float intensity;
+    int type;
+};
 //Vertex attributes: assigned per vertex
 struct Vertex {
     glm::vec3 pos;
