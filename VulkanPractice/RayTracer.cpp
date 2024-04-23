@@ -203,10 +203,10 @@ public:
 				break;
 			}
 		}
-		VkMemoryAllocateFlagsInfo defaultFlags = getDefaultAllocationFlags();
+		VkMemoryAllocateFlagsInfo defaultFlagsBLAS = getDefaultAllocationFlags();
 		VkMemoryAllocateInfo blASScratchMemoryAllocateInfo;
 		blASScratchMemoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		blASScratchMemoryAllocateInfo.pNext = &defaultFlags;
+		blASScratchMemoryAllocateInfo.pNext = &defaultFlagsBLAS;
 		blASScratchMemoryAllocateInfo.allocationSize = blASMemoryRequirements.size;
 		blASScratchMemoryAllocateInfo.memoryTypeIndex = bottomLevelAccelerationStructureScratchMemoryTypeIndex;
 		VkDeviceMemory blASDeviceScratchMemoryHandle;
@@ -594,7 +594,7 @@ public:
 		VkBufferDeviceAddressInfo blGeoInstanceDeviceAddressInfo;
 		blGeoInstanceDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
 		blGeoInstanceDeviceAddressInfo.buffer = blGeoInstanceBuffer;
-		VkDeviceAddress blAddress = vkGetBufferDeviceAddressKHR(*mainLogicalDevice, &blGeoInstanceDeviceAddressInfo);
+		blAddress = vkGetBufferDeviceAddressKHR(*mainLogicalDevice, &blGeoInstanceDeviceAddressInfo);
 		//Geo data setup for top level 
 		VkAccelerationStructureGeometryDataKHR tlGeoData;
 		tlGeoData.instances.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
@@ -718,7 +718,7 @@ public:
 		//Get memory req to determine what kinds of memory the GPU has
 		VkMemoryRequirements tlASScratchMemoryRequirments;
 		vkGetBufferMemoryRequirements(*mainLogicalDevice, tlASScratchBufferHandle, &tlASScratchMemoryRequirments);
-		uint32_t topLevelAccelerationStructureMemoryTypeIndex = -1;
+		topLevelAccelerationStructureMemoryTypeIndex = -1;
 		for (uint32_t x = 0; x < memProperties.memoryTypeCount;
 			x++) {
 
@@ -734,9 +734,9 @@ public:
 		}
 		//Time to allocate memory to the buffer we are going to build on
 		VkMemoryAllocateInfo tlASScratchMemoryAllocateInfo;
-		VkMemoryAllocateFlagsInfo defaultFlags = getDefaultAllocationFlags();
+		VkMemoryAllocateFlagsInfo defaultFlagsScratch = getDefaultAllocationFlags();
 		tlASScratchMemoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		tlASScratchMemoryAllocateInfo.pNext = &defaultFlags;
+		tlASScratchMemoryAllocateInfo.pNext = &defaultFlagsScratch;
 		tlASScratchMemoryAllocateInfo.allocationSize = tlASScratchMemoryRequirments.size;
 		tlASScratchMemoryAllocateInfo.memoryTypeIndex = topLevelAccelerationStructureMemoryTypeIndex;
 		VkDeviceMemory tlASDeviceScratchMemoryHandle = VK_NULL_HANDLE;

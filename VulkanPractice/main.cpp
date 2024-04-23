@@ -1,5 +1,9 @@
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+#define TINYOBJLOADER_IMPLEMENTATION
+#include <tiny_obj_loader.h>
 #include "common.h"
-#include "RayTracer.cpp"
+//#include "RayTracer.cpp"
 
 
 class HelloTriangleApplication {
@@ -15,17 +19,15 @@ private:
     const int MAX_FRAMES_IN_FLIGHT = 2; //The amount of frames that can be processed concurrently
     const uint32_t WIDTH = 800;
     const uint32_t HEIGHT = 600;
-    const std::string MODEL_PATH = "Models/Guilmon.obj";
-    const std::string TEXTURE_PATH = "Textures/guilmon.png";
+    const std::string MODEL_PATH = "Models/CrappyCornellBox.obj";//"Models/Guilmon.obj";
+    const std::string TEXTURE_PATH = "Textures/TestTex.png";
 
     const std::vector<const char*> validationLayers = {
     "VK_LAYER_KHRONOS_validation",
     "VK_LAYER_LUNARG_monitor"
     }; //Provides a list of required validation layers for the system
     const std::vector<const char*> deviceExtensions = {
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-        "VK_KHR_ray_tracing_pipeline",
-        "VK_KHR_ray_query"
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME
     }; //Provides a list of required extensions for the system
 
 #ifdef NDEBUG
@@ -77,7 +79,7 @@ private:
     std::vector<VkBuffer> uniformBuffers; //ubo buffer
     std::vector<VkDeviceMemory> uniformBuffersMemory;//handle to allocated buffer memory
     std::vector<void*> uniformBuffersMapped; //Buffer for staging
-    RayTracer r;
+    //RayTracer r;
     uint32_t currentFrame = 0;
     bool framebufferResized = false;
     
@@ -118,7 +120,7 @@ private:
     static void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
         auto app = reinterpret_cast<HelloTriangleApplication*>(glfwGetWindowUserPointer(window));
         app->framebufferResized = true;
-        if(app->r.isEnabled) app->r.updateRTDescriptorSets();
+        //if(app->r.isEnabled) app->r.updateRTDescriptorSets();
     }
     //Check if validation layers if validation layers are available
     // These layers are important for checcking for any mistakes made in coding process

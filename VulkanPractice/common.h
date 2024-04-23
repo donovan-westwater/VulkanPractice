@@ -1,12 +1,10 @@
-#pragma once
+#ifndef COMMON_H
+#define COMMON_H
+
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
 
-#define TINYOBJLOADER_IMPLEMENTATION
-#include <tiny_obj_loader.h>
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/hash.hpp>
@@ -39,7 +37,7 @@ struct QueueFamilyIndices {
     std::optional<uint32_t> graphicsFamily;
     std::optional<uint32_t> presentFamily;
 
-    bool isComplete() {
+inline bool isComplete() {
         return graphicsFamily.has_value() && presentFamily.has_value();
     }
 };
@@ -96,3 +94,4 @@ namespace std {
         }
     };
 }
+#endif
