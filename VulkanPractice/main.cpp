@@ -3,6 +3,7 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
 #include "common.h"
+#include "RayTracer.h"
 //#include "RayTracer.cpp"
 
 
@@ -11,11 +12,15 @@ public:
     void run() {
         initWindow();
         initVulkan();
+        //Setup RayTracer
+        CreateLightAndPassVarsToRayTracer();
+        r.setupRayTracer(vertexBuffer, indexBuffer, vertices.size());
         mainLoop();
         cleanup();
     }
 
 private:
+    bool useRayTracing = true;
     const int MAX_FRAMES_IN_FLIGHT = 2; //The amount of frames that can be processed concurrently
     const uint32_t WIDTH = 800;
     const uint32_t HEIGHT = 600;
@@ -79,7 +84,8 @@ private:
     std::vector<VkBuffer> uniformBuffers; //ubo buffer
     std::vector<VkDeviceMemory> uniformBuffersMemory;//handle to allocated buffer memory
     std::vector<void*> uniformBuffersMapped; //Buffer for staging
-    //RayTracer r;
+    RayTracer r;
+    LightSource light;
     uint32_t currentFrame = 0;
     bool framebufferResized = false;
     
@@ -107,6 +113,23 @@ private:
         file.close();
 
         return buffer;
+    }
+    void CreateLightAndPassVarsToRayTracer() {
+        light.dir =  glm::normalize(glm::vec3(0, -1, 1));
+        light.intensity = 1.0;
+        light.pos = glm::vec3(0, 2, 2);
+        light.type = 0;
+        r.mainCommandPool = &commandPool;
+        r.mainDescSetLayout = &descriptorSetLayout;
+        r.mainDescSets = &descriptorSets;
+        r.mainGraphicsQueue = &graphicsQueue;
+        r.mainLogicalDevice = &device;
+        r.mainPhysicalDevice = &physicalDevice;
+        r.mainSurface = &surface;
+        r.rastSource = &light;
+        r.heightRef = HEIGHT;
+        r.widthRef = WIDTH;
+        r.currentFrameRef = &currentFrame;
     }
     void initWindow() {
         glfwInit();
@@ -1631,7 +1654,11 @@ private:
             memcpy(data, vertices.data(), (size_t)(sizeof(vertices[0]) * vertices.size()));
             vkUnmapMemory(device, vertexBufferMemory);
             */
-            drawFrame();
+            if (useRayTracing) {
+                r.raytrace(commandBuffers[currentFrame], glm::vec4(0, 0, 0, 1));
+                currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+            }
+            else drawFrame();
             //timer += 0.01f;
         }
         //Wait for drawing and presnetation operations to stop
@@ -1733,6 +1760,7 @@ private:
     //Cleaan up everything EXPLICITLY CREATED by us!
     void cleanup() {
         //std::cout << "CLEAN UP\n";
+        r.Cleanup();
         cleanupSwapChain();
         vkDestroySampler(device, textureSampler, nullptr);
         vkDestroyImageView(device, textureImageView, nullptr);

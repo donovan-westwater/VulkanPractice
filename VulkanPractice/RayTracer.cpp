@@ -374,11 +374,11 @@
 		accStructureBinding.pImmutableSamplers = nullptr;
 		//Image binding
 		VkDescriptorSetLayoutBinding imageBinding;
-		accStructureBinding.binding = 1;
-		accStructureBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
-		accStructureBinding.descriptorCount = 1;
-		accStructureBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-		accStructureBinding.pImmutableSamplers = nullptr;
+		imageBinding.binding = 1;
+		imageBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+		imageBinding.descriptorCount = 1;
+		imageBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+		imageBinding.pImmutableSamplers = nullptr;
 
 		std::array<VkDescriptorSetLayoutBinding, 2> bindings = { accStructureBinding, imageBinding };
 		VkDescriptorSetLayoutCreateInfo layoutInfo;
@@ -874,7 +874,7 @@
 			, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_MISS_BIT_KHR,
 			0, sizeof(PushConstantRay), &pcRay);
 		vkCmdTraceRaysKHR(cmdBuf, &rayGenRegion,&rayHitRegion, &rayMissRegion, &rayCallRegion
-			, *widthRef, *heightRef, 1);
+			, widthRef, heightRef, 1);
 	}
 	//From Main: FIGURE OUT HOW TO REPLACE THIS AND AVOID COPYING CODE!
 	QueueFamilyIndices RayTracer::findQueueFamilies(VkPhysicalDevice device) {
@@ -905,21 +905,7 @@
 		return indices;
 
 	}
-	static std::vector<char> readFile(const std::string& filename) {
-		std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
-		if (!file.is_open()) {
-			throw std::runtime_error("failed to open file!");
-		}
-		//start at the beginning to see the file size and allocate buffer
-		size_t fileSize = (size_t)file.tellg();
-		std::vector<char> buffer(fileSize);
-		file.seekg(0);
-		file.read(buffer.data(), fileSize);
-		file.close();
-
-		return buffer;
-	}
 	//Module to handle shader programs compiled into the vulkan byte code
 	VkShaderModule RayTracer::createShaderModule(const std::vector<char>& code) {
 		VkShaderModuleCreateInfo createInfo{};
