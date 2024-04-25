@@ -1,47 +1,8 @@
-#include "common.h"
+#include "RayTracer.h"
 
 //Using the following link as a referencce: https://github.com/WilliamLewww/vulkan_ray_tracing_minimal_abstraction/blob/master/ray_pipeline/src/main.cpp
-class RayTracer {
-	const int MAX_FRAMES_IN_FLIGHT = 2; //The amount of frames that can be processed concurrently
-	std::vector<VkRayTracingShaderGroupCreateInfoKHR> raytracingShaderGroups;
-	VkPipeline raytracingPipeline;
-	VkPipelineLayout rayPipelineLayout;
-	struct PushConstantRay
-	{
-		glm::vec4 clearColor;
-		glm::vec3 lightPos;
-		float lightIntensity;
-		int lightType;
-	};
-	PushConstantRay pcRay;
-	VkBuffer bASSBuffer;
-	VkBuffer tASSBuffer;
-	VkAccelerationStructureKHR blAShandle;
-	VkAccelerationStructureKHR tlAShandle;
-	VkDescriptorSetLayout descriptorSetLayout; //holds values to setup the descriptor sets
-	std::vector<VkDescriptorSet> descriptorSets; //The actual descr sets
-	VkDescriptorPool descriptorPool;
-	VkBuffer sbtBuffer;
-	VkStridedDeviceAddressRegionKHR rayGenRegion;
-	VkStridedDeviceAddressRegionKHR rayMissRegion;
-	VkStridedDeviceAddressRegionKHR rayHitRegion;
-	VkStridedDeviceAddressRegionKHR rayCallRegion;
-	VkPhysicalDeviceRayTracingPipelinePropertiesKHR rayTracingProperties;
-public:
-	bool isEnabled = true;
-	int* currentFrameRef;
-	int* widthRef;
-	int* heightRef;
-	LightSource* rastSource;
-	VkDevice* mainLogicalDevice; //Logical device chosen by main
-	VkPhysicalDevice* mainPhysicalDevice; //physical device chosen by main
-	VkSurfaceKHR* mainSurface; //Surface allocated by main
-	VkCommandPool* mainCommandPool; //Should point back to the main pool from the main pipeline
-	VkQueue* mainGraphicsQueue; //Submission queue for the main pool
-	VkImageView* rtColorBufferView; //Should point toward color buffer in main
-	VkDescriptorSetLayout* mainDescSetLayout; //The desc set layout of the rasterization pipeline
-	std::vector<VkDescriptorSet>* mainDescSets;
-	VkMemoryAllocateFlagsInfo getDefaultAllocationFlags() {
+
+	VkMemoryAllocateFlagsInfo RayTracer::getDefaultAllocationFlags() {
 		VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo;
 			memoryAllocateFlagsInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
 			memoryAllocateFlagsInfo.pNext = NULL,
@@ -49,8 +10,18 @@ public:
 			memoryAllocateFlagsInfo.deviceMask = 0;
 		return memoryAllocateFlagsInfo;
 	}
+	void RayTracer::setupRayTracer(VkBuffer& vertexBuffer, VkBuffer& indexBuffer, uint32_t nOfVerts) {
+		initRayTracing();
+		modelToBLAS(vertexBuffer, indexBuffer, nOfVerts);
+		createTopLevelAS();
+		createRtDescriptorSetLayout();
+		createRtDescriptorPool();
+		createRtDescriptorSets();
+		createRayTracingPipeline();
+		createShaderBindingTable();
+	}
 	//Check to see if our GPU supports raytracing
-	void initRayTracing()
+	void RayTracer::initRayTracing()
 	{
 		// Requesting ray tracing properties
 		rayTracingProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
@@ -58,7 +29,7 @@ public:
 		prop2.pNext = &rayTracingProperties;
 		vkGetPhysicalDeviceProperties2(*mainPhysicalDevice, &prop2);
 	}
-	void modelToBLAS(VkBuffer &vertexBuffer, VkBuffer&indexBuffer, uint32_t nOfVerts) {
+	void RayTracer::modelToBLAS(VkBuffer &vertexBuffer, VkBuffer&indexBuffer, uint32_t nOfVerts) {
 
 		VkBufferDeviceAddressInfo vInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
 		vInfo.buffer = vertexBuffer;
@@ -276,7 +247,7 @@ public:
 		}
 		vkFreeCommandBuffers(*mainLogicalDevice, *mainCommandPool, 1, &commandBuffer);
 	}
-	void createShaderBindingTable() {
+	void RayTracer::createShaderBindingTable() {
 		//Maps which shaders we should call for different entrypoints
 		//Setting up buffer offsets to store the shader handles in
 		//32bit for RG, 16 for miss,padd out another 16, and finally 16 for hit
@@ -392,7 +363,7 @@ public:
 		vkDestroyBuffer(*mainLogicalDevice, sbtBuffer, nullptr);
 		vkFreeMemory(*mainLogicalDevice, sbtDeviceMemHandle, nullptr);
 	}
-	void createRtDescriptorSetLayout() {
+	void RayTracer::createRtDescriptorSetLayout() {
 		//Creating the layout
 		//TLAS binding
 		VkDescriptorSetLayoutBinding accStructureBinding;
@@ -418,7 +389,7 @@ public:
 			throw std::runtime_error("failed to create descriptor set layout!");
 		}
 	}
-	void createRtDescriptorPool() {
+	void RayTracer::createRtDescriptorPool() {
 		std::array<VkDescriptorPoolSize, 2> poolSizes{};
 		poolSizes[0].type = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
 		poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
@@ -434,7 +405,7 @@ public:
 			throw std::runtime_error("failed to create descriptor pool!");
 		}
 	}
-	void createRtDescriptorSets() {
+	void RayTracer::createRtDescriptorSets() {
 		//Allocate data for the descriptor sets
 		std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
 		VkDescriptorSetAllocateInfo allocInfo{};
@@ -483,7 +454,7 @@ public:
 		}
 	}
 	//Call this in the resizing callback function to rebuild image on resize
-	void updateRTDescriptorSets() {
+	void RayTracer::updateRTDescriptorSets() {
 		//Relink output image in case of change in window size
 		VkDescriptorImageInfo rayTraceImageDescriptorInfo;
 		rayTraceImageDescriptorInfo.sampler = VK_NULL_HANDLE;
@@ -499,7 +470,7 @@ public:
 		writeSet.pImageInfo = &rayTraceImageDescriptorInfo;
 		vkUpdateDescriptorSets(*mainLogicalDevice, 1, &writeSet, 0, nullptr);
 	}
-	void createTopLevelAS() {
+	void RayTracer::createTopLevelAS() {
 		//Get the address to pass to the bl instance
 		VkAccelerationStructureDeviceAddressInfoKHR blASdeviceAddressInfo;
 		blASdeviceAddressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
@@ -813,7 +784,7 @@ public:
 		//Free up our one time command buffer submission
 		vkFreeCommandBuffers(*mainLogicalDevice, *mainCommandPool, 1, &commandBuffer);
 }
-	void createRayTracingPipeline() {
+	void RayTracer::createRayTracingPipeline() {
 		VkRayTracingPipelineCreateInfoKHR rtPipeline;
 		enum StagesIndies {
 			eRaygen,
@@ -888,7 +859,7 @@ public:
 			vkDestroyShaderModule(*mainLogicalDevice, s.module, nullptr);
 		}
 	}
-	void raytrace(VkCommandBuffer& cmdBuf, glm::vec4 clearColor) {
+	void RayTracer::raytrace(VkCommandBuffer& cmdBuf, glm::vec4 clearColor) {
 		//Building pipeline and layout
 		pcRay.clearColor = clearColor;
 		pcRay.lightPos = rastSource->pos;
@@ -906,7 +877,7 @@ public:
 			, *widthRef, *heightRef, 1);
 	}
 	//From Main: FIGURE OUT HOW TO REPLACE THIS AND AVOID COPYING CODE!
-	QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) {
+	QueueFamilyIndices RayTracer::findQueueFamilies(VkPhysicalDevice device) {
 		QueueFamilyIndices indices;
 		//Retrive a list of queue familes
 		uint32_t queueFamilyCount = 0;
@@ -950,18 +921,18 @@ public:
 		return buffer;
 	}
 	//Module to handle shader programs compiled into the vulkan byte code
-	VkShaderModule createShaderModule(const std::vector<char>& code) {
+	VkShaderModule RayTracer::createShaderModule(const std::vector<char>& code) {
 		VkShaderModuleCreateInfo createInfo{};
 		createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
 		createInfo.codeSize = code.size();
 		createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data()); //The bytecode pointer is a uint32 and not a char, hence the cast
 		VkShaderModule shaderModule;
-		if (vkCreateShaderModule(*mainLogicalDevice, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
+		if (vkCreateShaderModule(*(this->mainLogicalDevice), &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create shader module!");
 		}
 		return shaderModule; //A thin wrapper around the byte code. Compliation + linking occurs at graphics pipeline time
 	}
-	void Cleanup() {
+	void RayTracer::Cleanup() {
 		vkDestroyAccelerationStructureKHR(*mainLogicalDevice, tlAShandle, nullptr);
 		vkDestroyAccelerationStructureKHR(*mainLogicalDevice, blAShandle, nullptr);
 		//Pipeline goes here
@@ -970,4 +941,3 @@ public:
 		vkDestroyPipeline(*mainLogicalDevice, raytracingPipeline, nullptr);
 		vkDestroyPipelineLayout(*mainLogicalDevice, rayPipelineLayout, nullptr);
 	}
-};
