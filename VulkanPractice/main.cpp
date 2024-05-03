@@ -14,7 +14,7 @@ public:
         initVulkan();
         //Setup RayTracer
         CreateLightAndPassVarsToRayTracer();
-        r.setupRayTracer(vertexBuffer, indexBuffer, vertices.size());
+        rayTracer.setupRayTracer(vertexBuffer, indexBuffer, vertices.size());
         mainLoop();
         cleanup();
     }
@@ -84,7 +84,7 @@ private:
     std::vector<VkBuffer> uniformBuffers; //ubo buffer
     std::vector<VkDeviceMemory> uniformBuffersMemory;//handle to allocated buffer memory
     std::vector<void*> uniformBuffersMapped; //Buffer for staging
-    RayTracer r;
+    RayTracer rayTracer;
     LightSource light;
     uint32_t currentFrame = 0;
     bool framebufferResized = false;
@@ -119,17 +119,17 @@ private:
         light.intensity = 1.0;
         light.pos = glm::vec3(0, 2, 2);
         light.type = 0;
-        r.mainCommandPool = &commandPool;
-        r.mainDescSetLayout = &descriptorSetLayout;
-        r.mainDescSets = &descriptorSets;
-        r.mainGraphicsQueue = &graphicsQueue;
-        r.mainLogicalDevice = &device;
-        r.mainPhysicalDevice = &physicalDevice;
-        r.mainSurface = &surface;
-        r.rastSource = &light;
-        r.heightRef = HEIGHT;
-        r.widthRef = WIDTH;
-        r.currentFrameRef = &currentFrame;
+        rayTracer.mainCommandPool = &commandPool;
+        rayTracer.mainDescSetLayout = &descriptorSetLayout;
+        rayTracer.mainDescSets = &descriptorSets;
+        rayTracer.mainGraphicsQueue = &graphicsQueue;
+        rayTracer.mainLogicalDevice = &device;
+        rayTracer.mainPhysicalDevice = &physicalDevice;
+        rayTracer.mainSurface = &surface;
+        rayTracer.rastSource = &light;
+        rayTracer.heightRef = HEIGHT;
+        rayTracer.widthRef = WIDTH;
+        rayTracer.currentFrameRef = &currentFrame;
     }
     void initWindow() {
         glfwInit();
@@ -1655,7 +1655,7 @@ private:
             vkUnmapMemory(device, vertexBufferMemory);
             */
             if (useRayTracing) {
-                r.raytrace(commandBuffers[currentFrame], glm::vec4(0, 0, 0, 1));
+                rayTracer.raytrace(commandBuffers[currentFrame], glm::vec4(0, 0, 0, 1));
                 currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
             }
             else drawFrame();
@@ -1760,7 +1760,7 @@ private:
     //Cleaan up everything EXPLICITLY CREATED by us!
     void cleanup() {
         //std::cout << "CLEAN UP\n";
-        r.Cleanup();
+        rayTracer.Cleanup();
         cleanupSwapChain();
         vkDestroySampler(device, textureSampler, nullptr);
         vkDestroyImageView(device, textureImageView, nullptr);

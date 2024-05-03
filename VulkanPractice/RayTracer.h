@@ -53,6 +53,25 @@ public:
 	VkImageView* rtColorBufferView; //Should point toward color buffer in main
 	VkDescriptorSetLayout* mainDescSetLayout; //The desc set layout of the rasterization pipeline
 	std::vector<VkDescriptorSet>* mainDescSets;
+	//Code taken from https://github.com/WilliamLewww/vulkan_ray_tracing_minimal_abstraction/blob/master/ray_pipeline/src/main.cpp
+	//Around the lines around #380
+	PFN_vkGetBufferDeviceAddressKHR pvkGetBufferDeviceAddressKHR;
+
+	PFN_vkCreateRayTracingPipelinesKHR pvkCreateRayTracingPipelinesKHR;
+
+	PFN_vkGetAccelerationStructureBuildSizesKHR pvkGetAccelerationStructureBuildSizesKHR;
+
+	PFN_vkCreateAccelerationStructureKHR pvkCreateAccelerationStructureKHR;
+
+	PFN_vkDestroyAccelerationStructureKHR pvkDestroyAccelerationStructureKHR;
+
+	PFN_vkGetAccelerationStructureDeviceAddressKHR pvkGetAccelerationStructureDeviceAddressKHR;
+
+	PFN_vkCmdBuildAccelerationStructuresKHR pvkCmdBuildAccelerationStructuresKHR;
+
+	PFN_vkGetRayTracingShaderGroupHandlesKHR pvkGetRayTracingCaptureReplayShaderGroupHandlesKHR;
+
+	PFN_vkCmdTraceRaysKHR pvkCmdTraceRaysKHR;
 
 	void Cleanup();
 

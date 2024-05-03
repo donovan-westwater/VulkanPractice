@@ -1,9 +1,10 @@
+#pragma once
 #ifndef COMMON_H
 #define COMMON_H
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
-
+#include <vulkan/vulkan.h>
 
 
 #define GLM_ENABLE_EXPERIMENTAL

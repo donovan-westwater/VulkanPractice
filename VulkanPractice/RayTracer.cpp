@@ -23,6 +23,35 @@
 	//Check to see if our GPU supports raytracing
 	void RayTracer::initRayTracing()
 	{
+		//Setup function pointers for ray trace functions
+		pvkGetBufferDeviceAddressKHR =
+			(PFN_vkGetBufferDeviceAddressKHR)vkGetDeviceProcAddr(
+				*mainLogicalDevice, "vkGetBufferDeviceAddressKHR");
+		pvkCreateRayTracingPipelinesKHR =
+			(PFN_vkCreateRayTracingPipelinesKHR)vkGetDeviceProcAddr(
+				*mainLogicalDevice, "vkCreateRayTracingPipelinesKHR");
+		pvkGetAccelerationStructureBuildSizesKHR =
+			(PFN_vkGetAccelerationStructureBuildSizesKHR)vkGetDeviceProcAddr(
+				*mainLogicalDevice, "vkGetAccelerationStructureBuildSizesKHR");
+		pvkCreateAccelerationStructureKHR =
+			(PFN_vkCreateAccelerationStructureKHR)vkGetDeviceProcAddr(
+				*mainLogicalDevice, "vkCreateAccelerationStructureKHR");
+		pvkDestroyAccelerationStructureKHR =
+			(PFN_vkDestroyAccelerationStructureKHR)vkGetDeviceProcAddr(
+				*mainLogicalDevice, "vkDestroyAccelerationStructureKHR");
+		pvkGetAccelerationStructureDeviceAddressKHR =
+			(PFN_vkGetAccelerationStructureDeviceAddressKHR)vkGetDeviceProcAddr(
+				*mainLogicalDevice, "vkGetAccelerationStructureDeviceAddressKHR");
+		pvkCmdBuildAccelerationStructuresKHR =
+			(PFN_vkCmdBuildAccelerationStructuresKHR)vkGetDeviceProcAddr(
+				*mainLogicalDevice, "vkCmdBuildAccelerationStructuresKHR");
+		pvkGetRayTracingCaptureReplayShaderGroupHandlesKHR =
+			(PFN_vkGetRayTracingShaderGroupHandlesKHR)vkGetDeviceProcAddr(
+				*mainLogicalDevice, "vkGetRayTracingCaptureReplayShaderGroupHandlesKHR");
+		pvkCmdTraceRaysKHR =
+			(PFN_vkCmdTraceRaysKHR)vkGetDeviceProcAddr(*mainLogicalDevice,
+				"vkCmdTraceRaysKHR");
+
 		// Requesting ray tracing properties
 		rayTracingProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
 		VkPhysicalDeviceProperties2 prop2{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
@@ -33,9 +62,9 @@
 
 		VkBufferDeviceAddressInfo vInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
 		vInfo.buffer = vertexBuffer;
-		VkDeviceAddress vertexAddress = vkGetBufferDeviceAddressKHR(*mainLogicalDevice, &vInfo);
+		VkDeviceAddress vertexAddress = pvkGetBufferDeviceAddressKHR(*mainLogicalDevice, &vInfo);
 		vInfo.buffer = indexBuffer;
-		VkDeviceAddress indexAddress = vkGetBufferDeviceAddressKHR(*mainLogicalDevice, &vInfo);
+		VkDeviceAddress indexAddress = pvkGetBufferDeviceAddressKHR(*mainLogicalDevice, &vInfo);
 		uint32_t maxPrimativeCount = nOfVerts / 3;
 
 		VkAccelerationStructureGeometryTrianglesDataKHR triangles{ VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR };
@@ -71,7 +100,7 @@
 		bottomLevelAccelerationBuildSizesInfo.buildScratchSize = 0;
 		bottomLevelAccelerationBuildSizesInfo.accelerationStructureSize = 0;
 		std::vector<uint32_t> bottomLevelMaxPrimitiveCountList = { maxPrimativeCount };
-		vkGetAccelerationStructureBuildSizesKHR(*mainLogicalDevice, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+		pvkGetAccelerationStructureBuildSizesKHR(*mainLogicalDevice, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
 			&bottomLevelAccelerationBuildGeometryInfoKHR,
 			bottomLevelMaxPrimitiveCountList.data(),
 			&bottomLevelAccelerationBuildSizesInfo);
@@ -134,7 +163,7 @@
 		accInfo.size = bottomLevelAccelerationBuildSizesInfo.accelerationStructureSize;
 		accInfo.deviceAddress = 0;
 		//VkAccelerationStructureKHR blAShandle = VK_NULL_HANDLE;
-		if (vkCreateAccelerationStructureKHR(*mainLogicalDevice, &accInfo, nullptr, &blAShandle) != VK_SUCCESS) {
+		if (pvkCreateAccelerationStructureKHR(*mainLogicalDevice, &accInfo, nullptr, &blAShandle) != VK_SUCCESS) {
 			throw std::runtime_error("Couldnt create bottom acceleration structure");
 		}
 		//Building Bottom level acceleartion structure
@@ -142,7 +171,7 @@
 		blASdeviceAddressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
 		blASdeviceAddressInfo.accelerationStructure = blAShandle;
 		VkDeviceAddress blAddress;
-		blAddress = vkGetAccelerationStructureDeviceAddressKHR(*mainLogicalDevice, &blASdeviceAddressInfo);
+		blAddress = pvkGetAccelerationStructureDeviceAddressKHR(*mainLogicalDevice, &blASdeviceAddressInfo);
 		VkBufferCreateInfo blASScratchBufferCreateInfo;
 		blASScratchBufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		blASScratchBufferCreateInfo.flags = 0;
@@ -190,7 +219,7 @@
 		VkBufferDeviceAddressInfo blASScratchBufferDeviceAddressInfo;
 		blASScratchBufferDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
 		blASScratchBufferDeviceAddressInfo.buffer = blASScratchBufferHandle;
-		VkDeviceAddress blASScratchBuffeDeviceAddress = vkGetBufferDeviceAddress(*mainLogicalDevice, &blASScratchBufferDeviceAddressInfo);
+		VkDeviceAddress blASScratchBuffeDeviceAddress = pvkGetBufferDeviceAddressKHR(*mainLogicalDevice, &blASScratchBufferDeviceAddressInfo);
 		//Building the actual geometry
 		//Set where we want the data to be saved to
 		bottomLevelAccelerationBuildGeometryInfoKHR.dstAccelerationStructure = blAShandle;
@@ -222,7 +251,7 @@
 		if (vkBeginCommandBuffer(commandBuffer, &bottomLevelCommandBufferBeginInfo) != VK_SUCCESS) {
 			throw std::runtime_error("Ray tracing command buffer cant start!");
 		}
-		vkCmdBuildAccelerationStructuresKHR(commandBuffer, 1, &bottomLevelAccelerationBuildGeometryInfoKHR, &bottomLevelAccelerationStructureBuildRangeInfos);
+		pvkCmdBuildAccelerationStructuresKHR(commandBuffer, 1, &bottomLevelAccelerationBuildGeometryInfoKHR, &bottomLevelAccelerationStructureBuildRangeInfos);
 		if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
 			throw std::runtime_error("Couldn't end the command buffer");
 		}
@@ -271,7 +300,7 @@
 		//Vector to store the handles to each shader
 		uint32_t dataSize = handleCount * handleSize;
 		std::vector<uint8_t> handles(dataSize);
-		auto result = vkGetRayTracingCaptureReplayShaderGroupHandlesKHR(*mainLogicalDevice, raytracingPipeline, 0, handleCount, dataSize, handles.data());
+		auto result = pvkGetRayTracingCaptureReplayShaderGroupHandlesKHR(*mainLogicalDevice, raytracingPipeline, 0, handleCount, dataSize, handles.data());
 		//Im breaking my consistentcy rules because this way is so much better and I want to demonstrate the better way to do this valdiatioN!
 		assert(result == VK_SUCCESS);
 		//Allocate buffer for SBT
@@ -326,7 +355,7 @@
 		info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
 		info.pNext = nullptr;
 		info.buffer = sbtBuffer;
-		VkDeviceAddress sbtAddress = vkGetBufferDeviceAddress(*mainLogicalDevice, &info);
+		VkDeviceAddress sbtAddress = pvkGetBufferDeviceAddressKHR(*mainLogicalDevice, &info);
 		rayGenRegion.deviceAddress = sbtAddress;
 		rayMissRegion.deviceAddress = sbtAddress + rayGenRegion.size;
 		rayHitRegion.deviceAddress = sbtAddress + rayGenRegion.size + rayMissRegion.size;
@@ -476,7 +505,7 @@
 		blASdeviceAddressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
 		blASdeviceAddressInfo.accelerationStructure = blAShandle;
 		VkDeviceAddress blAddress;
-		blAddress = vkGetAccelerationStructureDeviceAddressKHR(*mainLogicalDevice, &blASdeviceAddressInfo);
+		blAddress = pvkGetAccelerationStructureDeviceAddressKHR(*mainLogicalDevice, &blASdeviceAddressInfo);
 		VkAccelerationStructureInstanceKHR blACSInstance;
 		//Initialize an indenity matrix
 		for (int i = 0; i < 3; i++) {
@@ -565,7 +594,7 @@
 		VkBufferDeviceAddressInfo blGeoInstanceDeviceAddressInfo;
 		blGeoInstanceDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
 		blGeoInstanceDeviceAddressInfo.buffer = blGeoInstanceBuffer;
-		blAddress = vkGetBufferDeviceAddressKHR(*mainLogicalDevice, &blGeoInstanceDeviceAddressInfo);
+		blAddress = pvkGetBufferDeviceAddressKHR(*mainLogicalDevice, &blGeoInstanceDeviceAddressInfo);
 		//Geo data setup for top level 
 		VkAccelerationStructureGeometryDataKHR tlGeoData;
 		tlGeoData.instances.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
@@ -597,7 +626,7 @@
 		tlASBuildSizesInfo.buildScratchSize = 0;
 		//We are only going to have 1 primative since we only have 1 top level geo
 		std::vector<uint32_t> topLevelMaxPrimitiveCountList = { 1 };
-		vkGetAccelerationStructureBuildSizesKHR(*mainLogicalDevice, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+		pvkGetAccelerationStructureBuildSizesKHR(*mainLogicalDevice, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
 			&tlASBuildGeoInfo,
 			topLevelMaxPrimitiveCountList.data(),
 			&tlASBuildSizesInfo);
@@ -655,7 +684,7 @@
 		tlASCreateInfo.size = tlASBuildSizesInfo.accelerationStructureSize;
 		tlASCreateInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
 		tlASCreateInfo.deviceAddress = 0;
-		if (vkCreateAccelerationStructureKHR(*mainLogicalDevice, &tlASCreateInfo, NULL, &tlAShandle) != VK_SUCCESS) {
+		if (pvkCreateAccelerationStructureKHR(*mainLogicalDevice, &tlASCreateInfo, NULL, &tlAShandle) != VK_SUCCESS) {
 			throw std::runtime_error("Failed to create the tlAS");
 		}
 		//Building the tlAS
@@ -666,7 +695,7 @@
 		tlASDeviceAddressInfo.accelerationStructure = tlAShandle;
 
 		VkDeviceAddress tlASDeviceAddress =
-			vkGetAccelerationStructureDeviceAddressKHR(
+			pvkGetAccelerationStructureDeviceAddressKHR(
 				*mainLogicalDevice, &tlASDeviceAddressInfo);
 		//We are going to make a temporary buffer to help store info related to building the TLAS
 		VkBufferCreateInfo tlASScratchBufferCreateInfo;
@@ -728,7 +757,7 @@
 		tlASScratchBufferDeviceAddressInfo.pNext = NULL;
 		tlASScratchBufferDeviceAddressInfo.buffer = tlASScratchBufferHandle;
 		//Time to actually get the device address and use it to tell the scratch buffer where to build the tlAS
-		VkDeviceAddress tlASScratchBufferDeviceAddress = vkGetBufferDeviceAddress(*mainLogicalDevice, &tlASScratchBufferDeviceAddressInfo);
+		VkDeviceAddress tlASScratchBufferDeviceAddress = pvkGetBufferDeviceAddressKHR(*mainLogicalDevice, &tlASScratchBufferDeviceAddressInfo);
 		tlASBuildGeoInfo.dstAccelerationStructure = tlAShandle;
 		tlASBuildGeoInfo.scratchData.deviceAddress = tlASScratchBufferDeviceAddress;
 		//We need to tell the pipeline what offsets to expect for the geometry 
@@ -757,7 +786,7 @@
 			throw std::runtime_error("Ray tracing command buffer cant start!");
 		}
 		//Add the command we want to submmit, which is to finally build the TLAS!
-		vkCmdBuildAccelerationStructuresKHR(commandBuffer, 1, &tlASBuildGeoInfo, &tlASSBuildRangeInfos);
+		pvkCmdBuildAccelerationStructuresKHR(commandBuffer, 1, &tlASBuildGeoInfo, &tlASSBuildRangeInfos);
 		//End Wrap up our command buffer and submit it to the pool to run on the gpu!
 		if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
 			throw std::runtime_error("Ray tracing command buffer cant finish!");
@@ -851,7 +880,7 @@
 		}
 		rtPipeline.layout = rayPipelineLayout;
 		rtPipeline.maxPipelineRayRecursionDepth = 1;
-		if (vkCreateRayTracingPipelinesKHR(*mainLogicalDevice, {}, {}, 1, &rtPipeline, nullptr, &raytracingPipeline) != VK_SUCCESS) {
+		if (pvkCreateRayTracingPipelinesKHR(*mainLogicalDevice, {}, {}, 1, &rtPipeline, nullptr, &raytracingPipeline) != VK_SUCCESS) {
 			throw std::runtime_error("Failed to make the rt pipeline!");
 		}
 		//Get rid of the modules since we don't need them now
@@ -873,7 +902,7 @@
 		vkCmdPushConstants(cmdBuf, rayPipelineLayout
 			, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_MISS_BIT_KHR,
 			0, sizeof(PushConstantRay), &pcRay);
-		vkCmdTraceRaysKHR(cmdBuf, &rayGenRegion,&rayHitRegion, &rayMissRegion, &rayCallRegion
+		pvkCmdTraceRaysKHR(cmdBuf, &rayGenRegion,&rayHitRegion, &rayMissRegion, &rayCallRegion
 			, widthRef, heightRef, 1);
 	}
 	//From Main: FIGURE OUT HOW TO REPLACE THIS AND AVOID COPYING CODE!
@@ -919,8 +948,8 @@
 		return shaderModule; //A thin wrapper around the byte code. Compliation + linking occurs at graphics pipeline time
 	}
 	void RayTracer::Cleanup() {
-		vkDestroyAccelerationStructureKHR(*mainLogicalDevice, tlAShandle, nullptr);
-		vkDestroyAccelerationStructureKHR(*mainLogicalDevice, blAShandle, nullptr);
+		pvkDestroyAccelerationStructureKHR(*mainLogicalDevice, tlAShandle, nullptr);
+		pvkDestroyAccelerationStructureKHR(*mainLogicalDevice, blAShandle, nullptr);
 		//Pipeline goes here
 		vkDestroyDescriptorSetLayout(*mainLogicalDevice, descriptorSetLayout, nullptr);
 		vkDestroyDescriptorPool(*mainLogicalDevice, descriptorPool, nullptr);
