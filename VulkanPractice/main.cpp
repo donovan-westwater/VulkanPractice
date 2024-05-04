@@ -32,7 +32,13 @@ private:
     "VK_LAYER_LUNARG_monitor"
     }; //Provides a list of required validation layers for the system
     const std::vector<const char*> deviceExtensions = {
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+        "VK_KHR_ray_tracing_pipeline",
+      "VK_KHR_acceleration_structure",
+      "VK_EXT_descriptor_indexing",
+      "VK_KHR_maintenance3",
+      "VK_KHR_buffer_device_address",
+      "VK_KHR_deferred_host_operations"
     }; //Provides a list of required extensions for the system
 
 #ifdef NDEBUG
@@ -204,10 +210,10 @@ private:
         VkApplicationInfo appInfo{};
         appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
         appInfo.pApplicationName = "Hello Triangle";
-        appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+        appInfo.applicationVersion = VK_MAKE_VERSION(1, 3, 255);
         appInfo.pEngineName = "No Engine";
-        appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-        appInfo.apiVersion = VK_API_VERSION_1_0;
+        appInfo.engineVersion = VK_MAKE_VERSION(1, 3, 255);
+        appInfo.apiVersion = VK_API_VERSION_1_3;
         //Basic instance info and attaches app struct to info struct
         VkInstanceCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -1415,6 +1421,35 @@ private:
         }
     }
     void createLogicalDevice() {
+        VkPhysicalDeviceBufferDeviceAddressFeatures
+            physicalDeviceBufferDeviceAddressFeatures;
+        VkPhysicalDeviceAccelerationStructureFeaturesKHR
+            physicalDeviceAccelerationStructureFeatures;
+        VkPhysicalDeviceRayTracingPipelineFeaturesKHR
+            physicalDeviceRayTracingPipelineFeatures;
+        if (useRayTracing) {
+            physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddress = VK_TRUE;
+            physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddressCaptureReplay = VK_FALSE;
+            physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddressMultiDevice = VK_FALSE;
+            physicalDeviceBufferDeviceAddressFeatures.pNext = NULL;
+            physicalDeviceBufferDeviceAddressFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
+
+            physicalDeviceAccelerationStructureFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR,
+            physicalDeviceAccelerationStructureFeatures.pNext = &physicalDeviceBufferDeviceAddressFeatures,
+            physicalDeviceAccelerationStructureFeatures.accelerationStructure = VK_TRUE;
+            physicalDeviceAccelerationStructureFeatures.accelerationStructureCaptureReplay = VK_FALSE;
+            physicalDeviceAccelerationStructureFeatures.accelerationStructureIndirectBuild = VK_FALSE;
+            physicalDeviceAccelerationStructureFeatures.accelerationStructureHostCommands = VK_FALSE;
+            physicalDeviceAccelerationStructureFeatures.descriptorBindingAccelerationStructureUpdateAfterBind = VK_FALSE;
+        
+            physicalDeviceRayTracingPipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+            physicalDeviceRayTracingPipelineFeatures.pNext = &physicalDeviceAccelerationStructureFeatures;
+            physicalDeviceRayTracingPipelineFeatures.rayTracingPipeline = VK_TRUE;
+            physicalDeviceRayTracingPipelineFeatures.rayTracingPipelineShaderGroupHandleCaptureReplay = VK_FALSE;
+            physicalDeviceRayTracingPipelineFeatures.rayTracingPipelineShaderGroupHandleCaptureReplayMixed = VK_FALSE;
+            physicalDeviceRayTracingPipelineFeatures.rayTracingPipelineTraceRaysIndirect = VK_FALSE;
+            physicalDeviceRayTracingPipelineFeatures.rayTraversalPrimitiveCulling = VK_FALSE;
+        }
         QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
         //Create a set for all unique queues nesseary for our program
         std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
@@ -1435,12 +1470,13 @@ private:
         
         //Specify which features we are going to be using
         VkPhysicalDeviceFeatures deviceFeatures{};
+        if (useRayTracing) deviceFeatures.geometryShader = VK_TRUE;
         deviceFeatures.samplerAnisotropy = VK_TRUE;
         VkDeviceCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
         createInfo.pQueueCreateInfos = queueCreateInfos.data();
         createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
-
+        if (useRayTracing) createInfo.pNext = &physicalDeviceRayTracingPipelineFeatures;
         createInfo.pEnabledFeatures = &deviceFeatures;
         //Will look like the instance create info but it is device specific
         createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());

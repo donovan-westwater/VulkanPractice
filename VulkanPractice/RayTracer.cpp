@@ -61,6 +61,7 @@
 	void RayTracer::modelToBLAS(VkBuffer &vertexBuffer, VkBuffer&indexBuffer, uint32_t nOfVerts) {
 
 		VkBufferDeviceAddressInfo vInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
+		vInfo.pNext = NULL;
 		vInfo.buffer = vertexBuffer;
 		VkDeviceAddress vertexAddress = pvkGetBufferDeviceAddressKHR(*mainLogicalDevice, &vInfo);
 		vInfo.buffer = indexBuffer;
