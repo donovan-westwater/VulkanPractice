@@ -142,9 +142,11 @@
 				break;
 			}
 		}
+		VkMemoryAllocateFlagsInfo defaultFlagsBLAS = getDefaultAllocationFlags();
 		//We are now allocating memory to the blAS
 		VkMemoryAllocateInfo blASmemAllocateInfo;
 		blASmemAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		blASmemAllocateInfo.pNext = &defaultFlagsBLAS;
 		blASmemAllocateInfo.allocationSize = blASMemoryRequirements.size;
 		blASmemAllocateInfo.memoryTypeIndex = bottomLevelAccelerationStructureMemoryTypeIndex;
 		VkDeviceMemory blASDeviceMemoryHandle = VK_NULL_HANDLE;
@@ -204,7 +206,7 @@
 				break;
 			}
 		}
-		VkMemoryAllocateFlagsInfo defaultFlagsBLAS = getDefaultAllocationFlags();
+		
 		VkMemoryAllocateInfo blASScratchMemoryAllocateInfo;
 		blASScratchMemoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		blASScratchMemoryAllocateInfo.pNext = &defaultFlagsBLAS;

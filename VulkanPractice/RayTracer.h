@@ -38,7 +38,7 @@ class RayTracer {
 	void createShaderBindingTable();
 	void modelToBLAS(VkBuffer& vertexBuffer, VkBuffer& indexBuffer, uint32_t nOfVerts);
 	void initRayTracing();
-	VkMemoryAllocateFlagsInfo getDefaultAllocationFlags();
+
 public:
 	bool isEnabled = true;
 	uint32_t* currentFrameRef;
@@ -72,6 +72,8 @@ public:
 	PFN_vkGetRayTracingShaderGroupHandlesKHR pvkGetRayTracingCaptureReplayShaderGroupHandlesKHR;
 
 	PFN_vkCmdTraceRaysKHR pvkCmdTraceRaysKHR;
+
+	VkMemoryAllocateFlagsInfo getDefaultAllocationFlags();
 
 	void Cleanup();
 
