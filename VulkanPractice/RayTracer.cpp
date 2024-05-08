@@ -570,8 +570,8 @@
 				.memoryTypeBits &
 				(1 << x)) &&
 				(memProperties.memoryTypes[x].propertyFlags &
-					VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) ==
-				VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) {
+					VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) ==
+				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
 
 				blGeoInstanceMemoryTypeIndex = x;
 				break;
