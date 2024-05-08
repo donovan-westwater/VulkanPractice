@@ -77,11 +77,14 @@
 		triangles.indexData.deviceAddress = indexAddress;
 		triangles.indexType = VK_INDEX_TYPE_UINT32;
 		triangles.maxVertex = nOfVerts;
+		triangles.pNext = NULL;
 
 		VkAccelerationStructureGeometryKHR asGeom{ VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR };
 		asGeom.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
 		asGeom.flags = VK_GEOMETRY_OPAQUE_BIT_KHR;
 		asGeom.geometry.triangles = triangles;
+		asGeom.pNext = NULL;
+
 		VkAccelerationStructureBuildGeometryInfoKHR bottomLevelAccelerationBuildGeometryInfoKHR{};
 		bottomLevelAccelerationBuildGeometryInfoKHR.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
 		bottomLevelAccelerationBuildGeometryInfoKHR.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
@@ -93,6 +96,7 @@
 		bottomLevelAccelerationBuildGeometryInfoKHR.geometryCount = 1;
 		bottomLevelAccelerationBuildGeometryInfoKHR.ppGeometries = NULL;
 		bottomLevelAccelerationBuildGeometryInfoKHR.scratchData.deviceAddress = 0;
+		bottomLevelAccelerationBuildGeometryInfoKHR.pNext = NULL;
 
 		VkAccelerationStructureBuildSizesInfoKHR bottomLevelAccelerationBuildSizesInfo{};
 		bottomLevelAccelerationBuildSizesInfo.sType =
@@ -105,6 +109,7 @@
 			&bottomLevelAccelerationBuildGeometryInfoKHR,
 			bottomLevelMaxPrimitiveCountList.data(),
 			&bottomLevelAccelerationBuildSizesInfo);
+		bottomLevelAccelerationBuildSizesInfo.pNext = NULL;
 		//Create buffer to store acceleration structure
 		QueueFamilyIndices indices = findQueueFamilies(*mainPhysicalDevice);
 		uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value(),indices.presentFamily.value() };
@@ -165,6 +170,7 @@
 		accInfo.offset = 0;
 		accInfo.size = bottomLevelAccelerationBuildSizesInfo.accelerationStructureSize;
 		accInfo.deviceAddress = 0;
+		accInfo.pNext = NULL;
 		//VkAccelerationStructureKHR blAShandle = VK_NULL_HANDLE;
 		if (pvkCreateAccelerationStructureKHR(*mainLogicalDevice, &accInfo, nullptr, &blAShandle) != VK_SUCCESS) {
 			throw std::runtime_error("Couldnt create bottom acceleration structure");
@@ -172,6 +178,7 @@
 		//Building Bottom level acceleartion structure
 		VkAccelerationStructureDeviceAddressInfoKHR blASdeviceAddressInfo;
 		blASdeviceAddressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
+		blASdeviceAddressInfo.pNext = NULL;
 		blASdeviceAddressInfo.accelerationStructure = blAShandle;
 		VkDeviceAddress blAddress;
 		blAddress = pvkGetAccelerationStructureDeviceAddressKHR(*mainLogicalDevice, &blASdeviceAddressInfo);
@@ -183,9 +190,10 @@
 		blASScratchBufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 		blASScratchBufferCreateInfo.queueFamilyIndexCount = 1;
 		blASScratchBufferCreateInfo.pQueueFamilyIndices = queueFamilyIndices;
+		blASScratchBufferCreateInfo.pNext = NULL;
 
 		VkBuffer blASScratchBufferHandle = VK_NULL_HANDLE;
-		if (vkCreateBuffer(*mainLogicalDevice, &blASScratchBufferCreateInfo, nullptr, &blASScratchBufferHandle) != VK_SUCCESS) {
+		if (vkCreateBuffer(*mainLogicalDevice, &blASScratchBufferCreateInfo, NULL, &blASScratchBufferHandle) != VK_SUCCESS) {
 			throw std::runtime_error("Buffer for building blAS cannot be made!");
 		}
 		VkMemoryRequirements blASScratchMemoryReq;
@@ -221,10 +229,12 @@
 		}
 		VkBufferDeviceAddressInfo blASScratchBufferDeviceAddressInfo;
 		blASScratchBufferDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+		blASScratchBufferDeviceAddressInfo.pNext = NULL;
 		blASScratchBufferDeviceAddressInfo.buffer = blASScratchBufferHandle;
 		VkDeviceAddress blASScratchBuffeDeviceAddress = pvkGetBufferDeviceAddressKHR(*mainLogicalDevice, &blASScratchBufferDeviceAddressInfo);
 		//Building the actual geometry
 		//Set where we want the data to be saved to
+		bottomLevelAccelerationBuildGeometryInfoKHR.pNext = NULL;
 		bottomLevelAccelerationBuildGeometryInfoKHR.dstAccelerationStructure = blAShandle;
 		bottomLevelAccelerationBuildGeometryInfoKHR.scratchData.deviceAddress = blASScratchBuffeDeviceAddress;
 		//BuildRangeInfo: the indices within the vertex arrays to source input geometry for the BLAS.
@@ -244,11 +254,13 @@
 		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 		allocInfo.commandPool = *mainCommandPool;
 		allocInfo.commandBufferCount = 1;
+		allocInfo.pNext = NULL;
 		//Memory transfer is executed using command buffers
 		VkCommandBuffer commandBuffer;
 		vkAllocateCommandBuffers(*mainLogicalDevice, &allocInfo, &commandBuffer);
 		//Going to be completely unabstracted do to reference code
 		VkCommandBufferBeginInfo bottomLevelCommandBufferBeginInfo;
+		bottomLevelCommandBufferBeginInfo.pNext = NULL;
 		bottomLevelCommandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 		bottomLevelCommandBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 		if (vkBeginCommandBuffer(commandBuffer, &bottomLevelCommandBufferBeginInfo) != VK_SUCCESS) {
@@ -263,9 +275,11 @@
 		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 		submitInfo.commandBufferCount = 1;
 		submitInfo.pCommandBuffers = &commandBuffer;
+		submitInfo.pNext = NULL;
 		//Helps use sync data between GPU and CPU
 		VkFenceCreateInfo blBuildFenceInfo;
 		blBuildFenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+		blBuildFenceInfo.pNext = NULL;
 		VkFence bottomLevelFence;
 		if (vkCreateFence(*mainLogicalDevice, &blBuildFenceInfo, nullptr, &bottomLevelFence) != VK_SUCCESS) {
 			throw std::runtime_error("Fence failed to be created!");
@@ -507,12 +521,13 @@
 		VkAccelerationStructureDeviceAddressInfoKHR blASdeviceAddressInfo;
 		blASdeviceAddressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
 		blASdeviceAddressInfo.accelerationStructure = blAShandle;
+		blASdeviceAddressInfo.pNext = NULL;
 		VkDeviceAddress blAddress;
 		blAddress = pvkGetAccelerationStructureDeviceAddressKHR(*mainLogicalDevice, &blASdeviceAddressInfo);
 		VkAccelerationStructureInstanceKHR blACSInstance;
 		//Initialize an indenity matrix
 		for (int i = 0; i < 3; i++) {
-			for (int j = 0; j < 4; i++) {
+			for (int j = 0; j < 4; j++) {
 				blACSInstance.transform.matrix[i][j] = 0.0;
 				if (i == j) blACSInstance.transform.matrix[i][j] = 1.0;
 			}
@@ -535,6 +550,7 @@
 		blGeoStructureReference.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 		blGeoStructureReference.queueFamilyIndexCount = 1;
 		blGeoStructureReference.pQueueFamilyIndices = queueFamilyIndices;
+		blGeoStructureReference.pNext = NULL;
 		VkBuffer blGeoInstanceBuffer;
 		if (vkCreateBuffer(*mainLogicalDevice, &blGeoStructureReference, nullptr, &blGeoInstanceBuffer) != VK_SUCCESS) {
 			throw std::runtime_error("Buffer for building blAS instance cannot be made!");
@@ -597,18 +613,21 @@
 		VkBufferDeviceAddressInfo blGeoInstanceDeviceAddressInfo;
 		blGeoInstanceDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
 		blGeoInstanceDeviceAddressInfo.buffer = blGeoInstanceBuffer;
+		blGeoInstanceDeviceAddressInfo.pNext = NULL;
 		blAddress = pvkGetBufferDeviceAddressKHR(*mainLogicalDevice, &blGeoInstanceDeviceAddressInfo);
 		//Geo data setup for top level 
 		VkAccelerationStructureGeometryDataKHR tlGeoData;
 		tlGeoData.instances.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
 		tlGeoData.instances.arrayOfPointers = VK_FALSE;
 		tlGeoData.instances.data.deviceAddress = blAddress;
+		tlGeoData.instances.pNext = NULL;
 		//top level structure being preped to be built
 		VkAccelerationStructureGeometryKHR tlASGeo;
 		tlASGeo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
 		tlASGeo.geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
 		tlASGeo.geometry = tlGeoData;
 		tlASGeo.flags = VK_GEOMETRY_OPAQUE_BIT_KHR;
+		tlASGeo.pNext = NULL;
 		//Settings used to build the actual geo
 		VkAccelerationStructureBuildGeometryInfoKHR tlASBuildGeoInfo;
 		tlASBuildGeoInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
@@ -621,12 +640,14 @@
 		tlASBuildGeoInfo.pGeometries = &tlASGeo;
 		tlASBuildGeoInfo.ppGeometries = NULL;
 		tlASBuildGeoInfo.scratchData.deviceAddress = 0;
+		tlASBuildGeoInfo.pNext = NULL;
 		//How much should be allocated to the TlASGeo?
 		VkAccelerationStructureBuildSizesInfoKHR tlASBuildSizesInfo;
 		tlASBuildSizesInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
 		tlASBuildSizesInfo.accelerationStructureSize = 0;
 		tlASBuildSizesInfo.updateScratchSize = 0;
 		tlASBuildSizesInfo.buildScratchSize = 0;
+		tlASBuildSizesInfo.pNext = NULL;
 		//We are only going to have 1 primative since we only have 1 top level geo
 		std::vector<uint32_t> topLevelMaxPrimitiveCountList = { 1 };
 		pvkGetAccelerationStructureBuildSizesKHR(*mainLogicalDevice, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
@@ -640,6 +661,7 @@
 		tlASBufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 		tlASBufferCreateInfo.queueFamilyIndexCount = 1;
 		tlASBufferCreateInfo.pQueueFamilyIndices = queueFamilyIndices;
+		tlASBufferCreateInfo.pNext = NULL;
 		//VkBuffer tlASBufferHandle = VK_NULL_HANDLE;
 		if (vkCreateBuffer(*mainLogicalDevice, &tlASBufferCreateInfo, nullptr, &tASSBuffer) != VK_SUCCESS) {
 			throw std::runtime_error("Buffer for tlAS cannot be made!");
@@ -669,6 +691,7 @@
 		tlASMemoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		tlASMemoryAllocateInfo.allocationSize = tlASMemoryRequirements.size;
 		tlASMemoryAllocateInfo.memoryTypeIndex = topLevelAccelerationStructureMemoryTypeIndex;
+		tlASMemoryAllocateInfo.pNext = NULL;
 
 		VkDeviceMemory tlASDeviceMemoryHandle = VK_NULL_HANDLE;
 		if (vkAllocateMemory(*mainLogicalDevice, &tlASMemoryAllocateInfo
@@ -687,6 +710,7 @@
 		tlASCreateInfo.size = tlASBuildSizesInfo.accelerationStructureSize;
 		tlASCreateInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
 		tlASCreateInfo.deviceAddress = 0;
+		tlASCreateInfo.pNext = NULL;
 		if (pvkCreateAccelerationStructureKHR(*mainLogicalDevice, &tlASCreateInfo, NULL, &tlAShandle) != VK_SUCCESS) {
 			throw std::runtime_error("Failed to create the tlAS");
 		}
@@ -696,6 +720,7 @@
 		VkAccelerationStructureDeviceAddressInfoKHR tlASDeviceAddressInfo;
 		tlASDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
 		tlASDeviceAddressInfo.accelerationStructure = tlAShandle;
+		tlASDeviceAddressInfo.pNext = NULL;
 
 		VkDeviceAddress tlASDeviceAddress =
 			pvkGetAccelerationStructureDeviceAddressKHR(
@@ -778,6 +803,7 @@
 		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 		allocInfo.commandPool = *mainCommandPool;
 		allocInfo.commandBufferCount = 1;
+		allocInfo.pNext = NULL;
 		//Memory transfer is executed using command buffers
 		VkCommandBuffer commandBuffer;
 		vkAllocateCommandBuffers(*mainLogicalDevice, &allocInfo, &commandBuffer);
@@ -785,6 +811,7 @@
 		VkCommandBufferBeginInfo tlCommandBufferBeginInfo;
 		tlCommandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 		tlCommandBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+		tlCommandBufferBeginInfo.pNext = NULL;
 		if (vkBeginCommandBuffer(commandBuffer, &tlCommandBufferBeginInfo) != VK_SUCCESS) {
 			throw std::runtime_error("Ray tracing command buffer cant start!");
 		}
@@ -798,9 +825,11 @@
 		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 		submitInfo.commandBufferCount = 1;
 		submitInfo.pCommandBuffers = &commandBuffer;
+		submitInfo.pNext = NULL;
 		//Get a fence for transfering the command buffer over
 		VkFenceCreateInfo tlFenceInfo;
 		tlFenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+		tlFenceInfo.pNext = NULL;
 		VkFence tlFence;
 		if (vkCreateFence(*mainLogicalDevice, &tlFenceInfo, nullptr, &tlFence) != VK_SUCCESS) {
 			throw std::runtime_error("Couldn't make the fence for the TLAS!");
