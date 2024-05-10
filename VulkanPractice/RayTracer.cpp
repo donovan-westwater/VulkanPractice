@@ -280,6 +280,7 @@
 		VkFenceCreateInfo blBuildFenceInfo;
 		blBuildFenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 		blBuildFenceInfo.pNext = NULL;
+		blBuildFenceInfo.flags = 0;
 		VkFence bottomLevelFence;
 		if (vkCreateFence(*mainLogicalDevice, &blBuildFenceInfo, nullptr, &bottomLevelFence) != VK_SUCCESS) {
 			throw std::runtime_error("Fence failed to be created!");
@@ -662,6 +663,7 @@
 		tlASBufferCreateInfo.queueFamilyIndexCount = 1;
 		tlASBufferCreateInfo.pQueueFamilyIndices = queueFamilyIndices;
 		tlASBufferCreateInfo.pNext = NULL;
+		tlASBufferCreateInfo.flags = 0;
 		//VkBuffer tlASBufferHandle = VK_NULL_HANDLE;
 		if (vkCreateBuffer(*mainLogicalDevice, &tlASBufferCreateInfo, nullptr, &tASSBuffer) != VK_SUCCESS) {
 			throw std::runtime_error("Buffer for tlAS cannot be made!");
@@ -830,6 +832,7 @@
 		VkFenceCreateInfo tlFenceInfo;
 		tlFenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 		tlFenceInfo.pNext = NULL;
+		tlFenceInfo.flags = 0;
 		VkFence tlFence;
 		if (vkCreateFence(*mainLogicalDevice, &tlFenceInfo, nullptr, &tlFence) != VK_SUCCESS) {
 			throw std::runtime_error("Couldn't make the fence for the TLAS!");
