@@ -14,6 +14,7 @@
 		initRayTracing();
 		modelToBLAS(vertexBuffer, indexBuffer, nOfVerts);
 		createTopLevelAS();
+		createRTImageAndImageView();
 		createRtDescriptorSetLayout();
 		createRtDescriptorPool();
 		createRtDescriptorSets();
@@ -410,6 +411,74 @@
 		vkDestroyBuffer(*mainLogicalDevice, sbtBuffer, nullptr);
 		vkFreeMemory(*mainLogicalDevice, sbtDeviceMemHandle, nullptr);
 	}
+	
+	void RayTracer::createRTImageAndImageView() {
+		//Settings for the image
+		VkImageCreateInfo imageInfo{};
+		imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+		imageInfo.imageType = VK_IMAGE_TYPE_2D;
+		imageInfo.extent.width = static_cast<uint32_t>(widthRef);
+		imageInfo.extent.height = static_cast<uint32_t>(heightRef);
+		imageInfo.extent.depth = 1;
+		imageInfo.mipLevels = 1;
+		imageInfo.arrayLayers = 1;
+		//We need same format for the texels as the pixels in the buffer
+		imageInfo.format = *mainSwapChainFormat;
+		imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+		imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED; //discard textuals first transition
+		imageInfo.usage = VK_IMAGE_USAGE_STORAGE_BIT;
+		imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+		imageInfo.flags = 0; // Optional
+
+		if (vkCreateImage(*mainLogicalDevice, &imageInfo, nullptr, &rtImage) != VK_SUCCESS) {
+			throw std::runtime_error("failed to create image!");
+		}
+		//allocating memory to the image
+		VkMemoryRequirements memRequirements;
+		vkGetImageMemoryRequirements(*mainLogicalDevice, rtImage, &memRequirements);
+
+		VkMemoryAllocateInfo allocInfo{};
+		allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		VkPhysicalDeviceMemoryProperties memProperties;
+		vkGetPhysicalDeviceMemoryProperties(*mainPhysicalDevice, &memProperties);
+		//Check to see what memory our graphics card has for the buffer
+		uint32_t rayTraceImageMemoryTypeIndex = -1;
+		for (uint32_t x = 0; x < memProperties.memoryTypeCount;
+			x++) {
+			if ((memRequirements.memoryTypeBits & (1 << x)) &&
+				(memProperties.memoryTypes[x].propertyFlags &
+					VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) ==
+				VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) {
+
+				rayTraceImageMemoryTypeIndex = x;
+				break;
+			}
+		}
+		allocInfo.memoryTypeIndex = rayTraceImageMemoryTypeIndex;
+
+		if (vkAllocateMemory(*mainLogicalDevice, &allocInfo, nullptr, &rtImageDeviceMemory) != VK_SUCCESS) {
+			throw std::runtime_error("failed to allocate image memory!");
+		}
+		//Bind the image to the allocated memory
+		vkBindImageMemory(*mainLogicalDevice, rtImage, rtImageDeviceMemory, 0);
+		//rtImage View
+		VkImageViewCreateInfo imageViewCreateInfo{};
+		imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		imageViewCreateInfo.pNext = NULL;
+		imageViewCreateInfo.flags = 0;
+		imageViewCreateInfo.image = rtImage;
+		imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		imageViewCreateInfo.format = *mainSwapChainFormat;
+		imageViewCreateInfo.components = { VK_COMPONENT_SWIZZLE_IDENTITY,
+					VK_COMPONENT_SWIZZLE_IDENTITY,
+					VK_COMPONENT_SWIZZLE_IDENTITY,
+					VK_COMPONENT_SWIZZLE_IDENTITY };
+		imageViewCreateInfo.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+		if (vkCreateImageView(*mainLogicalDevice, &imageViewCreateInfo, nullptr, &rtImageView) != VK_SUCCESS) {
+			throw std::runtime_error("failed to create ray tracing image view!");
+		}
+	}
 	void RayTracer::createRtDescriptorSetLayout() {
 		//Creating the layout
 		//TLAS binding
@@ -429,6 +498,8 @@
 
 		std::array<VkDescriptorSetLayoutBinding, 2> bindings = { accStructureBinding, imageBinding };
 		VkDescriptorSetLayoutCreateInfo layoutInfo;
+		layoutInfo.pNext = NULL;
+		layoutInfo.flags = 0;
 		layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 		layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
 		layoutInfo.pBindings = bindings.data(); //Array of bindings
@@ -473,7 +544,7 @@
 
 			VkDescriptorImageInfo imageInfo;
 			imageInfo.imageLayout = {};
-			imageInfo.imageView = *rtColorBufferView;
+			imageInfo.imageView = rtImageView;
 			imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 			std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
 			VkWriteDescriptorSetAccelerationStructureKHR writeStuct;
@@ -505,7 +576,7 @@
 		//Relink output image in case of change in window size
 		VkDescriptorImageInfo rayTraceImageDescriptorInfo;
 		rayTraceImageDescriptorInfo.sampler = VK_NULL_HANDLE;
-		rayTraceImageDescriptorInfo.imageView = *rtColorBufferView;
+		rayTraceImageDescriptorInfo.imageView = rtImageView;
 		rayTraceImageDescriptorInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 		VkWriteDescriptorSet writeSet;
 		writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;

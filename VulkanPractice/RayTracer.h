@@ -50,7 +50,10 @@ public:
 	VkSurfaceKHR* mainSurface; //Surface allocated by main
 	VkCommandPool* mainCommandPool; //Should point back to the main pool from the main pipeline
 	VkQueue* mainGraphicsQueue; //Submission queue for the main pool
-	VkImageView* rtColorBufferView; //Should point toward color buffer in main
+	VkFormat* mainSwapChainFormat;
+	VkImage rtImage; //Main Image used for ray tracing
+	VkDeviceMemory rtImageDeviceMemory; //Allocates memory for rt image
+	VkImageView rtImageView; //Image view to access rtImage
 	VkDescriptorSetLayout* mainDescSetLayout; //The desc set layout of the rasterization pipeline
 	std::vector<VkDescriptorSet>* mainDescSets;
 	//Code taken from https://github.com/WilliamLewww/vulkan_ray_tracing_minimal_abstraction/blob/master/ray_pipeline/src/main.cpp
@@ -74,6 +77,8 @@ public:
 	PFN_vkCmdTraceRaysKHR pvkCmdTraceRaysKHR;
 
 	VkMemoryAllocateFlagsInfo getDefaultAllocationFlags();
+
+	void createRTImageAndImageView();
 
 	void Cleanup();
 

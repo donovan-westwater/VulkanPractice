@@ -136,6 +136,7 @@ private:
         rayTracer.heightRef = HEIGHT;
         rayTracer.widthRef = WIDTH;
         rayTracer.currentFrameRef = &currentFrame;
+        rayTracer.mainSwapChainFormat = &swapChainImageFormat;
     }
     void initWindow() {
         glfwInit();
