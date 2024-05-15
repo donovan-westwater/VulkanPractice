@@ -413,8 +413,13 @@
 	}
 	
 	void RayTracer::createRTImageAndImageView() {
+		QueueFamilyIndices indices = findQueueFamilies(*mainPhysicalDevice);
+		uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value(),indices.presentFamily.value() };
 		//Settings for the image
 		VkImageCreateInfo imageInfo{};
+		imageInfo.pNext = NULL;
+		imageInfo.queueFamilyIndexCount = 1;
+		imageInfo.pQueueFamilyIndices = queueFamilyIndices;
 		imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 		imageInfo.imageType = VK_IMAGE_TYPE_2D;
 		imageInfo.extent.width = static_cast<uint32_t>(widthRef);
@@ -426,7 +431,7 @@
 		imageInfo.format = *mainSwapChainFormat;
 		imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
 		imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED; //discard textuals first transition
-		imageInfo.usage = VK_IMAGE_USAGE_STORAGE_BIT;
+		imageInfo.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 		imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 		imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 		imageInfo.flags = 0; // Optional
@@ -455,6 +460,9 @@
 				break;
 			}
 		}
+		allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		allocInfo.pNext = NULL;
+		allocInfo.allocationSize = memRequirements.size;
 		allocInfo.memoryTypeIndex = rayTraceImageMemoryTypeIndex;
 
 		if (vkAllocateMemory(*mainLogicalDevice, &allocInfo, nullptr, &rtImageDeviceMemory) != VK_SUCCESS) {
