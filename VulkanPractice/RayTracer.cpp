@@ -945,6 +945,9 @@
 		stage.pName = "main"; //Entry point for our pipeline
 		stage.module = createShaderModule(readFile("Shaders/rgen.spv"));
 		stage.stage = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+		stage.pNext = NULL;
+		stage.flags = 0;
+		stage.pSpecializationInfo = NULL;
 		stages[eRaygen] = stage;
 		//RMiss
 		stage.module = createShaderModule(readFile("Shaders/rmiss.spv"));
@@ -957,10 +960,12 @@
 		//Create Shader Groups - Shader instances that will be called every frame!
 		VkRayTracingShaderGroupCreateInfoKHR group;
 		group.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
+		group.pNext = NULL;
 		group.anyHitShader = VK_SHADER_UNUSED_KHR;
 		group.closestHitShader = VK_SHADER_UNUSED_KHR;
 		group.generalShader = VK_SHADER_UNUSED_KHR;
 		group.intersectionShader = VK_SHADER_UNUSED_KHR;
+		group.pShaderGroupCaptureReplayHandle = VK_NULL_HANDLE;
 		//Raygen
 		group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
 		group.generalShader = eRaygen;
@@ -984,19 +989,34 @@
 		pushConstant.size = sizeof(PushConstantRay);
 		pushConstant.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR
 			| VK_SHADER_STAGE_MISS_BIT_KHR;
-		pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 		pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstant;
 		pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
 		std::vector<VkDescriptorSetLayout> rtDescSetLayout = { descriptorSetLayout,*mainDescSetLayout };
 		pipelineLayoutCreateInfo.setLayoutCount = static_cast<uint32_t>(rtDescSetLayout.size());
 		pipelineLayoutCreateInfo.pSetLayouts = rtDescSetLayout.data();
+		pipelineLayoutCreateInfo.flags = 0;
+		pipelineLayoutCreateInfo.pNext = NULL;
 		//Finish the pipeline layout
 		if(vkCreatePipelineLayout(*mainLogicalDevice, &pipelineLayoutCreateInfo, nullptr, &rayPipelineLayout) != VK_SUCCESS){
 			throw std::runtime_error("Failed to make the rt pipeline layout!");
 		}
+		rtPipeline.sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR;
+		rtPipeline.pNext = NULL;
+		rtPipeline.flags = 0;
+		rtPipeline.stageCount = stages.size();
+		rtPipeline.pStages = stages.data();
+		rtPipeline.groupCount = raytracingShaderGroups.size();
+		rtPipeline.pGroups = raytracingShaderGroups.data();
 		rtPipeline.layout = rayPipelineLayout;
 		rtPipeline.maxPipelineRayRecursionDepth = 1;
-		if (pvkCreateRayTracingPipelinesKHR(*mainLogicalDevice, {}, {}, 1, &rtPipeline, nullptr, &raytracingPipeline) != VK_SUCCESS) {
+		rtPipeline.basePipelineHandle = VK_NULL_HANDLE;
+		rtPipeline.basePipelineIndex = 0;
+		rtPipeline.pDynamicState = NULL;
+		rtPipeline.pLibraryInfo = NULL;
+		rtPipeline.pLibraryInterface = NULL;
+
+		if (pvkCreateRayTracingPipelinesKHR(*mainLogicalDevice, VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &rtPipeline, NULL, &raytracingPipeline) != VK_SUCCESS) {
 			throw std::runtime_error("Failed to make the rt pipeline!");
 		}
 		//Get rid of the modules since we don't need them now
