@@ -556,6 +556,8 @@
 			imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 			std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
 			VkWriteDescriptorSetAccelerationStructureKHR writeStuct;
+			writeStuct.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
+			writeStuct.pNext = NULL;
 			writeStuct.accelerationStructureCount = 1;
 			writeStuct.pAccelerationStructures = &tlAShandle;
 
