@@ -335,15 +335,15 @@
 		rayHitRegion.stride = baseAlign;
 		rayHitRegion.size = baseAlign;
 		//Handle storage
-		uint32_t dataSize = 4 * baseAlign; //Pad out byte for alignment
+		uint32_t dataSize = 3 * baseAlign; //Pad out byte for alignment
 		std::vector<uint8_t> handles(dataSize);
-		auto result = pvkGetRayTracingShaderGroupHandlesKHR(*mainLogicalDevice, raytracingPipeline, 0, 4, dataSize, handles.data());
+		auto result = pvkGetRayTracingShaderGroupHandlesKHR(*mainLogicalDevice, raytracingPipeline, 0, 3, dataSize, handles.data());
 		//Im breaking my consistentcy rules because this way is so much better and I want to demonstrate the better way to do this valdiatioN!
 		assert(result == VK_SUCCESS);
 		//Allocate buffer for SBT
 		QueueFamilyIndices indices = findQueueFamilies(*mainPhysicalDevice);
 		uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value(),indices.presentFamily.value() };
-		VkDeviceSize sbtSize = rayTracingProperties.shaderGroupBaseAlignment * 4;//rayGenRegion.size + rayMissRegion.size + rayHitRegion.size;
+		VkDeviceSize sbtSize = rayTracingProperties.shaderGroupBaseAlignment * 3;//rayGenRegion.size + rayMissRegion.size + rayHitRegion.size;
 		//create and bind buffer for SBT
 		VkBufferCreateInfo bufferInfo{};
 		bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -378,8 +378,10 @@
 			}
 		}
 		//Allocate memory for the buffer
+		VkMemoryAllocateFlagsInfo flags = getDefaultAllocationFlags();
 		VkMemoryAllocateInfo allocInfo{};
 		allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		allocInfo.pNext = &flags;
 		allocInfo.allocationSize = memRequirements.size;
 		allocInfo.memoryTypeIndex = sbtMemoryTypeIndex;
 		VkDeviceMemory sbtDeviceMemHandle = VK_NULL_HANDLE;
