@@ -72,7 +72,7 @@ public:
 
 	PFN_vkCmdBuildAccelerationStructuresKHR pvkCmdBuildAccelerationStructuresKHR;
 
-	PFN_vkGetRayTracingShaderGroupHandlesKHR pvkGetRayTracingCaptureReplayShaderGroupHandlesKHR;
+	PFN_vkGetRayTracingShaderGroupHandlesKHR pvkGetRayTracingShaderGroupHandlesKHR;
 
 	PFN_vkCmdTraceRaysKHR pvkCmdTraceRaysKHR;
 
