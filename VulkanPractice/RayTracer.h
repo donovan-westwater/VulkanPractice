@@ -56,6 +56,11 @@ public:
 	VkImageView rtImageView; //Image view to access rtImage
 	VkDescriptorSetLayout* mainDescSetLayout; //The desc set layout of the rasterization pipeline
 	std::vector<VkDescriptorSet>* mainDescSets;
+	std::vector<VkFence>* rayFences;
+	VkSwapchainKHR* raySwapchain;
+	std::vector<VkSemaphore>* rayImageAvailableSemaphores;
+	std::vector<VkSemaphore>* rayFinishedSemaphores;
+	VkQueue* rayPresentQueue;
 	//Code taken from https://github.com/WilliamLewww/vulkan_ray_tracing_minimal_abstraction/blob/master/ray_pipeline/src/main.cpp
 	//Around the lines around #380
 	PFN_vkGetBufferDeviceAddressKHR pvkGetBufferDeviceAddressKHR;

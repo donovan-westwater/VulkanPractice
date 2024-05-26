@@ -1048,6 +1048,20 @@
 		}
 	}
 	void RayTracer::raytrace(VkCommandBuffer& cmdBuf, glm::vec4 clearColor) {
+		//submit queue
+		//Wait for frame to be finished drawing
+		vkWaitForFences(*mainLogicalDevice, 1, &((* rayFences)[*currentFrameRef]), VK_TRUE, UINT64_MAX);
+		uint32_t imageIndex;
+		//Make sure the chain is fresh so we know we can use it. This allows us to delay a fense reset and stop a deadlock
+		VkResult result = vkAcquireNextImageKHR(*mainLogicalDevice, *raySwapchain, UINT64_MAX, (* rayImageAvailableSemaphores)[*currentFrameRef], VK_NULL_HANDLE, &imageIndex);
+
+		if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+			//recreateSwapChain();
+			return;
+		}
+		else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+			throw std::runtime_error("failed to acquire swap chain image!");
+		}
 		//Building pipeline and layout
 		pcRay.clearColor = clearColor;
 		pcRay.lightPos = rastSource->pos;
@@ -1055,6 +1069,14 @@
 		pcRay.lightType = rastSource->type;
 		//Desc sets to bind
 		std::vector<VkDescriptorSet> descSets{ descriptorSets[*currentFrameRef], (mainDescSets->at(*currentFrameRef)) };
+		VkCommandBufferBeginInfo beginInfo{};
+		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		beginInfo.flags = 0; // Optional Controls how command buffer will be used
+		beginInfo.pInheritanceInfo = nullptr; // Optional
+
+		if (vkBeginCommandBuffer(cmdBuf, &beginInfo) != VK_SUCCESS) {
+			throw std::runtime_error("failed to begin recording command buffer!");
+		}
 		vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, raytracingPipeline);
 		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
 			rayPipelineLayout, 0, (uint32_t)descSets.size(), descSets.data(), 0, nullptr);
@@ -1063,6 +1085,51 @@
 			0, sizeof(PushConstantRay), &pcRay);
 		pvkCmdTraceRaysKHR(cmdBuf, &rayGenRegion,&rayHitRegion, &rayMissRegion, &rayCallRegion
 			, widthRef, heightRef, 1);
+		if (vkEndCommandBuffer(cmdBuf) != VK_SUCCESS) {
+			throw std::runtime_error("failed to end recording command buffer!");
+		}
+		//submit the command buffer
+		VkSubmitInfo submitInfo{};
+		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		//Specify which semaphores to wait on before execution beings and in which stages of the pipeline to wait
+		VkSemaphore waitSemaphores[] = { (*rayImageAvailableSemaphores)[*currentFrameRef] };
+		VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+		submitInfo.waitSemaphoreCount = 1;
+		submitInfo.pWaitSemaphores = waitSemaphores;
+		submitInfo.pWaitDstStageMask = waitStages;
+		//Specify which command buffer to submit
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = &cmdBuf;
+		//Specify which semaphores to signal once the command buffers finished execution
+		VkSemaphore signalSemaphores[] = { (*rayFinishedSemaphores)[*currentFrameRef] };
+		submitInfo.signalSemaphoreCount = 1;
+		submitInfo.pSignalSemaphores = signalSemaphores;
+		if (vkQueueSubmit(*mainGraphicsQueue, 1, &submitInfo, (*rayFences)[*currentFrameRef]) != VK_SUCCESS) {
+			throw std::runtime_error("failed to submit draw command buffer!");
+		}
+		//Specify which semaphores to wait on
+		VkPresentInfoKHR presentInfo{};
+		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+
+		presentInfo.waitSemaphoreCount = 1;
+		presentInfo.pWaitSemaphores = signalSemaphores;
+
+		//specify the swap chain to present images to and the index for each chain
+		VkSwapchainKHR swapChains[] = { *raySwapchain };
+		presentInfo.swapchainCount = 1;
+		presentInfo.pSwapchains = swapChains;
+		presentInfo.pImageIndices = &imageIndex;
+		//Presents the triangle we submitted to the queue
+		result = vkQueuePresentKHR(*rayPresentQueue, &presentInfo);
+		//If the swapchain is out dated, then we need to recreate it!
+		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+			//framebufferResized = false;
+			//recreateSwapChain();
+			std::cout << "Don't have anything to deal with this yet";
+		}
+		else if (result != VK_SUCCESS) {
+			throw std::runtime_error("failed to present swap chain image!");
+		}
 	}
 	//From Main: FIGURE OUT HOW TO REPLACE THIS AND AVOID COPYING CODE!
 	QueueFamilyIndices RayTracer::findQueueFamilies(VkPhysicalDevice device) {

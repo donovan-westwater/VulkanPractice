@@ -137,6 +137,11 @@ private:
         rayTracer.widthRef = WIDTH;
         rayTracer.currentFrameRef = &currentFrame;
         rayTracer.mainSwapChainFormat = &swapChainImageFormat;
+        rayTracer.rayImageAvailableSemaphores = &imageAvailableSemaphores;
+        rayTracer.rayFinishedSemaphores = &renderFinishedSemaphores;
+        rayTracer.rayFences = &inFlightFences;
+        rayTracer.rayPresentQueue = &presentQueue;
+        rayTracer.raySwapchain = &swapChain;
     }
     void initWindow() {
         glfwInit();
