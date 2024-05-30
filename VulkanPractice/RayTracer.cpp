@@ -1062,6 +1062,9 @@
 		else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
 			throw std::runtime_error("failed to acquire swap chain image!");
 		}
+		vkResetFences(*mainLogicalDevice, 1, &((*rayFences)[*currentFrameRef]));
+		vkResetCommandBuffer(cmdBuf, 0);
+
 		//Building pipeline and layout
 		pcRay.clearColor = clearColor;
 		pcRay.lightPos = rastSource->pos;
