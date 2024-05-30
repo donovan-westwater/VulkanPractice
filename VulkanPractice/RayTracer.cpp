@@ -343,7 +343,7 @@
 		//Allocate buffer for SBT
 		QueueFamilyIndices indices = findQueueFamilies(*mainPhysicalDevice);
 		uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value(),indices.presentFamily.value() };
-		VkDeviceSize sbtSize = rayTracingProperties.shaderGroupBaseAlignment * 3;//rayGenRegion.size + rayMissRegion.size + rayHitRegion.size;
+		VkDeviceSize sbtSize = rayTracingProperties.shaderGroupBaseAlignment * (uint32_t)3;//rayGenRegion.size + rayMissRegion.size + rayHitRegion.size;
 		//create and bind buffer for SBT
 		VkBufferCreateInfo bufferInfo{};
 		bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -402,7 +402,7 @@
 		rayMissRegion.deviceAddress = sbtAddress + rayGenRegion.size;
 		rayHitRegion.deviceAddress = sbtAddress + rayGenRegion.size + rayMissRegion.size;
 		uint32_t handleSize = handles.size();
-		auto getHandle = [&](int i) { return handles.data() + i * handleSize; };
+		auto getHandle = [&](int i) { return handles.data() + (uint32_t)i * handleSize; };
 		//Map the SBT buffer and write in the handles
 		void* hostSBTMemoryBuffer;
 		if (vkMapMemory(*mainLogicalDevice, sbtDeviceMemHandle, 0, sbtSize, 0, &hostSBTMemoryBuffer)
@@ -431,8 +431,8 @@
 		}
 		//CLeanup resources
 		vkUnmapMemory(*mainLogicalDevice, sbtDeviceMemHandle);
-		vkDestroyBuffer(*mainLogicalDevice, sbtBuffer, nullptr);
-		vkFreeMemory(*mainLogicalDevice, sbtDeviceMemHandle, nullptr);
+		//vkDestroyBuffer(*mainLogicalDevice, sbtBuffer, nullptr);
+		//vkFreeMemory(*mainLogicalDevice, sbtDeviceMemHandle, nullptr);
 	}
 	
 	void RayTracer::createRTImageAndImageView() {
