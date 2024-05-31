@@ -1080,6 +1080,26 @@
 		if (vkBeginCommandBuffer(cmdBuf, &beginInfo) != VK_SUCCESS) {
 			throw std::runtime_error("failed to begin recording command buffer!");
 		}
+		//Sync resoureces to transfer out src image to the gpu!
+		VkImageMemoryBarrier rayTraceBarrier{};
+		rayTraceBarrier.pNext = NULL;
+		rayTraceBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		rayTraceBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		rayTraceBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+		rayTraceBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		rayTraceBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		rayTraceBarrier.image = rtImage; //specify image effected by rayTraceBarrier
+		rayTraceBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		rayTraceBarrier.subresourceRange.baseMipLevel = 0;
+		rayTraceBarrier.subresourceRange.levelCount = 1;
+		rayTraceBarrier.subresourceRange.baseArrayLayer = 0;
+		rayTraceBarrier.subresourceRange.layerCount = 1;
+		rayTraceBarrier.srcAccessMask = 0; // TODO Need to specify which operations need to do
+		rayTraceBarrier.dstAccessMask = 0; // TODO
+		vkCmdPipelineBarrier(cmdBuf,
+			VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+			VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, NULL, 0, NULL,
+			1, &rayTraceBarrier);
 		vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, raytracingPipeline);
 		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
 			rayPipelineLayout, 0, (uint32_t)descSets.size(), descSets.data(), 0, nullptr);
