@@ -1146,7 +1146,7 @@
 		rayTraceCopyMemoryBarrier.srcAccessMask = 0;
 		rayTraceCopyMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
 		rayTraceCopyMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
-		rayTraceCopyMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		rayTraceCopyMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 		rayTraceCopyMemoryBarrier.srcQueueFamilyIndex = queueFamilyIndices[0];
 		rayTraceCopyMemoryBarrier.dstQueueFamilyIndex = queueFamilyIndices[0];
 		rayTraceCopyMemoryBarrier.image = rtImage;
