@@ -58,6 +58,7 @@ public:
 	std::vector<VkDescriptorSet>* mainDescSets;
 	std::vector<VkFence>* rayFences;
 	VkSwapchainKHR* raySwapchain;
+	std::vector<VkImage>* raySwapchainImages;
 	std::vector<VkSemaphore>* rayImageAvailableSemaphores;
 	std::vector<VkSemaphore>* rayFinishedSemaphores;
 	VkQueue* rayPresentQueue;

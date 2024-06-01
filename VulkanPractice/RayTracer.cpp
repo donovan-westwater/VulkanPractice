@@ -454,7 +454,8 @@
 		imageInfo.format = *mainSwapChainFormat;
 		imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
 		imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED; //discard textuals first transition
-		imageInfo.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+		imageInfo.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT 
+			| VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 		imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 		imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 		imageInfo.flags = 0; // Optional
@@ -1080,7 +1081,11 @@
 		if (vkBeginCommandBuffer(cmdBuf, &beginInfo) != VK_SUCCESS) {
 			throw std::runtime_error("failed to begin recording command buffer!");
 		}
+		QueueFamilyIndices indices = findQueueFamilies(*mainPhysicalDevice);
+		uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value(),indices.presentFamily.value() };
+
 		//Sync resoureces to transfer out src image to the gpu!
+		//Undefined -> General Layout
 		VkImageMemoryBarrier rayTraceBarrier{};
 		rayTraceBarrier.pNext = NULL;
 		rayTraceBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -1100,6 +1105,8 @@
 			VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
 			VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, NULL, 0, NULL,
 			1, &rayTraceBarrier);
+		
+		//TODO: More barriers and transitions need to be made it seems. Trying to figure out why
 		vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, raytracingPipeline);
 		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
 			rayPipelineLayout, 0, (uint32_t)descSets.size(), descSets.data(), 0, nullptr);
@@ -1108,6 +1115,104 @@
 			0, sizeof(PushConstantRay), &pcRay);
 		pvkCmdTraceRaysKHR(cmdBuf, &rayGenRegion,&rayHitRegion, &rayMissRegion, &rayCallRegion
 			, widthRef, heightRef, 1);
+		//Once the ray is traced, we can start copying the results over into the swap chain
+		//We make a barrier so we can copy the rtImage into the swapChain
+		VkImageMemoryBarrier swapchainCopyMemoryBarrier;
+		swapchainCopyMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		swapchainCopyMemoryBarrier.pNext = NULL;
+		swapchainCopyMemoryBarrier.srcAccessMask = 0;
+		swapchainCopyMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		swapchainCopyMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		swapchainCopyMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		swapchainCopyMemoryBarrier.srcQueueFamilyIndex = queueFamilyIndices[0];
+		swapchainCopyMemoryBarrier.dstQueueFamilyIndex = queueFamilyIndices[0];
+		swapchainCopyMemoryBarrier.image = (*raySwapchainImages)[*currentFrameRef];
+		VkImageSubresourceRange subRange;
+		subRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		subRange.baseMipLevel = 0;
+		subRange.levelCount = 1;
+		subRange.baseArrayLayer = 0;
+		subRange.layerCount = 1;
+		swapchainCopyMemoryBarrier.subresourceRange = subRange;
+
+		vkCmdPipelineBarrier(cmdBuf,
+			VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+			VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, NULL, 0,
+			NULL, 1, &swapchainCopyMemoryBarrier);
+
+		VkImageMemoryBarrier rayTraceCopyMemoryBarrier;
+		rayTraceCopyMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		rayTraceCopyMemoryBarrier.pNext = NULL;
+		rayTraceCopyMemoryBarrier.srcAccessMask = 0;
+		rayTraceCopyMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+		rayTraceCopyMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+		rayTraceCopyMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		rayTraceCopyMemoryBarrier.srcQueueFamilyIndex = queueFamilyIndices[0];
+		rayTraceCopyMemoryBarrier.dstQueueFamilyIndex = queueFamilyIndices[0];
+		rayTraceCopyMemoryBarrier.image = rtImage;
+		rayTraceCopyMemoryBarrier.subresourceRange = subRange;
+		vkCmdPipelineBarrier(cmdBuf,
+			VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+			VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, NULL, 0,
+			NULL, 1, &rayTraceCopyMemoryBarrier);
+		VkOffset3D offset;
+		offset.x = 0;
+		offset.y = 0;
+		offset.z = 0;
+		VkImageSubresourceLayers subLayers;
+		VkExtent3D swapExtent;
+		swapExtent.width = static_cast<uint32_t>(widthRef);
+		swapExtent.height = static_cast<uint32_t>(heightRef);
+		swapExtent.depth = 1;
+		subLayers.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		subLayers.mipLevel = 0;
+		subLayers.baseArrayLayer = 0;
+		subLayers.layerCount = 1;
+		VkImageCopy imageCopy;
+		imageCopy.srcSubresource = subLayers;
+		imageCopy.srcOffset = offset;
+		imageCopy.dstSubresource = subLayers;
+		imageCopy.dstOffset = offset;
+		imageCopy.extent = swapExtent;
+
+		vkCmdCopyImage(cmdBuf, rtImage,
+			VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+			(*raySwapchainImages)[*currentFrameRef],
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
+
+		VkImageMemoryBarrier swapchainPresentMemoryBarrier;
+		swapchainPresentMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		swapchainPresentMemoryBarrier.pNext = NULL;
+		swapchainPresentMemoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		swapchainPresentMemoryBarrier.dstAccessMask = 0;
+		swapchainPresentMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		swapchainPresentMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		swapchainPresentMemoryBarrier.srcQueueFamilyIndex = queueFamilyIndices[0];
+		swapchainPresentMemoryBarrier.dstQueueFamilyIndex = queueFamilyIndices[0];
+		swapchainPresentMemoryBarrier.image = (*raySwapchainImages)[*currentFrameRef];
+		swapchainPresentMemoryBarrier.subresourceRange = subRange;
+
+		vkCmdPipelineBarrier(cmdBuf,
+			VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+			VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, NULL, 0,
+			NULL, 1, &swapchainPresentMemoryBarrier);
+
+		VkImageMemoryBarrier rayTraceWriteMemoryBarrier;
+		rayTraceWriteMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+			rayTraceWriteMemoryBarrier.pNext = NULL,
+			rayTraceWriteMemoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+			rayTraceWriteMemoryBarrier.dstAccessMask = 0,
+			rayTraceWriteMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+			rayTraceWriteMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL,
+			rayTraceWriteMemoryBarrier.srcQueueFamilyIndex = queueFamilyIndices[0],
+			rayTraceWriteMemoryBarrier.dstQueueFamilyIndex = queueFamilyIndices[0],
+			rayTraceWriteMemoryBarrier.image = rtImage,
+			rayTraceWriteMemoryBarrier.subresourceRange = subRange;
+
+		vkCmdPipelineBarrier(cmdBuf,
+			VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+			VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, NULL, 0,
+			NULL, 1, &rayTraceWriteMemoryBarrier);
 		if (vkEndCommandBuffer(cmdBuf) != VK_SUCCESS) {
 			throw std::runtime_error("failed to end recording command buffer!");
 		}

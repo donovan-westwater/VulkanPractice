@@ -142,6 +142,7 @@ private:
         rayTracer.rayFences = &inFlightFences;
         rayTracer.rayPresentQueue = &presentQueue;
         rayTracer.raySwapchain = &swapChain;
+        rayTracer.raySwapchainImages = &swapChainImages;
     }
     void initWindow() {
         glfwInit();
@@ -1404,7 +1405,7 @@ private:
         createInfo.imageExtent = extent;
         createInfo.imageArrayLayers = 1; //Always 1 unless making something in steroscopic 3D
         createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT; //Edit this to do things like post processing
-
+        if (useRayTracing) createInfo.imageUsage |= VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL; //Transfer src and dst bits
         QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
         uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value(),indices.presentFamily.value() };
 
