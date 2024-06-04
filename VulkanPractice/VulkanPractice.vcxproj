@@ -161,6 +161,10 @@
     <ClCompile Include="RayTracer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Shaders\raycommon.glsl" />
+    <None Include="Shaders\raytrace.rchit" />
+    <None Include="Shaders\raytrace.rgen" />
+    <None Include="Shaders\raytrace.rmiss" />
     <None Include="Shaders\shader.frag" />
     <None Include="Shaders\shader.vert" />
   </ItemGroup>

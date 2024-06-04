@@ -29,6 +29,18 @@
     <None Include="Shaders\shader.vert">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="Shaders\raytrace.rgen">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Shaders\raytrace.rchit">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Shaders\raytrace.rmiss">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="Shaders\raycommon.glsl">
+      <Filter>Header Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="common.h">
