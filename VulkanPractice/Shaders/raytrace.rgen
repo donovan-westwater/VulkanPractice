@@ -18,7 +18,7 @@ void main()
 {
     // split up our rays into directions
     const vec2 pixelCenter = vec2(gl_LaunchIDEXT.xy) + vec2(0.5);
-    const vec2 inUV =pixelCenter/vec2(gl_LaunchIDEXT.xy);
+    const vec2 inUV =pixelCenter/vec2(gl_LaunchSizeEXT.xy);
     vec2 d = inUV * 2.0 - 1.0;
     //Convert into rays with ubo
     vec4 origin = ubo.view * vec4(0,0,0,1);
@@ -41,5 +41,5 @@ void main()
           tMax,           // ray max range
           0               // payload (location = 0)
     );
-    imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(d.x,d.y,0.0, 1.0));
+    imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(prd.hitValue, 1.0));
 }
