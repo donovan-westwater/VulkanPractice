@@ -1711,7 +1711,7 @@ private:
             vkUnmapMemory(device, vertexBufferMemory);
             */
             if (useRayTracing) {
-                rayTracer.raytrace(commandBuffers[currentFrame], glm::vec4(0, 0, 0, 1));
+                rayTracer.raytrace(commandBuffers[currentFrame],uniformBuffersMapped ,glm::vec4(0, 0, 0, 1));
                 currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
             }
             else drawFrame();
@@ -1816,6 +1816,11 @@ private:
     //Cleaan up everything EXPLICITLY CREATED by us!
     void cleanup() {
         //std::cout << "CLEAN UP\n";
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            //Unmapping memory
+            vkUnmapMemory(device, uniformBuffersMemory[i]);
+
+        }
         rayTracer.Cleanup();
         cleanupSwapChain();
         vkDestroySampler(device, textureSampler, nullptr);

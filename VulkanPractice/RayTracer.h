@@ -104,7 +104,7 @@ public:
 		return buffer;
 	}
 
-	void raytrace(VkCommandBuffer& cmdBuf, glm::vec4 clearColor);
+	void raytrace(VkCommandBuffer& cmdBuf, std::vector<void*>& uniBufferMMap, glm::vec4 clearColor);
 
 	void createRayTracingPipeline();
 
