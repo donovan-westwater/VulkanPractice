@@ -41,6 +41,7 @@ class RayTracer {
 
 public:
 	bool isEnabled = true;
+	int maxPrimativeCount = 0;
 	uint32_t* currentFrameRef;
 	uint32_t widthRef;
 	uint32_t heightRef;

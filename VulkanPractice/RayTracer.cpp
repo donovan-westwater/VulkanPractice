@@ -58,7 +58,7 @@
 		VkPhysicalDeviceProperties2 prop2{ VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
 		prop2.pNext = &rayTracingProperties;
 		vkGetPhysicalDeviceProperties2(*mainPhysicalDevice, &prop2);
-	}
+	}//BUG: I think the BLAS scratch buffers are setup wrong. there is a bASSBuffer and buffer handle. Investigate
 	void RayTracer::modelToBLAS(VkBuffer &vertexBuffer, VkBuffer&indexBuffer, uint32_t nOfVerts) {
 
 		VkBufferDeviceAddressInfo vInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
@@ -67,7 +67,7 @@
 		VkDeviceAddress vertexAddress = pvkGetBufferDeviceAddressKHR(*mainLogicalDevice, &vInfo);
 		vInfo.buffer = indexBuffer;
 		VkDeviceAddress indexAddress = pvkGetBufferDeviceAddressKHR(*mainLogicalDevice, &vInfo);
-		uint32_t maxPrimativeCount = nOfVerts / 3;
+		uint32_t umaxPrimativeCount = static_cast<uint32_t>(maxPrimativeCount);
 
 		VkAccelerationStructureGeometryTrianglesDataKHR triangles{ VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR };
 		//Vertex buffer description
@@ -79,6 +79,7 @@
 		triangles.indexType = VK_INDEX_TYPE_UINT32;
 		triangles.maxVertex = nOfVerts;
 		triangles.pNext = NULL;
+		triangles.transformData.deviceAddress = 0;
 
 		VkAccelerationStructureGeometryKHR asGeom{ VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR };
 		asGeom.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
@@ -102,15 +103,15 @@
 		VkAccelerationStructureBuildSizesInfoKHR bottomLevelAccelerationBuildSizesInfo{};
 		bottomLevelAccelerationBuildSizesInfo.sType =
 			VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
+		bottomLevelAccelerationBuildSizesInfo.pNext = NULL;
 		bottomLevelAccelerationBuildSizesInfo.updateScratchSize = 0;
 		bottomLevelAccelerationBuildSizesInfo.buildScratchSize = 0;
 		bottomLevelAccelerationBuildSizesInfo.accelerationStructureSize = 0;
-		std::vector<uint32_t> bottomLevelMaxPrimitiveCountList = { maxPrimativeCount };
+		std::vector<uint32_t> bottomLevelMaxPrimitiveCountList = { umaxPrimativeCount };
 		pvkGetAccelerationStructureBuildSizesKHR(*mainLogicalDevice, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
 			&bottomLevelAccelerationBuildGeometryInfoKHR,
 			bottomLevelMaxPrimitiveCountList.data(),
 			&bottomLevelAccelerationBuildSizesInfo);
-		bottomLevelAccelerationBuildSizesInfo.pNext = NULL;
 		//Create buffer to store acceleration structure
 		QueueFamilyIndices indices = findQueueFamilies(*mainPhysicalDevice);
 		uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value(),indices.presentFamily.value() };
@@ -152,7 +153,7 @@
 		//We are now allocating memory to the blAS
 		VkMemoryAllocateInfo blASmemAllocateInfo;
 		blASmemAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		blASmemAllocateInfo.pNext = &defaultFlagsBLAS;
+		blASmemAllocateInfo.pNext = NULL;//&defaultFlagsBLAS;
 		blASmemAllocateInfo.allocationSize = blASMemoryRequirements.size;
 		blASmemAllocateInfo.memoryTypeIndex = bottomLevelAccelerationStructureMemoryTypeIndex;
 		VkDeviceMemory blASDeviceMemoryHandle = VK_NULL_HANDLE;
@@ -930,8 +931,13 @@
 		}
 		VkSubmitInfo submitInfo{};
 		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		submitInfo.waitSemaphoreCount = 0;
+		submitInfo.pWaitSemaphores = NULL;
+		submitInfo.pWaitDstStageMask = NULL;
 		submitInfo.commandBufferCount = 1;
 		submitInfo.pCommandBuffers = &commandBuffer;
+		submitInfo.signalSemaphoreCount = 0;
+		submitInfo.pSignalSemaphores = NULL;
 		submitInfo.pNext = NULL;
 		//Get a fence for transfering the command buffer over
 		VkFenceCreateInfo tlFenceInfo;
@@ -1049,9 +1055,14 @@
 		}
 	}
 	void RayTracer::raytrace(VkCommandBuffer& cmdBuf,std::vector<void *>& uniBufferMMap, glm::vec4 clearColor) {
+		
 		//submit queue
 		//Wait for frame to be finished drawing
-		vkWaitForFences(*mainLogicalDevice, 1, &((* rayFences)[*currentFrameRef]), VK_TRUE, UINT64_MAX);
+		VkResult fenceResult = vkWaitForFences(*mainLogicalDevice, 1, &((* rayFences)[*currentFrameRef]), VK_TRUE, UINT64_MAX);
+		if (fenceResult != VK_SUCCESS && fenceResult != VK_TIMEOUT) {
+			std::cout << "Ray trace function failure!\n";
+			throw std::runtime_error("failed to wait for fences!");
+		}
 		uint32_t imageIndex;
 		//Make sure the chain is fresh so we know we can use it. This allows us to delay a fense reset and stop a deadlock
 		VkResult result = vkAcquireNextImageKHR(*mainLogicalDevice, *raySwapchain, UINT64_MAX, (* rayImageAvailableSemaphores)[*currentFrameRef], VK_NULL_HANDLE, &imageIndex);
@@ -1254,7 +1265,8 @@
 		VkSemaphore signalSemaphores[] = { (*rayFinishedSemaphores)[*currentFrameRef] };
 		submitInfo.signalSemaphoreCount = 1;
 		submitInfo.pSignalSemaphores = signalSemaphores;
-		if (vkQueueSubmit(*mainGraphicsQueue, 1, &submitInfo, (*rayFences)[*currentFrameRef]) != VK_SUCCESS) {
+		result = vkQueueSubmit(*mainGraphicsQueue, 1, &submitInfo, (*rayFences)[*currentFrameRef]);
+		if (result != VK_SUCCESS) {
 			throw std::runtime_error("failed to submit draw command buffer!");
 		}
 		//Specify which semaphores to wait on

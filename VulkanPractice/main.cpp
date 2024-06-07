@@ -94,7 +94,7 @@ private:
     LightSource light;
     uint32_t currentFrame = 0;
     bool framebufferResized = false;
-    
+    int primativeCount = 0;
 
     //Our sample set of vertices we are passing into the vertex buffer
     std::vector<Vertex> vertices;
@@ -143,6 +143,7 @@ private:
         rayTracer.rayPresentQueue = &presentQueue;
         rayTracer.raySwapchain = &swapChain;
         rayTracer.raySwapchainImages = &swapChainImages;
+        rayTracer.maxPrimativeCount = primativeCount;
     }
     void initWindow() {
         glfwInit();
@@ -324,6 +325,7 @@ private:
         std::unordered_map<Vertex, uint32_t> uniqueVertices{};
         //Going to combine all the faces into to one model
         for (const auto& shape : shapes) {
+            primativeCount += shape.mesh.num_face_vertices.size();
             for (const auto& index : shape.mesh.indices) {
                 Vertex vertex{};
 
