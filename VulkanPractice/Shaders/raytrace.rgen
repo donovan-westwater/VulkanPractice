@@ -12,7 +12,7 @@ layout(binding = 0, set = 1) uniform UniformBufferObject {
 } ubo;
 layout(binding = 1, set = 0, rgba32f) uniform image2D image;
 
-layout(location = 0) rayPayloadEXT hitPayload prd;
+layout(location = 0) rayPayloadEXT HitPayload prd;
 
 void main() 
 {
@@ -41,5 +41,5 @@ void main()
           tMax,           // ray max range
           0               // payload (location = 0)
     );
-    imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(direction.xyz, 1.0));
+    imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(prd.hitValue, 1.0));
 }

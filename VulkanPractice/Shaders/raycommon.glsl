@@ -2,7 +2,7 @@
 #define RAY_COMMON_GLSL
 
 //Hit payload
-struct hitPayload{
+struct HitPayload{
     vec3 hitValue;
 };
 
