@@ -298,7 +298,7 @@
 		vkFreeCommandBuffers(*mainLogicalDevice, *mainCommandPool, 1, &commandBuffer);
 	}
 	void RayTracer::createShaderBindingTable() {
-		/* So I can't query the GPU since I dont have the device feature for it. Will use physical device queryig instead
+		// So I can't query the GPU since I dont have the device feature for it. Will use physical device queryig instead
 		//Maps which shaders we should call for different entrypoints
 		//Setting up buffer offsets to store the shader handles in
 		//32bit for RG, 16 for miss,padd out another 16, and finally 16 for hit
@@ -312,36 +312,20 @@
 
 		//Aligns handles using handle and base alignments, offset by the size
 		//See this page for formula explaination: https://en.wikipedia.org/wiki/Data_structure_alignment
-		uint32_t handleSizeAligned = (handleSize + (handleAlign-1)) & !(handleAlign - 1);
-		rayGenRegion.stride = (handleSizeAligned + (baseAlign - 1)) & !(baseAlign - 1);
+		uint32_t handleSizeAligned = (handleSize + (handleAlign-1)) & ~(handleAlign - 1);
+		rayGenRegion.stride = (handleSizeAligned + (baseAlign - 1)) & ~(baseAlign - 1);
 		rayGenRegion.size = rayGenRegion.stride;
 		rayMissRegion.stride = handleSizeAligned;
-		rayMissRegion.size = (missCount * handleSizeAligned + (baseAlign - 1)) & !(baseAlign - 1);
+		rayMissRegion.size = (missCount * handleSizeAligned + (baseAlign - 1)) & ~(baseAlign - 1);
 		rayHitRegion.stride = handleSizeAligned;
-		rayHitRegion.size = (hitCount * handleSizeAligned + (baseAlign - 1)) & !(baseAlign - 1);
+		rayHitRegion.size = (hitCount * handleSizeAligned + (baseAlign - 1)) & ~(baseAlign - 1);
 		//Vector to store the handles to each shader
 		uint32_t dataSize = handleCount * handleSize;
 		std::vector<uint8_t> handles(dataSize);
-		auto result = pvkGetRayTracingCaptureReplayShaderGroupHandlesKHR(*mainLogicalDevice, raytracingPipeline, 0, handleCount, dataSize, handles.data());
+		auto result = pvkGetRayTracingShaderGroupHandlesKHR(*mainLogicalDevice, raytracingPipeline, 0, handleCount, dataSize, handles.data());
 		//Im breaking my consistentcy rules because this way is so much better and I want to demonstrate the better way to do this valdiatioN!
 		assert(result == VK_SUCCESS);
-		*/
-		//Keeping these here in case I can query GPU 
-		uint32_t missCount = 1;
-		uint32_t hitCount = 1;
-		uint32_t baseAlign = rayTracingProperties.shaderGroupBaseAlignment;
-		rayGenRegion.stride = baseAlign;
-		rayGenRegion.size = baseAlign;
-		rayMissRegion.stride = baseAlign;
-		rayMissRegion.size = baseAlign;
-		rayHitRegion.stride = baseAlign;
-		rayHitRegion.size = baseAlign;
-		//Handle storage
-		uint32_t dataSize = 3 * baseAlign; //Pad out byte for alignment
-		std::vector<uint8_t> handles(dataSize);
-		auto result = pvkGetRayTracingShaderGroupHandlesKHR(*mainLogicalDevice, raytracingPipeline, 0, 3, dataSize, handles.data());
-		//Im breaking my consistentcy rules because this way is so much better and I want to demonstrate the better way to do this valdiatioN!
-		assert(result == VK_SUCCESS);
+		
 		//Allocate buffer for SBT
 		QueueFamilyIndices indices = findQueueFamilies(*mainPhysicalDevice);
 		uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value(),indices.presentFamily.value() };
@@ -403,7 +387,7 @@
 		rayGenRegion.deviceAddress = sbtAddress;
 		rayMissRegion.deviceAddress = sbtAddress + rayGenRegion.size;
 		rayHitRegion.deviceAddress = sbtAddress + rayGenRegion.size + rayMissRegion.size;
-		uint32_t handleSize = handles.size();
+		//uint32_t handleSize = handles.size();
 		auto getHandle = [&](int i) { return handles.data() + (uint32_t)i * handleSize; };
 		//Map the SBT buffer and write in the handles
 		void* hostSBTMemoryBuffer;
