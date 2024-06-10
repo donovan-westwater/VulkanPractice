@@ -9,5 +9,7 @@ layout(location = 0) rayPayloadInEXT HitPayload hitP;
 
 void main()
 {
-  hitP.hitValue = vec3(0.9, 0.5, 0.2);
+	vec3 worldPos = gl_WorldRayDirectionEXT * gl_HitTEXT;
+	float d = length(worldPos)/1000.0;
+	hitP.hitValue = vec3(d,d,d);
 }

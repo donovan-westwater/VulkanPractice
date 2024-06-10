@@ -1068,19 +1068,25 @@
 		auto currentTime = std::chrono::high_resolution_clock::now();
 		float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 		UniformBufferObject ubo{};
+		//TODO: INVERT THIS MATRIX!
 		//We create an indentity matrix and rotate based on the time
 		ubo.model = glm::mat4(0.25f);
 		ubo.model[3][3] = 1.0f;
 		ubo.model[3][2] = -1.0f;
 		ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 		ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-		ubo.model = glm::rotate(ubo.model, time * glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+		ubo.model = glm::rotate(ubo.model, time * glm::radians(10.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 		//Create a camera matrix at pos 2,2,2 look at 0 0 0, with up being Z
 		ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-		ubo.view = glm::rotate(ubo.view, time * glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+		ubo.view = glm::rotate(ubo.view, time * glm::radians(10.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 		//Create a perspective based projection matrix for our camera
 		ubo.proj = glm::perspective(glm::radians(45.0f), widthRef / (float)heightRef, 0.1f, 10.0f);
 		ubo.proj[1][1] *= -1; //Y-coord for clip coords is inverted. This fixes that (GLM designed for openGL)
+		
+		ubo.proj = glm::inverse(ubo.proj);
+		ubo.view = glm::inverse(ubo.view);
+		ubo.model = glm::inverse(ubo.model);
+							  
 		//ubo.colorAdd = glm::vec4(abs(cos(time)), abs(sin(time)), abs(tan(time)), 1);
 		memcpy(uniBufferMMap[*currentFrameRef], &ubo, sizeof(ubo));
 		vkResetCommandBuffer(cmdBuf, 0);

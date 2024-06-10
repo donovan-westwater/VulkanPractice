@@ -1806,7 +1806,7 @@ private:
         ubo.model[3][2] = -1.0f;
         ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-        ubo.model = glm::rotate(ubo.model, time*glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        ubo.model = glm::rotate(ubo.model, time*glm::radians(10.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         //Create a camera matrix at pos 2,2,2 look at 0 0 0, with up being Z
         ubo.view = glm::lookAt(glm::vec3(2.0f,2.0f,2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
         //Create a perspective based projection matrix for our camera
