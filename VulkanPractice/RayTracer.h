@@ -31,6 +31,7 @@ class RayTracer {
 	//Functions
 	VkShaderModule createShaderModule(const std::vector<char>& code);
 	QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
+	uint32_t findSimultGraphicsAndPresentIndex(VkPhysicalDevice phyDevice);
 	void createTopLevelAS();
 	void createRtDescriptorSets();
 	void createRtDescriptorPool();

@@ -294,6 +294,7 @@
 		if (r != VK_SUCCESS && r != VK_TIMEOUT) {
 			throw std::runtime_error("Failed to wait for fences");
 		}
+		vkDestroyFence(*mainLogicalDevice, bottomLevelFence, NULL);
 		vkFreeCommandBuffers(*mainLogicalDevice, *mainCommandPool, 1, &commandBuffer);
 	}
 	void RayTracer::createShaderBindingTable() {
@@ -647,7 +648,7 @@
 		//Get the queueFamiies
 		QueueFamilyIndices indices = findQueueFamilies(*mainPhysicalDevice);
 		uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value(),indices.presentFamily.value() };
-
+		uint32_t simultIndex = findSimultGraphicsAndPresentIndex(*mainPhysicalDevice);
 		VkBufferCreateInfo blGeoStructureReference;
 		blGeoStructureReference.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		blGeoStructureReference.flags = 0;
@@ -656,7 +657,7 @@
 			VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 		blGeoStructureReference.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 		blGeoStructureReference.queueFamilyIndexCount = 1;
-		blGeoStructureReference.pQueueFamilyIndices = queueFamilyIndices;
+		blGeoStructureReference.pQueueFamilyIndices = &simultIndex;
 		blGeoStructureReference.pNext = NULL;
 		VkBuffer blGeoInstanceBuffer;
 		if (vkCreateBuffer(*mainLogicalDevice, &blGeoStructureReference, nullptr, &blGeoInstanceBuffer) != VK_SUCCESS) {
@@ -767,7 +768,7 @@
 		tlASBufferCreateInfo.usage = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
 		tlASBufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 		tlASBufferCreateInfo.queueFamilyIndexCount = 1;
-		tlASBufferCreateInfo.pQueueFamilyIndices = queueFamilyIndices;
+		tlASBufferCreateInfo.pQueueFamilyIndices = &simultIndex;
 		tlASBufferCreateInfo.pNext = NULL;
 		tlASBufferCreateInfo.flags = 0;
 		//VkBuffer tlASBufferHandle = VK_NULL_HANDLE;
@@ -843,7 +844,7 @@
 			VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 			tlASScratchBufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 			tlASScratchBufferCreateInfo.queueFamilyIndexCount = 1;
-			tlASScratchBufferCreateInfo.pQueueFamilyIndices = queueFamilyIndices;
+			tlASScratchBufferCreateInfo.pQueueFamilyIndices = &simultIndex;
 
 		VkBuffer tlASScratchBufferHandle = VK_NULL_HANDLE;
 		if (vkCreateBuffer(
@@ -957,6 +958,7 @@
 			throw std::runtime_error("Failed to wait for fences");
 		}
 		//Free up our one time command buffer submission
+		vkDestroyFence(*mainLogicalDevice, tlFence, NULL);
 		vkFreeCommandBuffers(*mainLogicalDevice, *mainCommandPool, 1, &commandBuffer);
 }
 	void RayTracer::createRayTracingPipeline() {
@@ -1322,7 +1324,31 @@
 		return indices;
 
 	}
-
+	uint32_t RayTracer::findSimultGraphicsAndPresentIndex(VkPhysicalDevice phyDevice) {
+		uint32_t simultQueueFamilyIndex = -1;
+		//Retrive a list of queue familes
+		uint32_t queueFamilyCount = 0;
+		vkGetPhysicalDeviceQueueFamilyProperties(phyDevice, &queueFamilyCount, nullptr);
+		std::vector<VkQueueFamilyProperties>queueFamilies(queueFamilyCount);
+		vkGetPhysicalDeviceQueueFamilyProperties(phyDevice, &queueFamilyCount, queueFamilies.data());
+		//QueuFamilyProperies contains details like what operations are acceptiable and the number of queues that cant be created 
+		int i = 0;
+		for (const auto& queueFamiliy : queueFamilies) {
+			//Look for a queueFamily that supports Grpahics
+			if (queueFamiliy.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+				VkBool32 presentSupport = false;
+				vkGetPhysicalDeviceSurfaceSupportKHR(phyDevice, i, *mainSurface, &presentSupport);
+				//Check to see if the queue family supports presenting window surfaces
+				if (presentSupport) {
+					simultQueueFamilyIndex = i;
+					break;
+				}
+			}
+			
+			i++;
+		}
+		return simultQueueFamilyIndex;
+	}
 	//Module to handle shader programs compiled into the vulkan byte code
 	VkShaderModule RayTracer::createShaderModule(const std::vector<char>& code) {
 		VkShaderModuleCreateInfo createInfo{};
