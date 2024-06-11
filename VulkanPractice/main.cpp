@@ -14,6 +14,7 @@ public:
         initVulkan();
         //Setup RayTracer
         CreateLightAndPassVarsToRayTracer();
+        //DEBUG: LOOK FOR BAD / UNITALIZIED COMMAND BUFFERS or ONES WHICH WERENT COMPLETELY CLEANED!
         rayTracer.setupRayTracer(vertexBuffer, indexBuffer, vertices.size());
         mainLoop();
         cleanup();

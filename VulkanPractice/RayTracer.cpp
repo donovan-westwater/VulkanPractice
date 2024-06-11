@@ -265,6 +265,7 @@
 		bottomLevelCommandBufferBeginInfo.pNext = NULL;
 		bottomLevelCommandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 		bottomLevelCommandBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+		bottomLevelCommandBufferBeginInfo.pInheritanceInfo = NULL;
 		if (vkBeginCommandBuffer(commandBuffer, &bottomLevelCommandBufferBeginInfo) != VK_SUCCESS) {
 			throw std::runtime_error("Ray tracing command buffer cant start!");
 		}
@@ -904,6 +905,7 @@
 		tlCommandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 		tlCommandBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 		tlCommandBufferBeginInfo.pNext = NULL;
+		tlCommandBufferBeginInfo.pInheritanceInfo = NULL;
 		if (vkBeginCommandBuffer(commandBuffer, &tlCommandBufferBeginInfo) != VK_SUCCESS) {
 			throw std::runtime_error("Ray tracing command buffer cant start!");
 		}
@@ -987,14 +989,14 @@
 		raytracingShaderGroups.push_back(group);
 		//Miss
 		group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
-		group.generalShader = eClosestHit;// eMiss;
+		group.generalShader = eMiss;
 		raytracingShaderGroups.push_back(group);
 		//Closest Hit
 		//Triangle hit includes any, close, and intersection shaders
 		//We only have closest hit and it 
 		group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
 		group.generalShader = VK_SHADER_UNUSED_KHR;
-		group.closestHitShader = eMiss;// eClosestHit;
+		group.closestHitShader = eClosestHit;
 		raytracingShaderGroups.push_back(group);
 		//Create Shader Stages for ray tracing
 		VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo;
