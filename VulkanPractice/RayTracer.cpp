@@ -1140,7 +1140,7 @@
 		vkCmdPushConstants(cmdBuf, rayPipelineLayout
 			, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_MISS_BIT_KHR,
 			0, sizeof(PushConstantRay), &pcRay);
-		pvkCmdTraceRaysKHR(cmdBuf, &rayGenRegion,&rayHitRegion, &rayMissRegion, &rayCallRegion
+		pvkCmdTraceRaysKHR(cmdBuf, &rayGenRegion,&rayMissRegion, &rayHitRegion, &rayCallRegion
 			, widthRef, heightRef, 1);
 		//Once the ray is traced, we can start copying the results over into the swap chain
 		//We make a barrier so we can copy the rtImage into the swapChain
