@@ -1517,6 +1517,13 @@ private:
         if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) != VK_SUCCESS) {
             throw std::runtime_error("failed to create logical device!");
         }
+#ifndef NDEBUG
+        pvkSetDebugUtilsObjectNameEXT =
+            (PFN_vkSetDebugUtilsObjectNameEXT)vkGetDeviceProcAddr(
+                device, "vkSetDebugUtilsObjectNameEXT");
+        setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_DEVICE,reinterpret_cast<uint64_t>(device)
+            , "Main Logical Device");
+#endif // !NDEBUG
         vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
         vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
     }

@@ -1354,11 +1354,20 @@
 		return shaderModule; //A thin wrapper around the byte code. Compliation + linking occurs at graphics pipeline time
 	}
 	void RayTracer::Cleanup() {
+		//Acceleration Structures
 		pvkDestroyAccelerationStructureKHR(*mainLogicalDevice, tlAShandle, nullptr);
 		pvkDestroyAccelerationStructureKHR(*mainLogicalDevice, blAShandle, nullptr);
-		//Pipeline goes here
+		vkDestroyBuffer(*mainLogicalDevice, tASSBuffer, nullptr);
+		vkDestroyBuffer(*mainLogicalDevice, bASSBuffer, nullptr);
+		//Ray Tracing Pipeline
 		vkDestroyDescriptorSetLayout(*mainLogicalDevice, descriptorSetLayout, nullptr);
 		vkDestroyDescriptorPool(*mainLogicalDevice, descriptorPool, nullptr);
 		vkDestroyPipeline(*mainLogicalDevice, raytracingPipeline, nullptr);
 		vkDestroyPipelineLayout(*mainLogicalDevice, rayPipelineLayout, nullptr);
+		//Shader Binding Table and Ray Trace Image
+		vkDestroyBuffer(*mainLogicalDevice, sbtBuffer, nullptr);
+		vkDestroyImageView(*mainLogicalDevice, rtImageView, nullptr);
+		vkDestroyImage(*mainLogicalDevice, rtImage, nullptr);
+		vkFreeMemory(*mainLogicalDevice, rtImageDeviceMemory, nullptr);
+
 	}
