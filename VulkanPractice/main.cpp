@@ -817,6 +817,9 @@ private:
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
             createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i]
             ,true);
+#ifndef NDEBUG
+        setDebugObjectName(device,VkObjectType::VK_OBJECT_TYPE_BUFFER ,reinterpret_cast<uint64_t>(uniformBuffers[i]), "Uniform Buffer Object "+i);
+#endif
             //We dont want to remap memory all the time since mem mapping is costly
             //Having the buffers mapped this way means we can update whenever we want!
             vkMapMemory(device, uniformBuffersMemory[i], 0, bufferSize, 0, &uniformBuffersMapped[i]);
@@ -869,7 +872,10 @@ private:
             VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
         createBuffer(bufferSize, rayTracingFlags | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory
         ,true);
-
+#ifndef NDEBUG
+        setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(indexBuffer), "Index Buffer");
+        setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY, reinterpret_cast<uint64_t>(indexBufferMemory), "Index Buffer Memory");
+#endif
         copyBuffer(stagingBuffer, indexBuffer, bufferSize);
 
         vkDestroyBuffer(device, stagingBuffer, nullptr);
@@ -918,6 +924,10 @@ private:
         }
         //Bind the allocated memory to the vertex buffer
         vkBindBufferMemory(device, buffer, bufferMemory, 0);
+#ifndef NDEBUG
+        setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(buffer), "Temp Buffer");
+        setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY, reinterpret_cast<uint64_t>(bufferMemory), "Temp Buffer Memory");
+#endif
     }
     //Copying vulkan buffer from src to dst 
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
@@ -950,6 +960,10 @@ private:
         //The vertex buffer itself
         createBuffer(bufferSize, rayTracingFlags | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory
         ,true);
+#ifndef NDEBUG
+        setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(vertexBuffer), "Vertex Buffer");
+        setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY, reinterpret_cast<uint64_t>(vertexBufferMemory), "Vertex Buffer Memory");
+#endif
         //Copy data from staging buffer to vertex buffer
         copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
         //Clean up data after we are done with it
