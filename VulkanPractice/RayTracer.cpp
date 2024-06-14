@@ -10,7 +10,13 @@
 			memoryAllocateFlagsInfo.deviceMask = 0;
 		return memoryAllocateFlagsInfo;
 	}
+	//GO THROUGH EVERYTHING AND MAKE SURE SCRATCH BUFFERS ARE FREED!!!!
 	void RayTracer::setupRayTracer(VkBuffer& vertexBuffer, VkBuffer& indexBuffer, uint32_t nOfVerts) {
+#ifndef NDEBUG
+		pvkSetDebugUtilsObjectNameEXT =
+			(PFN_vkSetDebugUtilsObjectNameEXT)vkGetDeviceProcAddr(
+				*mainLogicalDevice, "vkSetDebugUtilsObjectNameEXT");
+#endif
 		initRayTracing();
 		modelToBLAS(vertexBuffer, indexBuffer, nOfVerts);
 		createTopLevelAS();
@@ -129,6 +135,10 @@
 			if (vkCreateBuffer(*mainLogicalDevice, &bottomLevelAccelerationStructureBufferCreateInfo, nullptr, &bASSBuffer) != VK_SUCCESS) {
 				throw std::runtime_error("failed to create buffer for bASS");
 			}
+#ifndef NDEBUG
+			setDebugObjectName(*mainLogicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(bASSBuffer)
+				, "Bottom Level Accelertation Structure Buffer");
+#endif
 		//Get the memory requirments for the accleartion struct
 		VkMemoryRequirements blASMemoryRequirements;
 		vkGetBufferMemoryRequirements(*mainLogicalDevice, bASSBuffer, &blASMemoryRequirements);
@@ -164,6 +174,11 @@
 		if (vkBindBufferMemory(*mainLogicalDevice, bASSBuffer,blASDeviceMemoryHandle,0) != VK_SUCCESS) {
 			throw std::runtime_error("Couldnt bind memory to buffer!");
 		}
+#ifndef NDEBUG
+		setDebugObjectName(*mainLogicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
+			, reinterpret_cast<uint64_t>(blASDeviceMemoryHandle)
+			, "Bottom Level Acceleration Structure Device Memory");
+#endif
 		//Create acc structure
 		VkAccelerationStructureCreateInfoKHR accInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
 		accInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
@@ -198,6 +213,10 @@
 		if (vkCreateBuffer(*mainLogicalDevice, &blASScratchBufferCreateInfo, NULL, &blASScratchBufferHandle) != VK_SUCCESS) {
 			throw std::runtime_error("Buffer for building blAS cannot be made!");
 		}
+#ifndef NDEBUG
+		setDebugObjectName(*mainLogicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(blASScratchBufferHandle)
+			, "Bottom Level Accelertation Structure Scratch Buffer");
+#endif
 		VkMemoryRequirements blASScratchMemoryReq;
 		vkGetBufferMemoryRequirements(*mainLogicalDevice, blASScratchBufferHandle, &blASScratchMemoryReq);
 		//Check to see what memory our graphics card has for the buffer
@@ -222,13 +241,18 @@
 		blASScratchMemoryAllocateInfo.pNext = &defaultFlagsBLAS;
 		blASScratchMemoryAllocateInfo.allocationSize = blASMemoryRequirements.size;
 		blASScratchMemoryAllocateInfo.memoryTypeIndex = bottomLevelAccelerationStructureScratchMemoryTypeIndex;
-		VkDeviceMemory blASDeviceScratchMemoryHandle;
-		if (vkAllocateMemory(*mainLogicalDevice, &blASScratchMemoryAllocateInfo, nullptr, &blASDeviceMemoryHandle) != VK_SUCCESS) {
+		VkDeviceMemory blASDeviceScratchMemoryHandle = VK_NULL_HANDLE;
+		if (vkAllocateMemory(*mainLogicalDevice, &blASScratchMemoryAllocateInfo, nullptr, &blASDeviceScratchMemoryHandle) != VK_SUCCESS) {
 			throw std::runtime_error("Cannot allocate scratch memory!");
 		}
-		if (vkBindBufferMemory(*mainLogicalDevice, blASScratchBufferHandle, blASDeviceMemoryHandle, 0) != VK_SUCCESS) {
+		if (vkBindBufferMemory(*mainLogicalDevice, blASScratchBufferHandle, blASDeviceScratchMemoryHandle, 0) != VK_SUCCESS) {
 			throw std::runtime_error("Cannot bind scratch memory!");
 		}
+#ifndef NDEBUG
+		setDebugObjectName(*mainLogicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
+			, reinterpret_cast<uint64_t>(blASDeviceScratchMemoryHandle)
+			, "Bottom Level Acceleration Structure Device Scratch Memory");
+#endif
 		VkBufferDeviceAddressInfo blASScratchBufferDeviceAddressInfo;
 		blASScratchBufferDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
 		blASScratchBufferDeviceAddressInfo.pNext = NULL;
@@ -296,6 +320,7 @@
 			throw std::runtime_error("Failed to wait for fences");
 		}
 		vkDestroyFence(*mainLogicalDevice, bottomLevelFence, NULL);
+		vkDestroyBuffer(*mainLogicalDevice, blASScratchBufferHandle,NULL);
 		vkFreeCommandBuffers(*mainLogicalDevice, *mainCommandPool, 1, &commandBuffer);
 	}
 	void RayTracer::createShaderBindingTable() {
@@ -342,6 +367,10 @@
 		if (vkCreateBuffer(*mainLogicalDevice, &bufferInfo, nullptr, &sbtBuffer) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create Shader Binding Table buffer!");
 		}
+#ifndef NDEBUG
+		setDebugObjectName(*mainLogicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(sbtBuffer)
+			, "Shader Binding Table Buffer");
+#endif
 		//Query the memory requirements to make sure we have enough space to allocate for the vertex buffer
 		VkMemoryRequirements memRequirements;
 		vkGetBufferMemoryRequirements(*mainLogicalDevice, sbtBuffer, &memRequirements);
@@ -378,6 +407,11 @@
 		if (vkBindBufferMemory(*mainLogicalDevice, sbtBuffer, sbtDeviceMemHandle, 0)) {
 			throw std::runtime_error("Failed to allocate memory to sbt buffer");
 		}
+#ifndef NDEBUG
+		setDebugObjectName(*mainLogicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
+			, reinterpret_cast<uint64_t>(sbtDeviceMemHandle)
+			, "Shader Binding Table Memory");
+#endif
 		//Storing device addresses for the shader groups
 		VkBufferDeviceAddressInfo info;
 		info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
@@ -417,8 +451,6 @@
 		}
 		//CLeanup resources
 		vkUnmapMemory(*mainLogicalDevice, sbtDeviceMemHandle);
-		//vkDestroyBuffer(*mainLogicalDevice, sbtBuffer, nullptr);
-		//vkFreeMemory(*mainLogicalDevice, sbtDeviceMemHandle, nullptr);
 	}
 	
 	void RayTracer::createRTImageAndImageView() {
@@ -480,6 +512,11 @@
 		}
 		//Bind the image to the allocated memory
 		vkBindImageMemory(*mainLogicalDevice, rtImage, rtImageDeviceMemory, 0);
+#ifndef NDEBUG
+		setDebugObjectName(*mainLogicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
+			, reinterpret_cast<uint64_t>(rtImageDeviceMemory)
+			, "Ray Trace Image Memory");
+#endif
 		//rtImage View
 		VkImageViewCreateInfo imageViewCreateInfo{};
 		imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -647,6 +684,10 @@
 		if (vkCreateBuffer(*mainLogicalDevice, &blGeoStructureReference, nullptr, &blGeoInstanceBuffer) != VK_SUCCESS) {
 			throw std::runtime_error("Buffer for building blAS instance cannot be made!");
 		}
+#ifndef NDEBUG
+		setDebugObjectName(*mainLogicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(blGeoInstanceBuffer)
+			, "blGeo Instance Buffer");
+#endif
 		//Get memory requirements for instance
 		VkMemoryRequirements blGeoInstanceMemReq;
 		vkGetBufferMemoryRequirements(*mainLogicalDevice, blGeoInstanceBuffer, &blGeoInstanceMemReq);
@@ -684,6 +725,11 @@
 		if (vkBindBufferMemory(*mainLogicalDevice,blGeoInstanceBuffer,bottomLevelGeometryInstanceDeviceMemoryHandle,0) != VK_SUCCESS) {
 			throw std::runtime_error("Can't bind memory for device");
 		}
+#ifndef NDEBUG
+		setDebugObjectName(*mainLogicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
+			, reinterpret_cast<uint64_t>(bottomLevelGeometryInstanceDeviceMemoryHandle)
+			, "Bottom Level Geometery Instance Device Memory");
+#endif
 		//Host Device blGeoInstance buffer creation
 		//We trying to copy from GPU to CPU
 		void* hostbottomLevelGeometryInstanceMemoryBuffer;
@@ -759,6 +805,10 @@
 		if (vkCreateBuffer(*mainLogicalDevice, &tlASBufferCreateInfo, nullptr, &tASSBuffer) != VK_SUCCESS) {
 			throw std::runtime_error("Buffer for tlAS cannot be made!");
 		}
+#ifndef NDEBUG
+		setDebugObjectName(*mainLogicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(tASSBuffer)
+			, "Top Level Accelertation Structure Buffer");
+#endif
 		//Check to see what memory our graphics card has for the buffer
 		VkMemoryRequirements tlASMemoryRequirements;
 		vkGetBufferMemoryRequirements(
@@ -794,6 +844,11 @@
 		if (vkBindBufferMemory(*mainLogicalDevice, tASSBuffer,tlASDeviceMemoryHandle,0) != VK_SUCCESS) {
 			throw std::runtime_error("Failed to bind the memory to the buffer from the device");
 		}
+#ifndef NDEBUG
+		setDebugObjectName(*mainLogicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
+			, reinterpret_cast<uint64_t>(tlASDeviceMemoryHandle)
+			, "Top Level Acceleration Structure Device Memory");
+#endif
 		//The settings for the tlAS
 		VkAccelerationStructureCreateInfoKHR tlASCreateInfo;
 		tlASCreateInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
@@ -836,6 +891,11 @@
 			&tlASScratchBufferHandle) != VK_SUCCESS) {
 			throw std::runtime_error("Scratch memory buffer couldnt be built");
 		}
+#ifndef NDEBUG
+		setDebugObjectName(*mainLogicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER
+			, reinterpret_cast<uint64_t>(tlASScratchBufferHandle)
+			, "Top Level Accelertation Structure Scratch Buffer");
+#endif
 		//Get memory req to determine what kinds of memory the GPU has
 		VkMemoryRequirements tlASScratchMemoryRequirments;
 		vkGetBufferMemoryRequirements(*mainLogicalDevice, tlASScratchBufferHandle, &tlASScratchMemoryRequirments);
@@ -870,6 +930,11 @@
 			!= VK_SUCCESS) {
 			throw std::runtime_error("Couldn't bind memeory for hte scratch buffer");
 		}
+#ifndef NDEBUG
+		setDebugObjectName(*mainLogicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
+			, reinterpret_cast<uint64_t>(tlASDeviceScratchMemoryHandle)
+			, "Top Level Acceleration Structure Scratch Device Memory");
+#endif
 		//We need to get the device address of the scratch buffer so we can direct future code to the correct
 		//place to build the topl level geometry!
 		//This gets us the info used to get the actual addresss
@@ -942,6 +1007,9 @@
 		if (r != VK_SUCCESS && r != VK_TIMEOUT) {
 			throw std::runtime_error("Failed to wait for fences");
 		}
+		//Free up scratch buffers
+		vkDestroyBuffer(*mainLogicalDevice, blGeoInstanceBuffer, NULL);
+		vkDestroyBuffer(*mainLogicalDevice, tlASScratchBufferHandle, NULL);
 		//Free up our one time command buffer submission
 		vkDestroyFence(*mainLogicalDevice, tlFence, NULL);
 		vkFreeCommandBuffers(*mainLogicalDevice, *mainCommandPool, 1, &commandBuffer);
