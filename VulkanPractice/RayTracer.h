@@ -17,12 +17,15 @@ class RayTracer {
 	PushConstantRay pcRay;
 	VkBuffer bASSBuffer;
 	VkBuffer tASSBuffer;
+	VkDeviceMemory tlASDeviceMemory;
+	VkDeviceMemory blASDeviceMemory;
 	VkAccelerationStructureKHR blAShandle;
 	VkAccelerationStructureKHR tlAShandle;
 	VkDescriptorSetLayout descriptorSetLayout; //holds values to setup the descriptor sets
 	std::vector<VkDescriptorSet> descriptorSets; //The actual descr sets
 	VkDescriptorPool descriptorPool;
 	VkBuffer sbtBuffer;
+	VkDeviceMemory sbtDeviceMemory;
 	VkStridedDeviceAddressRegionKHR rayGenRegion;
 	VkStridedDeviceAddressRegionKHR rayMissRegion;
 	VkStridedDeviceAddressRegionKHR rayHitRegion;

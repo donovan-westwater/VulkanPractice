@@ -179,6 +179,7 @@
 			, reinterpret_cast<uint64_t>(blASDeviceMemoryHandle)
 			, "Bottom Level Acceleration Structure Device Memory");
 #endif
+		blASDeviceMemory = blASDeviceMemoryHandle;
 		//Create acc structure
 		VkAccelerationStructureCreateInfoKHR accInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
 		accInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
@@ -321,6 +322,7 @@
 		}
 		vkDestroyFence(*mainLogicalDevice, bottomLevelFence, NULL);
 		vkDestroyBuffer(*mainLogicalDevice, blASScratchBufferHandle,NULL);
+		vkFreeMemory(*mainLogicalDevice, blASDeviceScratchMemoryHandle, NULL);
 		vkFreeCommandBuffers(*mainLogicalDevice, *mainCommandPool, 1, &commandBuffer);
 	}
 	void RayTracer::createShaderBindingTable() {
@@ -412,6 +414,7 @@
 			, reinterpret_cast<uint64_t>(sbtDeviceMemHandle)
 			, "Shader Binding Table Memory");
 #endif
+		sbtDeviceMemory = sbtDeviceMemHandle;
 		//Storing device addresses for the shader groups
 		VkBufferDeviceAddressInfo info;
 		info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
@@ -849,6 +852,7 @@
 			, reinterpret_cast<uint64_t>(tlASDeviceMemoryHandle)
 			, "Top Level Acceleration Structure Device Memory");
 #endif
+		tlASDeviceMemory = tlASDeviceMemoryHandle;
 		//The settings for the tlAS
 		VkAccelerationStructureCreateInfoKHR tlASCreateInfo;
 		tlASCreateInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
@@ -1010,6 +1014,8 @@
 		//Free up scratch buffers
 		vkDestroyBuffer(*mainLogicalDevice, blGeoInstanceBuffer, NULL);
 		vkDestroyBuffer(*mainLogicalDevice, tlASScratchBufferHandle, NULL);
+		vkFreeMemory(*mainLogicalDevice,tlASDeviceScratchMemoryHandle, NULL);
+		vkFreeMemory(*mainLogicalDevice, bottomLevelGeometryInstanceDeviceMemoryHandle, NULL);
 		//Free up our one time command buffer submission
 		vkDestroyFence(*mainLogicalDevice, tlFence, NULL);
 		vkFreeCommandBuffers(*mainLogicalDevice, *mainCommandPool, 1, &commandBuffer);
@@ -1426,7 +1432,9 @@
 		pvkDestroyAccelerationStructureKHR(*mainLogicalDevice, tlAShandle, nullptr);
 		pvkDestroyAccelerationStructureKHR(*mainLogicalDevice, blAShandle, nullptr);
 		vkDestroyBuffer(*mainLogicalDevice, tASSBuffer, nullptr);
+		vkFreeMemory(*mainLogicalDevice,tlASDeviceMemory , nullptr);
 		vkDestroyBuffer(*mainLogicalDevice, bASSBuffer, nullptr);
+		vkFreeMemory(*mainLogicalDevice, blASDeviceMemory, nullptr);
 		//Ray Tracing Pipeline
 		vkDestroyDescriptorSetLayout(*mainLogicalDevice, descriptorSetLayout, nullptr);
 		vkDestroyDescriptorPool(*mainLogicalDevice, descriptorPool, nullptr);
@@ -1434,6 +1442,7 @@
 		vkDestroyPipelineLayout(*mainLogicalDevice, rayPipelineLayout, nullptr);
 		//Shader Binding Table and Ray Trace Image
 		vkDestroyBuffer(*mainLogicalDevice, sbtBuffer, nullptr);
+		vkFreeMemory(*mainLogicalDevice, sbtDeviceMemory, nullptr);
 		vkDestroyImageView(*mainLogicalDevice, rtImageView, nullptr);
 		vkDestroyImage(*mainLogicalDevice, rtImage, nullptr);
 		vkFreeMemory(*mainLogicalDevice, rtImageDeviceMemory, nullptr);
