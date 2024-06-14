@@ -135,8 +135,10 @@
 			if (vkCreateBuffer(*mainLogicalDevice, &bottomLevelAccelerationStructureBufferCreateInfo, nullptr, &bASSBuffer) != VK_SUCCESS) {
 				throw std::runtime_error("failed to create buffer for bASS");
 			}
+#ifndef NDEBUG
 			setDebugObjectName(*mainLogicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(bASSBuffer)
 				, "Bottom Level Accelertation Structure Buffer");
+#endif
 		//Get the memory requirments for the accleartion struct
 		VkMemoryRequirements blASMemoryRequirements;
 		vkGetBufferMemoryRequirements(*mainLogicalDevice, bASSBuffer, &blASMemoryRequirements);
@@ -206,8 +208,10 @@
 		if (vkCreateBuffer(*mainLogicalDevice, &blASScratchBufferCreateInfo, NULL, &blASScratchBufferHandle) != VK_SUCCESS) {
 			throw std::runtime_error("Buffer for building blAS cannot be made!");
 		}
+#ifndef NDEBUG
 		setDebugObjectName(*mainLogicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(blASScratchBufferHandle)
 			, "Bottom Level Accelertation Structure Scratch Buffer");
+#endif
 		VkMemoryRequirements blASScratchMemoryReq;
 		vkGetBufferMemoryRequirements(*mainLogicalDevice, blASScratchBufferHandle, &blASScratchMemoryReq);
 		//Check to see what memory our graphics card has for the buffer
@@ -306,6 +310,7 @@
 			throw std::runtime_error("Failed to wait for fences");
 		}
 		vkDestroyFence(*mainLogicalDevice, bottomLevelFence, NULL);
+		vkDestroyBuffer(*mainLogicalDevice, blASScratchBufferHandle,NULL);
 		vkFreeCommandBuffers(*mainLogicalDevice, *mainCommandPool, 1, &commandBuffer);
 	}
 	void RayTracer::createShaderBindingTable() {
@@ -352,8 +357,10 @@
 		if (vkCreateBuffer(*mainLogicalDevice, &bufferInfo, nullptr, &sbtBuffer) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create Shader Binding Table buffer!");
 		}
+#ifndef NDEBUG
 		setDebugObjectName(*mainLogicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(sbtBuffer)
 			, "Shader Binding Table Buffer");
+#endif
 		//Query the memory requirements to make sure we have enough space to allocate for the vertex buffer
 		VkMemoryRequirements memRequirements;
 		vkGetBufferMemoryRequirements(*mainLogicalDevice, sbtBuffer, &memRequirements);
@@ -429,8 +436,6 @@
 		}
 		//CLeanup resources
 		vkUnmapMemory(*mainLogicalDevice, sbtDeviceMemHandle);
-		//vkDestroyBuffer(*mainLogicalDevice, sbtBuffer, nullptr);
-		//vkFreeMemory(*mainLogicalDevice, sbtDeviceMemHandle, nullptr);
 	}
 	
 	void RayTracer::createRTImageAndImageView() {
@@ -659,8 +664,10 @@
 		if (vkCreateBuffer(*mainLogicalDevice, &blGeoStructureReference, nullptr, &blGeoInstanceBuffer) != VK_SUCCESS) {
 			throw std::runtime_error("Buffer for building blAS instance cannot be made!");
 		}
+#ifndef NDEBUG
 		setDebugObjectName(*mainLogicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(blGeoInstanceBuffer)
 			, "blGeo Instance Buffer");
+#endif
 		//Get memory requirements for instance
 		VkMemoryRequirements blGeoInstanceMemReq;
 		vkGetBufferMemoryRequirements(*mainLogicalDevice, blGeoInstanceBuffer, &blGeoInstanceMemReq);
@@ -773,8 +780,10 @@
 		if (vkCreateBuffer(*mainLogicalDevice, &tlASBufferCreateInfo, nullptr, &tASSBuffer) != VK_SUCCESS) {
 			throw std::runtime_error("Buffer for tlAS cannot be made!");
 		}
+#ifndef NDEBUG
 		setDebugObjectName(*mainLogicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(tASSBuffer)
 			, "Top Level Accelertation Structure Buffer");
+#endif
 		//Check to see what memory our graphics card has for the buffer
 		VkMemoryRequirements tlASMemoryRequirements;
 		vkGetBufferMemoryRequirements(
@@ -852,9 +861,11 @@
 			&tlASScratchBufferHandle) != VK_SUCCESS) {
 			throw std::runtime_error("Scratch memory buffer couldnt be built");
 		}
+#ifndef NDEBUG
 		setDebugObjectName(*mainLogicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER
 			, reinterpret_cast<uint64_t>(tlASScratchBufferHandle)
 			, "Top Level Accelertation Structure Scratch Buffer");
+#endif
 		//Get memory req to determine what kinds of memory the GPU has
 		VkMemoryRequirements tlASScratchMemoryRequirments;
 		vkGetBufferMemoryRequirements(*mainLogicalDevice, tlASScratchBufferHandle, &tlASScratchMemoryRequirments);
@@ -961,6 +972,9 @@
 		if (r != VK_SUCCESS && r != VK_TIMEOUT) {
 			throw std::runtime_error("Failed to wait for fences");
 		}
+		//Free up scratch buffers
+		vkDestroyBuffer(*mainLogicalDevice, blGeoInstanceBuffer, NULL);
+		vkDestroyBuffer(*mainLogicalDevice, tlASScratchBufferHandle, NULL);
 		//Free up our one time command buffer submission
 		vkDestroyFence(*mainLogicalDevice, tlFence, NULL);
 		vkFreeCommandBuffers(*mainLogicalDevice, *mainCommandPool, 1, &commandBuffer);
