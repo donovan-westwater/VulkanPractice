@@ -1845,7 +1845,7 @@ private:
             vkUnmapMemory(device, uniformBuffersMemory[i]);
 
         }
-        rayTracer.Cleanup();
+        rayTracer.cleanup();
         cleanupSwapChain();
         vkDestroySampler(device, textureSampler, nullptr);
         vkDestroyImageView(device, textureImageView, nullptr);

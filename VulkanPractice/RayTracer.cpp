@@ -338,130 +338,129 @@
 		//Maps which shaders we should call for different entrypoints
 		//Setting up buffer offsets to store the shader handles in
 		//32bit for RG, 16 for miss,padd out another 16, and finally 16 for hit
-		uint32_t missCount = 1;
-		uint32_t hitCount = 1;
-		auto handleCount = 1 + missCount + hitCount;
+		if (mainLogicalDevice.expired()) {
+			std::cout << "Main Logical Device is expired / null!\n";
+			return;
+		}
+		if (mainPhysicalDevice.expired()) {
+			std::cout << "Main Physical Device is expired / null!\n";
+			return;
+		}
+		VkDevice logicalDevice = *mainLogicalDevice.lock();
+		VkPhysicalDevice physicalDevice = *mainPhysicalDevice.lock();
+		const uint32_t missCount = 1;
+		const uint32_t hitCount = 1;
+		const auto handleCount = 1 + missCount + hitCount;
 		//Can't guarintee that alignment matches group size or handle so we should round up to nearest bit
-		uint32_t handleSize = rayTracingProperties.shaderGroupHandleSize;
-		uint32_t handleAlign = rayTracingProperties.shaderGroupHandleAlignment;
-		uint32_t baseAlign = rayTracingProperties.shaderGroupBaseAlignment;
+		const uint32_t handleSize = rayTracingProperties.shaderGroupHandleSize;
+		const uint32_t handleAlign = rayTracingProperties.shaderGroupHandleAlignment;
+		const uint32_t baseAlign = rayTracingProperties.shaderGroupBaseAlignment;
 
 		//Aligns handles using handle and base alignments, offset by the size
 		//See this page for formula explaination: https://en.wikipedia.org/wiki/Data_structure_alignment
-		uint32_t handleSizeAligned = (handleSize + (handleAlign-1)) & ~(handleAlign - 1);
-		rayGenRegion.stride = (handleSizeAligned + (baseAlign - 1)) & ~(baseAlign - 1);
-		rayGenRegion.size = rayGenRegion.stride;
+		const uint32_t handleSizeAligned = (handleSize + (handleAlign-1)) & ~(handleAlign - 1);
+		rayGenerationRegion.stride = (handleSizeAligned + (baseAlign - 1)) & ~(baseAlign - 1);
+		rayGenerationRegion.size = rayGenerationRegion.stride;
 		rayMissRegion.stride = handleSizeAligned;
 		rayMissRegion.size = (missCount * handleSizeAligned + (baseAlign - 1)) & ~(baseAlign - 1);
 		rayHitRegion.stride = handleSizeAligned;
 		rayHitRegion.size = (hitCount * handleSizeAligned + (baseAlign - 1)) & ~(baseAlign - 1);
 		//Vector to store the handles to each shader
-		uint32_t dataSize = handleCount * handleSize;
+		const uint32_t dataSize = handleCount * handleSize;
 		std::vector<uint8_t> handles(dataSize);
-		auto result = pvkGetRayTracingShaderGroupHandlesKHR(*mainLogicalDevice, raytracingPipeline, 0, handleCount, dataSize, handles.data());
+		const auto result = pvkGetRayTracingShaderGroupHandlesKHR(logicalDevice, raytracingPipeline, 0, handleCount, dataSize, handles.data());
 		//Im breaking my consistentcy rules because this way is so much better and I want to demonstrate the better way to do this valdiatioN!
 		assert(result == VK_SUCCESS);
 		
 		//Allocate buffer for SBT
-		uint32_t queueFamilyIndex = findSimultGraphicsAndPresentIndex(physicalDevice);
-		VkDeviceSize sbtSize = rayGenRegion.size + rayMissRegion.size + rayHitRegion.size;
+		uint32_t queueFamilyIndex = findSimultaniousGraphicsAndPresentIndex(physicalDevice);
+		VkDeviceSize shaderBindingTableSize = rayGenerationRegion.size + rayMissRegion.size + rayHitRegion.size;
 		//create and bind buffer for SBT
 		VkBufferCreateInfo bufferInfo{};
 		bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-		bufferInfo.size = sbtSize; //size of our buffer
+		bufferInfo.size = shaderBindingTableSize; //size of our buffer
 		bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
 			| VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR; //what kind of buffer is this?
 		bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 		bufferInfo.queueFamilyIndexCount = 1;
 		bufferInfo.pQueueFamilyIndices = &queueFamilyIndex;
-		if (vkCreateBuffer(*mainLogicalDevice, &bufferInfo, nullptr, &sbtBuffer) != VK_SUCCESS) {
+		if (vkCreateBuffer(logicalDevice, &bufferInfo, nullptr, &shaderBindingTableBuffer) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create Shader Binding Table buffer!");
 		}
 #ifndef NDEBUG
-		setDebugObjectName(*mainLogicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(sbtBuffer)
+		setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(sbtBuffer)
 			, "Shader Binding Table Buffer");
 #endif
 		//Query the memory requirements to make sure we have enough space to allocate for the vertex buffer
-		VkMemoryRequirements memRequirements;
-		vkGetBufferMemoryRequirements(*mainLogicalDevice, sbtBuffer, &memRequirements);
-		VkPhysicalDeviceMemoryProperties memProperties;
-		vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
+		VkMemoryRequirements memoryRequirements;
+		vkGetBufferMemoryRequirements(logicalDevice ,shaderBindingTableBuffer, &memoryRequirements);
+		VkPhysicalDeviceMemoryProperties memoryProperties;
+		vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProperties);
 		//Check to see what memory our graphics card has for the buffer
-		uint32_t sbtMemoryTypeIndex = -1;
-		for (uint32_t x = 0; x < memProperties.memoryTypeCount;
-			x++) {
+		uint32_t shaderBindingTableMemoryTypeIndex = 
+			findBufferMemoryTypeIndex(logicalDevice,physicalDevice,shaderBindingTableBuffer
+				, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
-			if ((memRequirements
-				.memoryTypeBits &
-				(1 << x)) &&
-				(memProperties.memoryTypes[x].propertyFlags &
-					VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) ==
-				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) {
-
-				sbtMemoryTypeIndex = x;
-				break;
-			}
-		}
 		//Allocate memory for the buffer
-		VkMemoryAllocateFlagsInfo flags = getDefaultAllocationFlags();
-		VkMemoryAllocateInfo allocInfo{};
-		allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		allocInfo.pNext = &flags;
-		allocInfo.allocationSize = memRequirements.size;
-		allocInfo.memoryTypeIndex = sbtMemoryTypeIndex;
-		VkDeviceMemory sbtDeviceMemHandle = VK_NULL_HANDLE;
-		if (vkAllocateMemory(*mainLogicalDevice, &allocInfo, nullptr, &sbtDeviceMemHandle) != VK_SUCCESS) {
+		const VkMemoryAllocateFlagsInfo flags = getDefaultAllocationFlags();
+		VkMemoryAllocateInfo memoryAllocateInfo{};
+		memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		memoryAllocateInfo.pNext = &flags;
+		memoryAllocateInfo.allocationSize = memoryRequirements.size;
+		memoryAllocateInfo.memoryTypeIndex = shaderBindingTableMemoryTypeIndex;
+		shaderBindingTableDeviceMemory = VK_NULL_HANDLE;
+		if (vkAllocateMemory(logicalDevice, &memoryAllocateInfo, nullptr, &shaderBindingTableDeviceMemory) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate vertex buffer memory!");
 		}
 		//Bind the allocated memory to the sbt buffer
-		if (vkBindBufferMemory(*mainLogicalDevice, sbtBuffer, sbtDeviceMemHandle, 0)) {
+		if (vkBindBufferMemory(logicalDevice, shaderBindingTableBuffer, shaderBindingTableDeviceMemory, 0)) {
 			throw std::runtime_error("Failed to allocate memory to sbt buffer");
 		}
 #ifndef NDEBUG
-		setDebugObjectName(*mainLogicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
-			, reinterpret_cast<uint64_t>(sbtDeviceMemHandle)
+		setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
+			, reinterpret_cast<uint64_t>(shaderBindingTableDeviceMemory)
 			, "Shader Binding Table Memory");
 #endif
-		sbtDeviceMemory = sbtDeviceMemHandle;
+
 		//Storing device addresses for the shader groups
 		VkBufferDeviceAddressInfo info;
 		info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
 		info.pNext = nullptr;
-		info.buffer = sbtBuffer;
-		VkDeviceAddress sbtAddress = pvkGetBufferDeviceAddressKHR(*mainLogicalDevice, &info);
-		rayGenRegion.deviceAddress = sbtAddress;
-		rayMissRegion.deviceAddress = sbtAddress + rayGenRegion.size;
-		rayHitRegion.deviceAddress = sbtAddress + rayGenRegion.size + rayMissRegion.size;
-		//uint32_t handleSize = handles.size();
+		info.buffer = shaderBindingTableBuffer;
+		VkDeviceAddress shaderBindingTableAddress = pvkGetBufferDeviceAddressKHR(logicalDevice, &info);
+		rayGenerationRegion.deviceAddress = shaderBindingTableAddress;
+		rayMissRegion.deviceAddress = shaderBindingTableAddress + rayGenerationRegion.size;
+		rayHitRegion.deviceAddress = shaderBindingTableAddress + rayGenerationRegion.size + rayMissRegion.size;
+
 		auto getHandle = [&](int i) { return handles.data() + (uint32_t)i * handleSize; };
 		//Map the SBT buffer and write in the handles
-		void* hostSBTMemoryBuffer;
-		if (vkMapMemory(*mainLogicalDevice, sbtDeviceMemHandle, 0, sbtSize, 0, &hostSBTMemoryBuffer)
+		void* hostShaderBindingTableMemoryBuffer;
+		if (vkMapMemory(logicalDevice, shaderBindingTableDeviceMemory, 0, shaderBindingTableSize, 0, &hostShaderBindingTableMemoryBuffer)
 			!= VK_SUCCESS) {
 			throw std::runtime_error("Failed to map memory sbt to buffer");
 		}
-		auto* pSBTBuffer = reinterpret_cast<uint8_t*>(hostSBTMemoryBuffer);
+		auto* pShaderBindingTableBuffer = reinterpret_cast<uint8_t*>(hostShaderBindingTableMemoryBuffer);
 		uint8_t* pData = nullptr;
 		uint32_t handleIdx = 0;
 		//Copy data over for Raygen
-		pData = pSBTBuffer;
+		pData = pShaderBindingTableBuffer;
 		memcpy(pData, getHandle(handleIdx++), handleSize);
 		//Point base of pointer to miss shader(s)
-		pData = pSBTBuffer + rayGenRegion.size;
+		pData = pShaderBindingTableBuffer + rayGenerationRegion.size;
 		//for loop to copy multiple miss shaders in case we add more
 		for (uint32_t c = 0; c < missCount; c++) {
 			memcpy(pData, getHandle(handleIdx++), handleSize);
 			pData += rayMissRegion.stride;
 		}
 		//Point base of pointer to miss shader(s)
-		pData = pSBTBuffer + rayGenRegion.size +rayMissRegion.size;
+		pData = pShaderBindingTableBuffer + rayGenerationRegion.size +rayMissRegion.size;
 		//for loop to copy multiple miss shaders in case we add more
 		for (uint32_t c = 0; c < hitCount; c++) {
 			memcpy(pData, getHandle(handleIdx++), handleSize);
 			pData += rayHitRegion.stride;
 		}
 		//CLeanup resources
-		vkUnmapMemory(*mainLogicalDevice, sbtDeviceMemHandle);
+		vkUnmapMemory(logicalDevice, shaderBindingTableDeviceMemory);
 	}
 	
 	void RayTracer::createRTImageAndImageView() {
