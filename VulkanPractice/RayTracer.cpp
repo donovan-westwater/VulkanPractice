@@ -560,6 +560,21 @@
 	}
 	void RayTracer::createRayTracerDescriptorSetLayout() {
 		//Creating the layout
+		if (mainLogicalDevice.expired()) {
+			std::cout << "Main Logical Device is expired / null!\n";
+			return;
+		}
+		if (mainPhysicalDevice.expired()) {
+			std::cout << "Main Physical Device is expired / null!\n";
+			return;
+		}
+		if (mainSwapChainFormat.expired()) {
+			std::cout << "Main SwapChain Format is expired / null!\n";
+			return;
+		}
+		VkDevice logicalDevice = *mainLogicalDevice.lock();
+		VkPhysicalDevice physicalDevice = *mainPhysicalDevice.lock();
+		VkFormat swapChainFormat = *mainSwapChainFormat.lock();
 		//TLAS binding
 		VkDescriptorSetLayoutBinding accStructureBinding;
 		accStructureBinding.binding = 0;
@@ -586,7 +601,12 @@
 			throw std::runtime_error("failed to create descriptor set layout!");
 		}
 	}
-	void RayTracer::createRtDescriptorPool() {
+	void RayTracer::createRayTracerDescriptorPool() {
+		if (mainLogicalDevice.expired()) {
+			std::cout << "Main Logical Device is expired / null!\n";
+			return;
+		}
+		VkDevice logicalDevice = *mainLogicalDevice.lock();
 		std::array<VkDescriptorPoolSize, 2> poolSizes{};
 		poolSizes[0].type = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
 		poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
@@ -602,8 +622,14 @@
 			throw std::runtime_error("failed to create descriptor pool!");
 		}
 	}
-	void RayTracer::createRtDescriptorSets() {
+	void RayTracer::createRayTracerDescriptorSets() {
 		//Allocate data for the descriptor sets
+		//Creating the layout
+		if (mainLogicalDevice.expired()) {
+			std::cout << "Main Logical Device is expired / null!\n";
+			return;
+		}
+		VkDevice logicalDevice = *mainLogicalDevice.lock();
 		std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
 		VkDescriptorSetAllocateInfo allocInfo{};
 		allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
