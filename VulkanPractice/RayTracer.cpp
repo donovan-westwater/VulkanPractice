@@ -388,7 +388,7 @@
 			throw std::runtime_error("failed to create Shader Binding Table buffer!");
 		}
 #ifndef NDEBUG
-		setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(sbtBuffer)
+		setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(shaderBindingTableBuffer)
 			, "Shader Binding Table Buffer");
 #endif
 		//Query the memory requirements to make sure we have enough space to allocate for the vertex buffer
@@ -463,14 +463,28 @@
 		vkUnmapMemory(logicalDevice, shaderBindingTableDeviceMemory);
 	}
 	
-	void RayTracer::createRTImageAndImageView() {
-		QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
-		uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value(),indices.presentFamily.value() };
+	void RayTracer::createRayTracerImageAndImageView() {
+		if (mainLogicalDevice.expired()) {
+			std::cout << "Main Logical Device is expired / null!\n";
+			return;
+		}
+		if (mainPhysicalDevice.expired()) {
+			std::cout << "Main Physical Device is expired / null!\n";
+			return;
+		}
+		if (mainSwapChainFormat.expired()) {
+			std::cout << "Main SwapChain Format is expired / null!\n";
+			return;
+		}
+		VkDevice logicalDevice = *mainLogicalDevice.lock();
+		VkPhysicalDevice physicalDevice = *mainPhysicalDevice.lock();
+		VkFormat swapChainFormat = *mainSwapChainFormat.lock();
+		uint32_t queueFamilyIndex = findSimultaniousGraphicsAndPresentIndex(physicalDevice);
 		//Settings for the image
 		VkImageCreateInfo imageInfo{};
 		imageInfo.pNext = NULL;
 		imageInfo.queueFamilyIndexCount = 1;
-		imageInfo.pQueueFamilyIndices = queueFamilyIndices;
+		imageInfo.pQueueFamilyIndices = &queueFamilyIndex;
 		imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 		imageInfo.imageType = VK_IMAGE_TYPE_2D;
 		imageInfo.extent.width = static_cast<uint32_t>(widthRef);
@@ -479,7 +493,7 @@
 		imageInfo.mipLevels = 1;
 		imageInfo.arrayLayers = 1;
 		//We need same format for the texels as the pixels in the buffer
-		imageInfo.format = *mainSwapChainFormat;
+		imageInfo.format = swapChainFormat;
 		imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
 		imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED; //discard textuals first transition
 		imageInfo.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT 
@@ -488,23 +502,23 @@
 		imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 		imageInfo.flags = 0; // Optional
 
-		if (vkCreateImage(*mainLogicalDevice, &imageInfo, nullptr, &rtImage) != VK_SUCCESS) {
+		if (vkCreateImage(logicalDevice, &imageInfo, nullptr, &rayTracerImage) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create image!");
 		}
 		//allocating memory to the image
-		VkMemoryRequirements memRequirements;
-		vkGetImageMemoryRequirements(*mainLogicalDevice, rtImage, &memRequirements);
+		VkMemoryRequirements memoryRequirements;
+		vkGetImageMemoryRequirements(logicalDevice, rayTracerImage, &memoryRequirements);
 
-		VkMemoryAllocateInfo allocInfo{};
-		allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		VkPhysicalDeviceMemoryProperties memProperties;
-		vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
+		VkMemoryAllocateInfo allocationInfo{};
+		allocationInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		VkPhysicalDeviceMemoryProperties memoryProperties;
+		vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProperties);
 		//Check to see what memory our graphics card has for the buffer
 		uint32_t rayTraceImageMemoryTypeIndex = -1;
-		for (uint32_t x = 0; x < memProperties.memoryTypeCount;
+		for (uint32_t x = 0; x < memoryProperties.memoryTypeCount;
 			x++) {
-			if ((memRequirements.memoryTypeBits & (1 << x)) &&
-				(memProperties.memoryTypes[x].propertyFlags &
+			if ((memoryRequirements.memoryTypeBits & (1 << x)) &&
+				(memoryProperties.memoryTypes[x].propertyFlags &
 					VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) ==
 				VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) {
 
@@ -512,19 +526,19 @@
 				break;
 			}
 		}
-		allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		allocInfo.pNext = NULL;
-		allocInfo.allocationSize = memRequirements.size;
-		allocInfo.memoryTypeIndex = rayTraceImageMemoryTypeIndex;
+		allocationInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		allocationInfo.pNext = NULL;
+		allocationInfo.allocationSize = memoryRequirements.size;
+		allocationInfo.memoryTypeIndex = rayTraceImageMemoryTypeIndex;
 
-		if (vkAllocateMemory(*mainLogicalDevice, &allocInfo, nullptr, &rtImageDeviceMemory) != VK_SUCCESS) {
+		if (vkAllocateMemory(logicalDevice, &allocationInfo, nullptr, &rayTracerImageDeviceMemory) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate image memory!");
 		}
 		//Bind the image to the allocated memory
-		vkBindImageMemory(*mainLogicalDevice, rtImage, rtImageDeviceMemory, 0);
+		vkBindImageMemory(logicalDevice, rayTracerImage, rayTracerImageDeviceMemory, 0);
 #ifndef NDEBUG
-		setDebugObjectName(*mainLogicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
-			, reinterpret_cast<uint64_t>(rtImageDeviceMemory)
+		setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
+			, reinterpret_cast<uint64_t>(rayTracerImageDeviceMemory)
 			, "Ray Trace Image Memory");
 #endif
 		//rtImage View
@@ -532,19 +546,19 @@
 		imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 		imageViewCreateInfo.pNext = NULL;
 		imageViewCreateInfo.flags = 0;
-		imageViewCreateInfo.image = rtImage;
+		imageViewCreateInfo.image = rayTracerImage;
 		imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		imageViewCreateInfo.format = *mainSwapChainFormat;
+		imageViewCreateInfo.format = swapChainFormat;
 		imageViewCreateInfo.components = { VK_COMPONENT_SWIZZLE_IDENTITY,
 					VK_COMPONENT_SWIZZLE_IDENTITY,
 					VK_COMPONENT_SWIZZLE_IDENTITY,
 					VK_COMPONENT_SWIZZLE_IDENTITY };
 		imageViewCreateInfo.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
-		if (vkCreateImageView(*mainLogicalDevice, &imageViewCreateInfo, nullptr, &rtImageView) != VK_SUCCESS) {
+		if (vkCreateImageView(logicalDevice, &imageViewCreateInfo, nullptr, &rayTracerImageView) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create ray tracing image view!");
 		}
 	}
-	void RayTracer::createRtDescriptorSetLayout() {
+	void RayTracer::createRayTracerDescriptorSetLayout() {
 		//Creating the layout
 		//TLAS binding
 		VkDescriptorSetLayoutBinding accStructureBinding;
@@ -568,7 +582,7 @@
 		layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 		layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
 		layoutInfo.pBindings = bindings.data(); //Array of bindings
-		if (vkCreateDescriptorSetLayout(*mainLogicalDevice, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
+		if (vkCreateDescriptorSetLayout(logicalDevice, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create descriptor set layout!");
 		}
 	}
@@ -584,7 +598,7 @@
 		poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
 		poolInfo.pPoolSizes = poolSizes.data();
 		poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-		if (vkCreateDescriptorPool(*mainLogicalDevice, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
+		if (vkCreateDescriptorPool(logicalDevice, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create descriptor pool!");
 		}
 	}
@@ -597,7 +611,7 @@
 		allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
 		allocInfo.pSetLayouts = layouts.data();
 		descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
-		if (vkAllocateDescriptorSets(*mainLogicalDevice, &allocInfo, descriptorSets.data()) != VK_SUCCESS) {
+		if (vkAllocateDescriptorSets(logicalDevice, &allocInfo, descriptorSets.data()) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate descriptor sets!");
 		}
 		//Configure the sets and pass them to sets
@@ -634,7 +648,7 @@
 			descriptorWrites[1].descriptorCount = 1;
 			descriptorWrites[1].pImageInfo = &imageInfo;
 
-			vkUpdateDescriptorSets(*mainLogicalDevice, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data()
+			vkUpdateDescriptorSets(logicalDevice, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data()
 				, 0, nullptr);
 		}
 	}
@@ -653,7 +667,7 @@
 		writeSet.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 		writeSet.descriptorCount = 1;
 		writeSet.pImageInfo = &rayTraceImageDescriptorInfo;
-		vkUpdateDescriptorSets(*mainLogicalDevice, 1, &writeSet, 0, nullptr);
+		vkUpdateDescriptorSets(logicalDevice, 1, &writeSet, 0, nullptr);
 	}
 	void RayTracer::createTopLevelAS() {
 		//Get the address to pass to the bl instance
@@ -662,7 +676,7 @@
 		blASdeviceAddressInfo.accelerationStructure = bottomLevelAccelerationStructure;
 		blASdeviceAddressInfo.pNext = NULL;
 		VkDeviceAddress blAddress;
-		blAddress = pvkGetAccelerationStructureDeviceAddressKHR(*mainLogicalDevice, &blASdeviceAddressInfo);
+		blAddress = pvkGetAccelerationStructureDeviceAddressKHR(logicalDevice, &blASdeviceAddressInfo);
 		VkAccelerationStructureInstanceKHR blACSInstance;
 		//Initialize an indenity matrix
 		for (int i = 0; i < 3; i++) {
@@ -691,16 +705,16 @@
 		blGeoStructureReference.pQueueFamilyIndices = &simultIndex;
 		blGeoStructureReference.pNext = NULL;
 		VkBuffer blGeoInstanceBuffer;
-		if (vkCreateBuffer(*mainLogicalDevice, &blGeoStructureReference, nullptr, &blGeoInstanceBuffer) != VK_SUCCESS) {
+		if (vkCreateBuffer(logicalDevice, &blGeoStructureReference, nullptr, &blGeoInstanceBuffer) != VK_SUCCESS) {
 			throw std::runtime_error("Buffer for building blAS instance cannot be made!");
 		}
 #ifndef NDEBUG
-		setDebugObjectName(*mainLogicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(blGeoInstanceBuffer)
+		setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(blGeoInstanceBuffer)
 			, "blGeo Instance Buffer");
 #endif
 		//Get memory requirements for instance
 		VkMemoryRequirements blGeoInstanceMemReq;
-		vkGetBufferMemoryRequirements(*mainLogicalDevice, blGeoInstanceBuffer, &blGeoInstanceMemReq);
+		vkGetBufferMemoryRequirements(logicalDevice, blGeoInstanceBuffer, &blGeoInstanceMemReq);
 		//Get memory requirements for hardware
 		VkPhysicalDeviceMemoryProperties memProperties;
 		vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
@@ -728,15 +742,15 @@
 		blGeometryInstanceMemoryAllocateInfo.memoryTypeIndex = blGeoInstanceMemoryTypeIndex;
 
 		VkDeviceMemory bottomLevelGeometryInstanceDeviceMemoryHandle;
-		if (vkAllocateMemory(*mainLogicalDevice, &blGeometryInstanceMemoryAllocateInfo
+		if (vkAllocateMemory(logicalDevice, &blGeometryInstanceMemoryAllocateInfo
 			, nullptr, &bottomLevelGeometryInstanceDeviceMemoryHandle) != VK_SUCCESS) {
 			throw std::runtime_error("Can't allocate memory for device");
 		}
-		if (vkBindBufferMemory(*mainLogicalDevice,blGeoInstanceBuffer,bottomLevelGeometryInstanceDeviceMemoryHandle,0) != VK_SUCCESS) {
+		if (vkBindBufferMemory(logicalDevice,blGeoInstanceBuffer,bottomLevelGeometryInstanceDeviceMemoryHandle,0) != VK_SUCCESS) {
 			throw std::runtime_error("Can't bind memory for device");
 		}
 #ifndef NDEBUG
-		setDebugObjectName(*mainLogicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
+		setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
 			, reinterpret_cast<uint64_t>(bottomLevelGeometryInstanceDeviceMemoryHandle)
 			, "Bottom Level Geometery Instance Device Memory");
 #endif
@@ -744,7 +758,7 @@
 		//We trying to copy from GPU to CPU
 		void* hostbottomLevelGeometryInstanceMemoryBuffer;
 		VkResult result =
-			vkMapMemory(*mainLogicalDevice, bottomLevelGeometryInstanceDeviceMemoryHandle,
+			vkMapMemory(logicalDevice, bottomLevelGeometryInstanceDeviceMemoryHandle,
 				0, sizeof(VkAccelerationStructureInstanceKHR), 0,
 				&hostbottomLevelGeometryInstanceMemoryBuffer);
 
@@ -756,13 +770,13 @@
 			throw std::runtime_error("Can't map memory");
 		}
 
-		vkUnmapMemory(*mainLogicalDevice, bottomLevelGeometryInstanceDeviceMemoryHandle);
+		vkUnmapMemory(logicalDevice, bottomLevelGeometryInstanceDeviceMemoryHandle);
 		//We have the instance data, so now we are going to get the geometry data to pass into tlAS
 		VkBufferDeviceAddressInfo blGeoInstanceDeviceAddressInfo;
 		blGeoInstanceDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
 		blGeoInstanceDeviceAddressInfo.buffer = blGeoInstanceBuffer;
 		blGeoInstanceDeviceAddressInfo.pNext = NULL;
-		blAddress = pvkGetBufferDeviceAddressKHR(*mainLogicalDevice, &blGeoInstanceDeviceAddressInfo);
+		blAddress = pvkGetBufferDeviceAddressKHR(logicalDevice, &blGeoInstanceDeviceAddressInfo);
 		//Geo data setup for top level 
 		VkAccelerationStructureGeometryDataKHR tlGeoData;
 		tlGeoData.instances.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
@@ -798,7 +812,7 @@
 		tlASBuildSizesInfo.pNext = NULL;
 		//We are only going to have 1 primative since we only have 1 top level geo
 		std::vector<uint32_t> topLevelMaxPrimitiveCountList = { 1 };
-		pvkGetAccelerationStructureBuildSizesKHR(*mainLogicalDevice, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+		pvkGetAccelerationStructureBuildSizesKHR(logicalDevice, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
 			&tlASBuildGeoInfo,
 			topLevelMaxPrimitiveCountList.data(),
 			&tlASBuildSizesInfo);
@@ -812,17 +826,17 @@
 		tlASBufferCreateInfo.pNext = NULL;
 		tlASBufferCreateInfo.flags = 0;
 		//VkBuffer tlASBufferHandle = VK_NULL_HANDLE;
-		if (vkCreateBuffer(*mainLogicalDevice, &tlASBufferCreateInfo, nullptr, &tASSBuffer) != VK_SUCCESS) {
+		if (vkCreateBuffer(logicalDevice, &tlASBufferCreateInfo, nullptr, &tASSBuffer) != VK_SUCCESS) {
 			throw std::runtime_error("Buffer for tlAS cannot be made!");
 		}
 #ifndef NDEBUG
-		setDebugObjectName(*mainLogicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(tASSBuffer)
+		setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(tASSBuffer)
 			, "Top Level Accelertation Structure Buffer");
 #endif
 		//Check to see what memory our graphics card has for the buffer
 		VkMemoryRequirements tlASMemoryRequirements;
 		vkGetBufferMemoryRequirements(
-			*mainLogicalDevice, tASSBuffer,
+			logicalDevice, tASSBuffer,
 			&tlASMemoryRequirements);
 
 		uint32_t topLevelAccelerationStructureMemoryTypeIndex = -1;
@@ -847,15 +861,15 @@
 		tlASMemoryAllocateInfo.pNext = NULL;
 
 		VkDeviceMemory tlASDeviceMemoryHandle = VK_NULL_HANDLE;
-		if (vkAllocateMemory(*mainLogicalDevice, &tlASMemoryAllocateInfo
+		if (vkAllocateMemory(logicalDevice, &tlASMemoryAllocateInfo
 			, NULL, &tlASDeviceMemoryHandle) != VK_SUCCESS) {
 			throw std::runtime_error("Failed to allocate memory for the tlAS buffer");
 		}
-		if (vkBindBufferMemory(*mainLogicalDevice, tASSBuffer,tlASDeviceMemoryHandle,0) != VK_SUCCESS) {
+		if (vkBindBufferMemory(logicalDevice, tASSBuffer,tlASDeviceMemoryHandle,0) != VK_SUCCESS) {
 			throw std::runtime_error("Failed to bind the memory to the buffer from the device");
 		}
 #ifndef NDEBUG
-		setDebugObjectName(*mainLogicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
+		setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
 			, reinterpret_cast<uint64_t>(tlASDeviceMemoryHandle)
 			, "Top Level Acceleration Structure Device Memory");
 #endif
@@ -870,7 +884,7 @@
 		tlASCreateInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
 		tlASCreateInfo.deviceAddress = 0;
 		tlASCreateInfo.pNext = NULL;
-		if (pvkCreateAccelerationStructureKHR(*mainLogicalDevice, &tlASCreateInfo, NULL, &tlAShandle) != VK_SUCCESS) {
+		if (pvkCreateAccelerationStructureKHR(logicalDevice, &tlASCreateInfo, NULL, &tlAShandle) != VK_SUCCESS) {
 			throw std::runtime_error("Failed to create the tlAS");
 		}
 		//Building the tlAS
@@ -883,7 +897,7 @@
 
 		VkDeviceAddress tlASDeviceAddress =
 			pvkGetAccelerationStructureDeviceAddressKHR(
-				*mainLogicalDevice, &tlASDeviceAddressInfo);
+				logicalDevice, &tlASDeviceAddressInfo);
 		//We are going to make a temporary buffer to help store info related to building the TLAS
 		VkBufferCreateInfo tlASScratchBufferCreateInfo;
 		tlASScratchBufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -898,18 +912,18 @@
 
 		VkBuffer tlASScratchBufferHandle = VK_NULL_HANDLE;
 		if (vkCreateBuffer(
-			*mainLogicalDevice, &tlASScratchBufferCreateInfo, NULL,
+			logicalDevice, &tlASScratchBufferCreateInfo, NULL,
 			&tlASScratchBufferHandle) != VK_SUCCESS) {
 			throw std::runtime_error("Scratch memory buffer couldnt be built");
 		}
 #ifndef NDEBUG
-		setDebugObjectName(*mainLogicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER
+		setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER
 			, reinterpret_cast<uint64_t>(tlASScratchBufferHandle)
 			, "Top Level Accelertation Structure Scratch Buffer");
 #endif
 		//Get memory req to determine what kinds of memory the GPU has
 		VkMemoryRequirements tlASScratchMemoryRequirments;
-		vkGetBufferMemoryRequirements(*mainLogicalDevice, tlASScratchBufferHandle, &tlASScratchMemoryRequirments);
+		vkGetBufferMemoryRequirements(logicalDevice, tlASScratchBufferHandle, &tlASScratchMemoryRequirments);
 		topLevelAccelerationStructureMemoryTypeIndex = -1;
 		for (uint32_t x = 0; x < memProperties.memoryTypeCount;
 			x++) {
@@ -932,17 +946,17 @@
 		tlASScratchMemoryAllocateInfo.allocationSize = tlASScratchMemoryRequirments.size;
 		tlASScratchMemoryAllocateInfo.memoryTypeIndex = topLevelAccelerationStructureMemoryTypeIndex;
 		VkDeviceMemory tlASDeviceScratchMemoryHandle = VK_NULL_HANDLE;
-		if (vkAllocateMemory(*mainLogicalDevice, &tlASScratchMemoryAllocateInfo, NULL, &tlASDeviceScratchMemoryHandle)
+		if (vkAllocateMemory(logicalDevice, &tlASScratchMemoryAllocateInfo, NULL, &tlASDeviceScratchMemoryHandle)
 			!= VK_SUCCESS) {
 			throw std::runtime_error("Couldn't allocate memory to scratch buffer for tlAS");
 		}
 		//Need to bind the allocated memory to the scratch buffer so we know where to build it
-		if (vkBindBufferMemory(*mainLogicalDevice, tlASScratchBufferHandle, tlASDeviceScratchMemoryHandle, 0)
+		if (vkBindBufferMemory(logicalDevice, tlASScratchBufferHandle, tlASDeviceScratchMemoryHandle, 0)
 			!= VK_SUCCESS) {
 			throw std::runtime_error("Couldn't bind memeory for hte scratch buffer");
 		}
 #ifndef NDEBUG
-		setDebugObjectName(*mainLogicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
+		setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
 			, reinterpret_cast<uint64_t>(tlASDeviceScratchMemoryHandle)
 			, "Top Level Acceleration Structure Scratch Device Memory");
 #endif
@@ -954,7 +968,7 @@
 		tlASScratchBufferDeviceAddressInfo.pNext = NULL;
 		tlASScratchBufferDeviceAddressInfo.buffer = tlASScratchBufferHandle;
 		//Time to actually get the device address and use it to tell the scratch buffer where to build the tlAS
-		VkDeviceAddress tlASScratchBufferDeviceAddress = pvkGetBufferDeviceAddressKHR(*mainLogicalDevice, &tlASScratchBufferDeviceAddressInfo);
+		VkDeviceAddress tlASScratchBufferDeviceAddress = pvkGetBufferDeviceAddressKHR(logicalDevice, &tlASScratchBufferDeviceAddressInfo);
 		tlASBuildGeoInfo.dstAccelerationStructure = tlAShandle;
 		tlASBuildGeoInfo.scratchData.deviceAddress = tlASScratchBufferDeviceAddress;
 		//We need to tell the pipeline what offsets to expect for the geometry 
@@ -975,7 +989,7 @@
 		allocInfo.pNext = NULL;
 		//Memory transfer is executed using command buffers
 		VkCommandBuffer commandBuffer;
-		vkAllocateCommandBuffers(*mainLogicalDevice, &allocInfo, &commandBuffer);
+		vkAllocateCommandBuffers(logicalDevice, &allocInfo, &commandBuffer);
 		//Going to be completely unabstracted do to reference code
 		VkCommandBufferBeginInfo tlCommandBufferBeginInfo;
 		tlCommandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -1007,25 +1021,25 @@
 		tlFenceInfo.pNext = NULL;
 		tlFenceInfo.flags = 0;
 		VkFence tlFence;
-		if (vkCreateFence(*mainLogicalDevice, &tlFenceInfo, nullptr, &tlFence) != VK_SUCCESS) {
+		if (vkCreateFence(logicalDevice, &tlFenceInfo, nullptr, &tlFence) != VK_SUCCESS) {
 			throw std::runtime_error("Couldn't make the fence for the TLAS!");
 		}
 		//Submit the command buffer and check on the fences
 		if (vkQueueSubmit(*mainGraphicsQueue, 1, &submitInfo, tlFence) != VK_SUCCESS) {
 			throw std::runtime_error("Couldn't queue command buffer!");
 		}
-		VkResult r = vkWaitForFences(*mainLogicalDevice, 1, &tlFence, true, UINT32_MAX);
+		VkResult r = vkWaitForFences(logicalDevice, 1, &tlFence, true, UINT32_MAX);
 		if (r != VK_SUCCESS && r != VK_TIMEOUT) {
 			throw std::runtime_error("Failed to wait for fences");
 		}
 		//Free up scratch buffers
-		vkDestroyBuffer(*mainLogicalDevice, blGeoInstanceBuffer, NULL);
-		vkDestroyBuffer(*mainLogicalDevice, tlASScratchBufferHandle, NULL);
-		vkFreeMemory(*mainLogicalDevice,tlASDeviceScratchMemoryHandle, NULL);
-		vkFreeMemory(*mainLogicalDevice, bottomLevelGeometryInstanceDeviceMemoryHandle, NULL);
+		vkDestroyBuffer(logicalDevice, blGeoInstanceBuffer, NULL);
+		vkDestroyBuffer(logicalDevice, tlASScratchBufferHandle, NULL);
+		vkFreeMemory(logicalDevice,tlASDeviceScratchMemoryHandle, NULL);
+		vkFreeMemory(logicalDevice, bottomLevelGeometryInstanceDeviceMemoryHandle, NULL);
 		//Free up our one time command buffer submission
-		vkDestroyFence(*mainLogicalDevice, tlFence, NULL);
-		vkFreeCommandBuffers(*mainLogicalDevice, *mainCommandPool, 1, &commandBuffer);
+		vkDestroyFence(logicalDevice, tlFence, NULL);
+		vkFreeCommandBuffers(logicalDevice, *mainCommandPool, 1, &commandBuffer);
 }
 	void RayTracer::createRayTracingPipeline() {
 		VkRayTracingPipelineCreateInfoKHR rtPipeline;
@@ -1096,7 +1110,7 @@
 		pipelineLayoutCreateInfo.flags = 0;
 		pipelineLayoutCreateInfo.pNext = NULL;
 		//Finish the pipeline layout
-		if(vkCreatePipelineLayout(*mainLogicalDevice, &pipelineLayoutCreateInfo, nullptr, &rayPipelineLayout) != VK_SUCCESS){
+		if(vkCreatePipelineLayout(logicalDevice, &pipelineLayoutCreateInfo, nullptr, &rayPipelineLayout) != VK_SUCCESS){
 			throw std::runtime_error("Failed to make the rt pipeline layout!");
 		}
 		rtPipeline.sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR;
@@ -1114,26 +1128,26 @@
 		rtPipeline.pLibraryInfo = NULL;
 		rtPipeline.pLibraryInterface = NULL;
 
-		if (pvkCreateRayTracingPipelinesKHR(*mainLogicalDevice, VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &rtPipeline, NULL, &raytracingPipeline) != VK_SUCCESS) {
+		if (pvkCreateRayTracingPipelinesKHR(logicalDevice, VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &rtPipeline, NULL, &raytracingPipeline) != VK_SUCCESS) {
 			throw std::runtime_error("Failed to make the rt pipeline!");
 		}
 		//Get rid of the modules since we don't need them now
 		for (auto& s : stages){
-			vkDestroyShaderModule(*mainLogicalDevice, s.module, nullptr);
+			vkDestroyShaderModule(logicalDevice, s.module, nullptr);
 		}
 	}
 	void RayTracer::raytrace(VkCommandBuffer& cmdBuf,std::vector<void *>& uniBufferMMap, glm::vec4 clearColor) {
 		
 		//submit queue
 		//Wait for frame to be finished drawing
-		VkResult fenceResult = vkWaitForFences(*mainLogicalDevice, 1, &((* rayFences)[*currentFrameRef]), VK_TRUE, UINT64_MAX);
+		VkResult fenceResult = vkWaitForFences(logicalDevice, 1, &((* rayFences)[*currentFrameRef]), VK_TRUE, UINT64_MAX);
 		if (fenceResult != VK_SUCCESS && fenceResult != VK_TIMEOUT) {
 			std::cout << "Ray trace function failure!\n";
 			throw std::runtime_error("failed to wait for fences!");
 		}
 		uint32_t imageIndex;
 		//Make sure the chain is fresh so we know we can use it. This allows us to delay a fense reset and stop a deadlock
-		VkResult result = vkAcquireNextImageKHR(*mainLogicalDevice, *raySwapchain, UINT64_MAX, (* rayImageAvailableSemaphores)[*currentFrameRef], VK_NULL_HANDLE, &imageIndex);
+		VkResult result = vkAcquireNextImageKHR(logicalDevice, *raySwapchain, UINT64_MAX, (* rayImageAvailableSemaphores)[*currentFrameRef], VK_NULL_HANDLE, &imageIndex);
 
 		if (result == VK_ERROR_OUT_OF_DATE_KHR) {
 			//recreateSwapChain();
@@ -1142,7 +1156,7 @@
 		else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
 			throw std::runtime_error("failed to acquire swap chain image!");
 		}
-		vkResetFences(*mainLogicalDevice, 1, &((*rayFences)[*currentFrameRef]));
+		vkResetFences(logicalDevice, 1, &((*rayFences)[*currentFrameRef]));
 		//Copied From draw frame -- update unform buffers
 		//Using chrono to keep track of time independent of framerate
 		static auto startTime = std::chrono::high_resolution_clock::now();
@@ -1453,24 +1467,24 @@
 		}
 		return shaderModule; //A thin wrapper around the byte code. Compliation + linking occurs at graphics pipeline time
 	}
-	void RayTracer::Cleanup() {
+	void RayTracer::cleanup() {
 		//Acceleration Structures
-		pvkDestroyAccelerationStructureKHR(*mainLogicalDevice, tlAShandle, nullptr);
-		pvkDestroyAccelerationStructureKHR(*mainLogicalDevice, bottomLevelAccelerationStructure, nullptr);
-		vkDestroyBuffer(*mainLogicalDevice, tASSBuffer, nullptr);
-		vkFreeMemory(*mainLogicalDevice,tlASDeviceMemory , nullptr);
-		vkDestroyBuffer(*mainLogicalDevice, bottomLevelAccelerationStructureBuffer, nullptr);
-		vkFreeMemory(*mainLogicalDevice, blASDeviceMemory, nullptr);
+		pvkDestroyAccelerationStructureKHR(logicalDevice, tlAShandle, nullptr);
+		pvkDestroyAccelerationStructureKHR(logicalDevice, bottomLevelAccelerationStructure, nullptr);
+		vkDestroyBuffer(logicalDevice, tASSBuffer, nullptr);
+		vkFreeMemory(logicalDevice,tlASDeviceMemory , nullptr);
+		vkDestroyBuffer(logicalDevice, bottomLevelAccelerationStructureBuffer, nullptr);
+		vkFreeMemory(logicalDevice, blASDeviceMemory, nullptr);
 		//Ray Tracing Pipeline
-		vkDestroyDescriptorSetLayout(*mainLogicalDevice, descriptorSetLayout, nullptr);
-		vkDestroyDescriptorPool(*mainLogicalDevice, descriptorPool, nullptr);
-		vkDestroyPipeline(*mainLogicalDevice, raytracingPipeline, nullptr);
-		vkDestroyPipelineLayout(*mainLogicalDevice, rayPipelineLayout, nullptr);
+		vkDestroyDescriptorSetLayout(logicalDevice, descriptorSetLayout, nullptr);
+		vkDestroyDescriptorPool(logicalDevice, descriptorPool, nullptr);
+		vkDestroyPipeline(logicalDevice, raytracingPipeline, nullptr);
+		vkDestroyPipelineLayout(logicalDevice, rayPipelineLayout, nullptr);
 		//Shader Binding Table and Ray Trace Image
-		vkDestroyBuffer(*mainLogicalDevice, sbtBuffer, nullptr);
-		vkFreeMemory(*mainLogicalDevice, sbtDeviceMemory, nullptr);
-		vkDestroyImageView(*mainLogicalDevice, rtImageView, nullptr);
-		vkDestroyImage(*mainLogicalDevice, rtImage, nullptr);
-		vkFreeMemory(*mainLogicalDevice, rtImageDeviceMemory, nullptr);
+		vkDestroyBuffer(logicalDevice, sbtBuffer, nullptr);
+		vkFreeMemory(logicalDevice, sbtDeviceMemory, nullptr);
+		vkDestroyImageView(logicalDevice, rtImageView, nullptr);
+		vkDestroyImage(logicalDevice, rtImage, nullptr);
+		vkFreeMemory(logicalDevice, rtImageDeviceMemory, nullptr);
 
 	}
