@@ -1053,7 +1053,22 @@
 		vkFreeCommandBuffers(logicalDevice, commandPool, 1, &commandBuffer);
 }
 	void RayTracer::createRayTracingPipeline() {
-		VkRayTracingPipelineCreateInfoKHR rtPipeline;
+		if (mainLogicalDevice.expired()) {
+			std::cout << "Main Logical Device is expired / null!\n";
+			return;
+		}
+		if (mainPhysicalDevice.expired()) {
+			std::cout << "Main Physical Device is expired / null!\n";
+			return;
+		}
+		if (mainDescSetLayout.expired()) {
+			std::cout << "Main Desc. Set Layout Device is expired / null!\n";
+			return;
+		}
+		VkDevice logicalDevice = *mainLogicalDevice.lock();
+		VkPhysicalDevice physicalDevice = *mainPhysicalDevice.lock();
+		VkDescriptorSetLayout descSetLayout = *mainDescSetLayout.lock();
+		VkRayTracingPipelineCreateInfoKHR rayTracerPipeline;
 		enum StagesIndies {
 			eRaygen,
 			eMiss,
@@ -1115,7 +1130,7 @@
 		pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 		pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstant;
 		pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
-		std::vector<VkDescriptorSetLayout> rtDescSetLayout = { descriptorSetLayout,*mainDescSetLayout };
+		std::vector<VkDescriptorSetLayout> rtDescSetLayout = { descriptorSetLayout,descSetLayout };
 		pipelineLayoutCreateInfo.setLayoutCount = static_cast<uint32_t>(rtDescSetLayout.size());
 		pipelineLayoutCreateInfo.pSetLayouts = rtDescSetLayout.data();
 		pipelineLayoutCreateInfo.flags = 0;
@@ -1124,22 +1139,22 @@
 		if(vkCreatePipelineLayout(logicalDevice, &pipelineLayoutCreateInfo, nullptr, &rayPipelineLayout) != VK_SUCCESS){
 			throw std::runtime_error("Failed to make the rt pipeline layout!");
 		}
-		rtPipeline.sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR;
-		rtPipeline.pNext = NULL;
-		rtPipeline.flags = 0;
-		rtPipeline.stageCount = stages.size();
-		rtPipeline.pStages = stages.data();
-		rtPipeline.groupCount = raytracingShaderGroups.size();
-		rtPipeline.pGroups = raytracingShaderGroups.data();
-		rtPipeline.layout = rayPipelineLayout;
-		rtPipeline.maxPipelineRayRecursionDepth = 1;
-		rtPipeline.basePipelineHandle = VK_NULL_HANDLE;
-		rtPipeline.basePipelineIndex = 0;
-		rtPipeline.pDynamicState = NULL;
-		rtPipeline.pLibraryInfo = NULL;
-		rtPipeline.pLibraryInterface = NULL;
+		rayTracerPipeline.sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR;
+		rayTracerPipeline.pNext = NULL;
+		rayTracerPipeline.flags = 0;
+		rayTracerPipeline.stageCount = stages.size();
+		rayTracerPipeline.pStages = stages.data();
+		rayTracerPipeline.groupCount = raytracingShaderGroups.size();
+		rayTracerPipeline.pGroups = raytracingShaderGroups.data();
+		rayTracerPipeline.layout = rayPipelineLayout;
+		rayTracerPipeline.maxPipelineRayRecursionDepth = 1;
+		rayTracerPipeline.basePipelineHandle = VK_NULL_HANDLE;
+		rayTracerPipeline.basePipelineIndex = 0;
+		rayTracerPipeline.pDynamicState = NULL;
+		rayTracerPipeline.pLibraryInfo = NULL;
+		rayTracerPipeline.pLibraryInterface = NULL;
 
-		if (pvkCreateRayTracingPipelinesKHR(logicalDevice, VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &rtPipeline, NULL, &raytracingPipeline) != VK_SUCCESS) {
+		if (pvkCreateRayTracingPipelinesKHR(logicalDevice, VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &rayTracerPipeline, NULL, &raytracingPipeline) != VK_SUCCESS) {
 			throw std::runtime_error("Failed to make the rt pipeline!");
 		}
 		//Get rid of the modules since we don't need them now
@@ -1147,18 +1162,68 @@
 			vkDestroyShaderModule(logicalDevice, s.module, nullptr);
 		}
 	}
-	void RayTracer::raytrace(VkCommandBuffer& cmdBuf,std::vector<void *>& uniBufferMMap, glm::vec4 clearColor) {
-		
+	void RayTracer::rayTrace(VkCommandBuffer& cmdBuf,std::vector<void *>& uniBufferMMap, glm::vec4 clearColor) {
+		if (mainLogicalDevice.expired()) {
+			std::cout << "Main Logical Device is expired / null!\n";
+			return;
+		}
+		if (mainPhysicalDevice.expired()) {
+			std::cout << "Main Physical Device is expired / null!\n";
+			return;
+		}
+		if (rayTracerFences.expired()) {
+			std::cout << "In flight fences are expired / null!\n";
+			return;
+		}
+		if (rayTracerSwapchain.expired()) {
+			std::cout << "swapchain reference has expired / null!\n";
+			return;
+		}
+		if (rayTracerImageAvailableSemaphores.expired()) {
+			std::cout << "available semaphores ref has expired / null!\n";
+			return;
+		}
+		if (rayTracerFinishedSemaphores.expired()) {
+			std::cout << "finished semaphores ref has expired / null!\n";
+			return;
+		}
+		if (rayTracerPresentQueue.expired()) {
+			std::cout << "Present Queue has expired / null!\n";
+			return;
+		}
+		if (mainLightSource.expired()) {
+			std::cout << "main light source has expired / null!\n";
+			return;
+		}
+		if (mainGraphicsQueue.expired()) {
+			std::cout << "Graphics Queue has expired\n";
+			return;
+		}
+		if (rayTracerSwapchainImages.expired()) {
+			std::cout << "swachain images has expired / null!\n";
+			return;
+		}
+		VkDevice logicalDevice = *mainLogicalDevice.lock();
+		VkPhysicalDevice physicalDevice = *mainPhysicalDevice.lock();
+		std::vector<VkFence> fences = *rayTracerFences.lock();
+		uint32_t currentFrame = *currentFrameRef.lock();
+		VkSwapchainKHR swapChain = *rayTracerSwapchain.lock();
+		std::vector <VkSemaphore> availableSemaphores = *rayTracerImageAvailableSemaphores.lock();
+		std::vector <VkSemaphore> finishedSemaphores = *rayTracerFinishedSemaphores.lock();
+		VkQueue presentQueue = *rayTracerPresentQueue.lock();
+		VkQueue graphicsQueue = *mainGraphicsQueue.lock();
+		LightSource lightSource = *mainLightSource.lock();
+		std::vector<VkImage> swapchainImages = *rayTracerSwapchainImages.lock();
 		//submit queue
 		//Wait for frame to be finished drawing
-		VkResult fenceResult = vkWaitForFences(logicalDevice, 1, &((* rayFences)[*currentFrameRef]), VK_TRUE, UINT64_MAX);
+		VkResult fenceResult = vkWaitForFences(logicalDevice, 1, &(fences[currentFrame]), VK_TRUE, UINT64_MAX);
 		if (fenceResult != VK_SUCCESS && fenceResult != VK_TIMEOUT) {
 			std::cout << "Ray trace function failure!\n";
 			throw std::runtime_error("failed to wait for fences!");
 		}
 		uint32_t imageIndex;
 		//Make sure the chain is fresh so we know we can use it. This allows us to delay a fense reset and stop a deadlock
-		VkResult result = vkAcquireNextImageKHR(logicalDevice, *raySwapchain, UINT64_MAX, (* rayImageAvailableSemaphores)[*currentFrameRef], VK_NULL_HANDLE, &imageIndex);
+		VkResult result = vkAcquireNextImageKHR(logicalDevice, swapChain, UINT64_MAX, availableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
 
 		if (result == VK_ERROR_OUT_OF_DATE_KHR) {
 			//recreateSwapChain();
@@ -1167,7 +1232,7 @@
 		else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
 			throw std::runtime_error("failed to acquire swap chain image!");
 		}
-		vkResetFences(logicalDevice, 1, &((*rayFences)[*currentFrameRef]));
+		vkResetFences(logicalDevice, 1, &fences[currentFrame]);
 		//Copied From draw frame -- update unform buffers
 		//Using chrono to keep track of time independent of framerate
 		static auto startTime = std::chrono::high_resolution_clock::now();
@@ -1196,16 +1261,16 @@
 		ubo.model = glm::inverse(ubo.model);
 							  
 		//ubo.colorAdd = glm::vec4(abs(cos(time)), abs(sin(time)), abs(tan(time)), 1);
-		memcpy(uniBufferMMap[*currentFrameRef], &ubo, sizeof(ubo));
+		memcpy(uniBufferMMap[currentFrame], &ubo, sizeof(ubo));
 		vkResetCommandBuffer(cmdBuf, 0);
 
 		//Building pipeline and layout
-		pcRay.clearColor = clearColor;
-		pcRay.lightPos = rastSource->pos;
-		pcRay.lightIntensity = rastSource->intensity;
-		pcRay.lightType = rastSource->type;
+		pushConstantRay.clearColor = clearColor;
+		pushConstantRay.lightPos = lightSource.pos;
+		pushConstantRay.lightIntensity = lightSource.intensity;
+		pushConstantRay.lightType = lightSource.type;
 		//Desc sets to bind
-		std::vector<VkDescriptorSet> descSets{ descriptorSets[*currentFrameRef], (mainDescSets->at(*currentFrameRef)) };
+		std::vector<VkDescriptorSet> descSets{ descriptorSets[currentFrame], (descSets.at(currentFrame)) };
 		VkCommandBufferBeginInfo beginInfo{};
 		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 		beginInfo.flags = 0; // Optional Controls how command buffer will be used
@@ -1226,7 +1291,7 @@
 		rayTraceBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
 		rayTraceBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		rayTraceBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-		rayTraceBarrier.image = rtImage; //specify image effected by rayTraceBarrier
+		rayTraceBarrier.image = rayTracerImage; //specify image effected by rayTraceBarrier
 		rayTraceBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		rayTraceBarrier.subresourceRange.baseMipLevel = 0;
 		rayTraceBarrier.subresourceRange.levelCount = 1;
@@ -1245,8 +1310,8 @@
 			rayPipelineLayout, 0, (uint32_t)descSets.size(), descSets.data(), 0, nullptr);
 		vkCmdPushConstants(cmdBuf, rayPipelineLayout
 			, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_MISS_BIT_KHR,
-			0, sizeof(PushConstantRay), &pcRay);
-		pvkCmdTraceRaysKHR(cmdBuf, &rayGenRegion,&rayMissRegion, &rayHitRegion, &rayCallRegion
+			0, sizeof(PushConstantRay), &pushConstantRay);
+		pvkCmdTraceRaysKHR(cmdBuf, &rayGenerationRegion,&rayMissRegion, &rayHitRegion, &rayCallRegion
 			, widthRef, heightRef, 1);
 		//Once the ray is traced, we can start copying the results over into the swap chain
 		//We make a barrier so we can copy the rtImage into the swapChain
@@ -1259,7 +1324,7 @@
 		swapchainCopyMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 		swapchainCopyMemoryBarrier.srcQueueFamilyIndex = queueFamilyIndices[0];
 		swapchainCopyMemoryBarrier.dstQueueFamilyIndex = queueFamilyIndices[0];
-		swapchainCopyMemoryBarrier.image = (*raySwapchainImages)[*currentFrameRef];
+		swapchainCopyMemoryBarrier.image = swapchainImages[currentFrame];
 		VkImageSubresourceRange subRange;
 		subRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		subRange.baseMipLevel = 0;
@@ -1282,7 +1347,7 @@
 		rayTraceCopyMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 		rayTraceCopyMemoryBarrier.srcQueueFamilyIndex = queueFamilyIndices[0];
 		rayTraceCopyMemoryBarrier.dstQueueFamilyIndex = queueFamilyIndices[0];
-		rayTraceCopyMemoryBarrier.image = rtImage;
+		rayTraceCopyMemoryBarrier.image = rayTracerImage;
 		rayTraceCopyMemoryBarrier.subresourceRange = subRange;
 		vkCmdPipelineBarrier(cmdBuf,
 			VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
@@ -1308,9 +1373,9 @@
 		imageCopy.dstOffset = offset;
 		imageCopy.extent = swapExtent;
 
-		vkCmdCopyImage(cmdBuf, rtImage,
+		vkCmdCopyImage(cmdBuf, rayTracerImage,
 			VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-			(*raySwapchainImages)[*currentFrameRef],
+			swapchainImages[currentFrame],
 			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageCopy);
 
 		VkImageMemoryBarrier swapchainPresentMemoryBarrier;
@@ -1322,7 +1387,7 @@
 		swapchainPresentMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 		swapchainPresentMemoryBarrier.srcQueueFamilyIndex = queueFamilyIndices[0];
 		swapchainPresentMemoryBarrier.dstQueueFamilyIndex = queueFamilyIndices[0];
-		swapchainPresentMemoryBarrier.image = (*raySwapchainImages)[*currentFrameRef];
+		swapchainPresentMemoryBarrier.image = swapchainImages[currentFrame];
 		swapchainPresentMemoryBarrier.subresourceRange = subRange;
 
 		vkCmdPipelineBarrier(cmdBuf,
@@ -1339,7 +1404,7 @@
 			rayTraceWriteMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL,
 			rayTraceWriteMemoryBarrier.srcQueueFamilyIndex = queueFamilyIndices[0],
 			rayTraceWriteMemoryBarrier.dstQueueFamilyIndex = queueFamilyIndices[0],
-			rayTraceWriteMemoryBarrier.image = rtImage,
+			rayTraceWriteMemoryBarrier.image = rayTracerImage,
 			rayTraceWriteMemoryBarrier.subresourceRange = subRange;
 
 		vkCmdPipelineBarrier(cmdBuf,
@@ -1353,7 +1418,7 @@
 		VkSubmitInfo submitInfo{};
 		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 		//Specify which semaphores to wait on before execution beings and in which stages of the pipeline to wait
-		VkSemaphore waitSemaphores[] = { (*rayImageAvailableSemaphores)[*currentFrameRef] };
+		VkSemaphore waitSemaphores[] = { availableSemaphores[currentFrame] };
 		VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 		submitInfo.waitSemaphoreCount = 1;
 		submitInfo.pWaitSemaphores = waitSemaphores;
@@ -1362,10 +1427,10 @@
 		submitInfo.commandBufferCount = 1;
 		submitInfo.pCommandBuffers = &cmdBuf;
 		//Specify which semaphores to signal once the command buffers finished execution
-		VkSemaphore signalSemaphores[] = { (*rayFinishedSemaphores)[*currentFrameRef] };
+		VkSemaphore signalSemaphores[] = { finishedSemaphores[currentFrame] };
 		submitInfo.signalSemaphoreCount = 1;
 		submitInfo.pSignalSemaphores = signalSemaphores;
-		result = vkQueueSubmit(*mainGraphicsQueue, 1, &submitInfo, (*rayFences)[*currentFrameRef]);
+		result = vkQueueSubmit(graphicsQueue, 1, &submitInfo, fences[currentFrame]);
 		if (result != VK_SUCCESS) {
 			throw std::runtime_error("failed to submit draw command buffer!");
 		}
@@ -1377,12 +1442,12 @@
 		presentInfo.pWaitSemaphores = signalSemaphores;
 
 		//specify the swap chain to present images to and the index for each chain
-		VkSwapchainKHR swapChains[] = { *raySwapchain };
+		VkSwapchainKHR swapChains[] = { swapChain };
 		presentInfo.swapchainCount = 1;
 		presentInfo.pSwapchains = swapChains;
 		presentInfo.pImageIndices = &imageIndex;
 		//Presents the triangle we submitted to the queue
-		result = vkQueuePresentKHR(*rayPresentQueue, &presentInfo);
+		result = vkQueuePresentKHR(presentQueue, &presentInfo);
 		//If the swapchain is out dated, then we need to recreate it!
 		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
 			//framebufferResized = false;
@@ -1414,6 +1479,11 @@
 	}
 	//From Main: FIGURE OUT HOW TO REPLACE THIS AND AVOID COPYING CODE!
 	QueueFamilyIndices RayTracer::findQueueFamilies(VkPhysicalDevice device) {
+		if (mainSurface.expired()) {
+			std::cout << "main Surface is null or expired\n";
+			return;
+		}
+		VkSurfaceKHR surface = *mainSurface.lock();
 		QueueFamilyIndices indices;
 		//Retrive a list of queue familes
 		uint32_t queueFamilyCount = 0;
@@ -1428,7 +1498,7 @@
 				indices.graphicsFamily = i;
 			}
 			VkBool32 presentSupport = false;
-			vkGetPhysicalDeviceSurfaceSupportKHR(device, i, *mainSurface, &presentSupport);
+			vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
 			//Check to see if the queue family supports presenting window surfaces
 			if (presentSupport) {
 				indices.presentFamily = i;
@@ -1442,6 +1512,12 @@
 
 	}
 	uint32_t RayTracer::findSimultaniousGraphicsAndPresentIndex(VkPhysicalDevice phyDevice) {
+		if (mainSurface.expired()) {
+			std::cout << "main Surface is null or expired\n";
+			return;
+		}
+		VkSurfaceKHR surface = *mainSurface.lock();
+
 		uint32_t simultQueueFamilyIndex = -1;
 		//Retrive a list of queue familes
 		uint32_t queueFamilyCount = 0;
@@ -1454,7 +1530,7 @@
 			//Look for a queueFamily that supports Grpahics
 			if (queueFamiliy.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
 				VkBool32 presentSupport = false;
-				vkGetPhysicalDeviceSurfaceSupportKHR(phyDevice, i, *mainSurface, &presentSupport);
+				vkGetPhysicalDeviceSurfaceSupportKHR(phyDevice, i, surface, &presentSupport);
 				//Check to see if the queue family supports presenting window surfaces
 				if (presentSupport) {
 					simultQueueFamilyIndex = i;
@@ -1468,34 +1544,46 @@
 	}
 	//Module to handle shader programs compiled into the vulkan byte code
 	VkShaderModule RayTracer::createShaderModule(const std::vector<char>& code) {
+		if (mainLogicalDevice.expired()) {
+			std::cout << "Main Logical Device is expired / null!\n";
+			return;
+		}
+		VkDevice logicalDevice = *mainLogicalDevice.lock();
+		
 		VkShaderModuleCreateInfo createInfo{};
 		createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
 		createInfo.codeSize = code.size();
 		createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data()); //The bytecode pointer is a uint32 and not a char, hence the cast
 		VkShaderModule shaderModule;
-		if (vkCreateShaderModule(*(this->mainLogicalDevice), &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
+		if (vkCreateShaderModule(logicalDevice, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create shader module!");
 		}
 		return shaderModule; //A thin wrapper around the byte code. Compliation + linking occurs at graphics pipeline time
 	}
 	void RayTracer::cleanup() {
+		if (mainLogicalDevice.expired()) {
+			std::cout << "Main Logical Device is expired / null!\n";
+			return;
+		}
+		VkDevice logicalDevice = *mainLogicalDevice.lock();
+
 		//Acceleration Structures
-		pvkDestroyAccelerationStructureKHR(logicalDevice, topLevelAccelerationStructurehandle, nullptr);
+		pvkDestroyAccelerationStructureKHR(logicalDevice, topLevelAccelerationStructure, nullptr);
 		pvkDestroyAccelerationStructureKHR(logicalDevice, bottomLevelAccelerationStructure, nullptr);
-		vkDestroyBuffer(logicalDevice, tASSBuffer, nullptr);
+		vkDestroyBuffer(logicalDevice, topLevelAccelerationStructureBuffer, nullptr);
 		vkFreeMemory(logicalDevice,topLevelAccelerationStructureDeviceMemory , nullptr);
 		vkDestroyBuffer(logicalDevice, bottomLevelAccelerationStructureBuffer, nullptr);
-		vkFreeMemory(logicalDevice, blASDeviceMemory, nullptr);
+		vkFreeMemory(logicalDevice, bottomLevelAccelerationStructureDeviceMemory, nullptr);
 		//Ray Tracing Pipeline
 		vkDestroyDescriptorSetLayout(logicalDevice, descriptorSetLayout, nullptr);
 		vkDestroyDescriptorPool(logicalDevice, descriptorPool, nullptr);
 		vkDestroyPipeline(logicalDevice, raytracingPipeline, nullptr);
 		vkDestroyPipelineLayout(logicalDevice, rayPipelineLayout, nullptr);
 		//Shader Binding Table and Ray Trace Image
-		vkDestroyBuffer(logicalDevice, sbtBuffer, nullptr);
-		vkFreeMemory(logicalDevice, sbtDeviceMemory, nullptr);
-		vkDestroyImageView(logicalDevice, rtImageView, nullptr);
-		vkDestroyImage(logicalDevice, rtImage, nullptr);
-		vkFreeMemory(logicalDevice, rtImageDeviceMemory, nullptr);
+		vkDestroyBuffer(logicalDevice, shaderBindingTableBuffer, nullptr);
+		vkFreeMemory(logicalDevice, shaderBindingTableDeviceMemory, nullptr);
+		vkDestroyImageView(logicalDevice, rayTracerImageView, nullptr);
+		vkDestroyImage(logicalDevice, rayTracerImage, nullptr);
+		vkFreeMemory(logicalDevice, rayTracerImageDeviceMemory, nullptr);
 
 	}

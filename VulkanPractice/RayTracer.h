@@ -65,7 +65,7 @@ public:
 	std::weak_ptr<std::vector<VkDescriptorSet>> mainDescSets;
 	std::weak_ptr<std::vector<VkFence>> rayTracerFences;
 	std::weak_ptr<VkSwapchainKHR> rayTracerSwapchain;
-	std::weak_ptr<std::vector<VkImage>> raySwapchainImages;
+	std::weak_ptr<std::vector<VkImage>> rayTracerSwapchainImages;
 	std::weak_ptr<std::vector<VkSemaphore>> rayTracerImageAvailableSemaphores;
 	std::weak_ptr<std::vector<VkSemaphore>> rayTracerFinishedSemaphores;
 	std::weak_ptr<VkQueue> rayTracerPresentQueue;
@@ -111,7 +111,7 @@ public:
 		return buffer;
 	}
 
-	void raytrace(VkCommandBuffer& cmdBuf, std::vector<void*>& uniBufferMMap, glm::vec4 clearColor);
+	void rayTrace(VkCommandBuffer& cmdBuf, std::vector<void*>& uniBufferMMap, glm::vec4 clearColor);
 
 	void createRayTracingPipeline();
 
