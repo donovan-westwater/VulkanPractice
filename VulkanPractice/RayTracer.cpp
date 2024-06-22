@@ -13,8 +13,7 @@
 	//GO THROUGH EVERYTHING AND MAKE SURE SCRATCH BUFFERS ARE FREED!!!!
 	void RayTracer::setupRayTracer(VkBuffer& vertexBuffer, VkBuffer& indexBuffer, uint32_t nOfVerts) {
 		if (mainLogicalDevice.expired()) { 
-			std::cout << "Main Logical Device is expired / null!\n";
-			return; 
+			throw std::runtime_error("main Logical Device is null or expired\n");
 		}
 #ifndef NDEBUG
 		pvkSetDebugUtilsObjectNameEXT =
@@ -32,15 +31,13 @@
 		createShaderBindingTable();
 	}
 	//Check to see if our GPU supports raytracing
-	void RayTracer::initRayTracing() noexcept
+	void RayTracer::initRayTracing()
 	{
 		if (mainLogicalDevice.expired()) {
-			std::cout << "Main Logical Device is expired / null!\n";
-			return;
+			throw std::runtime_error("main Logical Device is null or expired\n");
 		}
 		if (mainPhysicalDevice.expired()) {
-			std::cout << "Main Physical Device is expired / null!\n";
-			return;
+			throw std::runtime_error("main Physical Device is null or expired\n");
 		}
 		//Setup function pointers for ray trace functions
 		VkDevice logicDevice = *mainLogicalDevice.lock();
@@ -81,12 +78,10 @@
 	}//BUG: I think the BLAS scratch buffers are setup wrong. there is a bottomLevelAccelerationStructureBuffer and buffer handle. Investigate
 	void RayTracer::modelToBottomLevelAccelerationStructure(VkBuffer &vertexBuffer, VkBuffer&indexBuffer, uint32_t nOfVerts) {
 		if (mainLogicalDevice.expired()) {
-			std::cout << "Main Logical Device is expired / null!\n";
-			return;
+			throw std::runtime_error("Main Logical Device is null or expired\n");
 		}
 		if (mainPhysicalDevice.expired()) {
-			std::cout << "Main Physical Device is expired / null!\n";
-			return;
+			throw std::runtime_error("Main Physical Device is null or expired\n");
 		}
 		VkDevice logicalDevice = *mainLogicalDevice.lock();
 		VkPhysicalDevice physicalDevice = *mainPhysicalDevice.lock();
@@ -275,12 +270,10 @@
 		//Create the command buffers to submit the build command for the geometry
 		//Allocate memory for command buffer
 		if (mainCommandPool.expired()) {
-			std::cout << "Command Pool Expired / Null! Aborting BLAS creation!\n";
-			return;
+			throw std::runtime_error("Command Pool Expired / Null! Aborting BLAS creation!\n");
 		}
 		if(mainGraphicsQueue.expired()) {
-			std::cout << "Graphics Queue Expired / Null! Aborting BLAS creation!\n";
-			return;
+			throw std::runtime_error("Graphics Queue Expired / Null! Aborting BLAS creation!\n");
 		}
 		VkCommandPool commandPool = *mainCommandPool.lock();
 		VkQueue graphicsQueue = *mainGraphicsQueue.lock();
@@ -339,12 +332,10 @@
 		//Setting up buffer offsets to store the shader handles in
 		//32bit for RG, 16 for miss,padd out another 16, and finally 16 for hit
 		if (mainLogicalDevice.expired()) {
-			std::cout << "Main Logical Device is expired / null!\n";
-			return;
+			throw std::runtime_error("Main Logical Device is expired / null!\n");
 		}
 		if (mainPhysicalDevice.expired()) {
-			std::cout << "Main Physical Device is expired / null!\n";
-			return;
+			throw std::runtime_error("Main Physical Device is expired / null!\n");
 		}
 		VkDevice logicalDevice = *mainLogicalDevice.lock();
 		VkPhysicalDevice physicalDevice = *mainPhysicalDevice.lock();
@@ -465,16 +456,13 @@
 	
 	void RayTracer::createRayTracerImageAndImageView() {
 		if (mainLogicalDevice.expired()) {
-			std::cout << "Main Logical Device is expired / null!\n";
-			return;
+			throw std::runtime_error("Main Logical Device is expired / null!\n");
 		}
 		if (mainPhysicalDevice.expired()) {
-			std::cout << "Main Physical Device is expired / null!\n";
-			return;
+			throw std::runtime_error("Main Physical Device is expired / null!\n");
 		}
 		if (mainSwapChainFormat.expired()) {
-			std::cout << "Main SwapChain Format is expired / null!\n";
-			return;
+			throw std::runtime_error("Main SwapChain Format is expired / null!\n");
 		}
 		VkDevice logicalDevice = *mainLogicalDevice.lock();
 		VkPhysicalDevice physicalDevice = *mainPhysicalDevice.lock();
@@ -561,16 +549,13 @@
 	void RayTracer::createRayTracerDescriptorSetLayout() {
 		//Creating the layout
 		if (mainLogicalDevice.expired()) {
-			std::cout << "Main Logical Device is expired / null!\n";
-			return;
+			throw std::runtime_error("Main Logical Device is expired / null!\n");
 		}
 		if (mainPhysicalDevice.expired()) {
-			std::cout << "Main Physical Device is expired / null!\n";
-			return;
+			throw std::runtime_error("Main Physical Device is expired / null!\n");
 		}
 		if (mainSwapChainFormat.expired()) {
-			std::cout << "Main SwapChain Format is expired / null!\n";
-			return;
+			throw std::runtime_error("Main SwapChain Format is expired / null!\n");
 		}
 		VkDevice logicalDevice = *mainLogicalDevice.lock();
 		VkPhysicalDevice physicalDevice = *mainPhysicalDevice.lock();
@@ -603,8 +588,7 @@
 	}
 	void RayTracer::createRayTracerDescriptorPool() {
 		if (mainLogicalDevice.expired()) {
-			std::cout << "Main Logical Device is expired / null!\n";
-			return;
+			throw std::runtime_error("Main Logical Device is expired / null!\n");
 		}
 		VkDevice logicalDevice = *mainLogicalDevice.lock();
 		std::array<VkDescriptorPoolSize, 2> poolSizes{};
@@ -626,8 +610,7 @@
 		//Allocate data for the descriptor sets
 		//Creating the layout
 		if (mainLogicalDevice.expired()) {
-			std::cout << "Main Logical Device is expired / null!\n";
-			return;
+			throw std::runtime_error("Main Logical Device is expired / null!\n");
 		}
 		VkDevice logicalDevice = *mainLogicalDevice.lock();
 		std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
@@ -681,8 +664,7 @@
 	//Call this in the resizing callback function to rebuild image on resize
 	void RayTracer::updateRayTracerDescriptorSets() {
 		if (mainLogicalDevice.expired()) {
-			std::cout << "Main Logical Device is expired / null!\n";
-			return;
+			throw std::runtime_error("Main Logical Device is expired / null!\n");
 		}
 		VkDevice logicalDevice = *mainLogicalDevice.lock();
 		//Relink output image in case of change in window size
@@ -702,12 +684,10 @@
 	}
 	void RayTracer::createTopLevelAccelerationStructure() {
 		if (mainLogicalDevice.expired()) {
-			std::cout << "Main Logical Device is expired / null!\n";
-			return;
+			throw std::runtime_error("Main Logical Device is expired / null!\n");
 		}
 		if (mainPhysicalDevice.expired()) {
-			std::cout << "Main Physical Device is expired / null!\n";
-			return;
+			throw std::runtime_error("Main Physical Device is expired / null!\n");
 		}
 		VkDevice logicalDevice = *mainLogicalDevice.lock();
 		VkPhysicalDevice physicalDevice = *mainPhysicalDevice.lock();
@@ -983,8 +963,7 @@
 		//We need to now create a command buffer and submit our memory transfer so we can build the topLevelAccelerationStructure
 		//Allocate memory for command buffer
 		if (mainCommandPool.expired()) {
-			std::cout << "Commaned pool has expired or is null!\n";
-			return;
+			throw std::runtime_error("Commaned pool has expired or is null!\n");
 		}
 		VkCommandPool commandPool = *mainCommandPool.lock();
 		VkCommandBufferAllocateInfo allocInfo{};
@@ -1027,8 +1006,7 @@
 		topLevelFenceInfo.pNext = NULL;
 		topLevelFenceInfo.flags = 0;
 		if (mainGraphicsQueue.expired()) {
-			std::cout << "Graphics Queue expired\n";
-			return;
+			throw std::runtime_error("Graphics Queue expired\n");
 		}
 		VkQueue graphicsQueue = *mainGraphicsQueue.lock();
 		VkFence topLevelFence;
@@ -1054,16 +1032,13 @@
 }
 	void RayTracer::createRayTracingPipeline() {
 		if (mainLogicalDevice.expired()) {
-			std::cout << "Main Logical Device is expired / null!\n";
-			return;
+			throw std::runtime_error("Main Logical Device is expired / null!\n");
 		}
 		if (mainPhysicalDevice.expired()) {
-			std::cout << "Main Physical Device is expired / null!\n";
-			return;
+			throw std::runtime_error("Main Physical Device is expired / null!\n");
 		}
 		if (mainDescSetLayout.expired()) {
-			std::cout << "Main Desc. Set Layout Device is expired / null!\n";
-			return;
+			throw std::runtime_error("Main Desc. Set Layout Device is expired / null!\n");
 		}
 		VkDevice logicalDevice = *mainLogicalDevice.lock();
 		VkPhysicalDevice physicalDevice = *mainPhysicalDevice.lock();
@@ -1164,50 +1139,41 @@
 	}
 	void RayTracer::rayTrace(VkCommandBuffer& cmdBuf,std::vector<void *>& uniBufferMMap, glm::vec4 clearColor) {
 		if (mainLogicalDevice.expired()) {
-			std::cout << "Main Logical Device is expired / null!\n";
-			return;
+			throw std::runtime_error("Main Logical Device is expired / null!\n");
 		}
 		if (mainPhysicalDevice.expired()) {
-			std::cout << "Main Physical Device is expired / null!\n";
-			return;
+			throw std::runtime_error("Main Physical Device is expired / null!\n");
 		}
 		if (rayTracerFences.expired()) {
-			std::cout << "In flight fences are expired / null!\n";
-			return;
+			throw std::runtime_error("In flight fences are expired / null!\n");
 		}
 		if (rayTracerSwapchain.expired()) {
-			std::cout << "swapchain reference has expired / null!\n";
-			return;
+			throw std::runtime_error("swapchain reference has expired / null!\n");
 		}
 		if (rayTracerImageAvailableSemaphores.expired()) {
-			std::cout << "available semaphores ref has expired / null!\n";
-			return;
+			throw std::runtime_error("available semaphores ref has expired / null!\n");
 		}
 		if (rayTracerFinishedSemaphores.expired()) {
-			std::cout << "finished semaphores ref has expired / null!\n";
-			return;
+			throw std::runtime_error("finished semaphores ref has expired / null!\n");
 		}
 		if (rayTracerPresentQueue.expired()) {
-			std::cout << "Present Queue has expired / null!\n";
-			return;
+			throw std::runtime_error("Present Queue has expired / null!\n");
 		}
 		if (mainLightSource.expired()) {
-			std::cout << "main light source has expired / null!\n";
-			return;
+			throw std::runtime_error("main light source has expired / null!\n");
 		}
 		if (mainGraphicsQueue.expired()) {
-			std::cout << "Graphics Queue has expired\n";
-			return;
+			throw std::runtime_error("Graphics Queue has expired\n");
 		}
 		if (rayTracerSwapchainImages.expired()) {
-			std::cout << "swachain images has expired / null!\n";
-			return;
+			throw std::runtime_error("swachain images has expired / null!\n");
 		}
 		VkDevice logicalDevice = *mainLogicalDevice.lock();
 		VkPhysicalDevice physicalDevice = *mainPhysicalDevice.lock();
 		std::vector<VkFence> fences = *rayTracerFences.lock();
 		uint32_t currentFrame = *currentFrameRef.lock();
 		VkSwapchainKHR swapChain = *rayTracerSwapchain.lock();
+		std::vector<VkDescriptorSet> mainDescSetVector = *mainDescSets.lock();
 		std::vector <VkSemaphore> availableSemaphores = *rayTracerImageAvailableSemaphores.lock();
 		std::vector <VkSemaphore> finishedSemaphores = *rayTracerFinishedSemaphores.lock();
 		VkQueue presentQueue = *rayTracerPresentQueue.lock();
@@ -1270,7 +1236,7 @@
 		pushConstantRay.lightIntensity = lightSource.intensity;
 		pushConstantRay.lightType = lightSource.type;
 		//Desc sets to bind
-		std::vector<VkDescriptorSet> descSets{ descriptorSets[currentFrame], (descSets.at(currentFrame)) };
+		std::vector<VkDescriptorSet> descSets{ descriptorSets.at(currentFrame), (mainDescSetVector.at(currentFrame)) };
 		VkCommandBufferBeginInfo beginInfo{};
 		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 		beginInfo.flags = 0; // Optional Controls how command buffer will be used
@@ -1458,7 +1424,7 @@
 			throw std::runtime_error("failed to present swap chain image!");
 		}
 	}
-	uint32_t findBufferMemoryTypeIndex(VkDevice logicalDevice,VkPhysicalDevice physicalDevice
+	uint32_t RayTracer::findBufferMemoryTypeIndex(VkDevice logicalDevice,VkPhysicalDevice physicalDevice
 		, VkBuffer buffer,VkMemoryPropertyFlagBits flagBits) {
 		VkMemoryRequirements memoryRequirements;
 		vkGetBufferMemoryRequirements(logicalDevice, buffer, &memoryRequirements);
@@ -1480,8 +1446,7 @@
 	//From Main: FIGURE OUT HOW TO REPLACE THIS AND AVOID COPYING CODE!
 	QueueFamilyIndices RayTracer::findQueueFamilies(VkPhysicalDevice device) {
 		if (mainSurface.expired()) {
-			std::cout << "main Surface is null or expired\n";
-			return;
+			throw std::runtime_error("main Surface is null or expired\n");
 		}
 		VkSurfaceKHR surface = *mainSurface.lock();
 		QueueFamilyIndices indices;
@@ -1513,8 +1478,7 @@
 	}
 	uint32_t RayTracer::findSimultaniousGraphicsAndPresentIndex(VkPhysicalDevice phyDevice) {
 		if (mainSurface.expired()) {
-			std::cout << "main Surface is null or expired\n";
-			return;
+			throw std::runtime_error("main Surface is null or expired\n");
 		}
 		VkSurfaceKHR surface = *mainSurface.lock();
 
@@ -1545,8 +1509,7 @@
 	//Module to handle shader programs compiled into the vulkan byte code
 	VkShaderModule RayTracer::createShaderModule(const std::vector<char>& code) {
 		if (mainLogicalDevice.expired()) {
-			std::cout << "Main Logical Device is expired / null!\n";
-			return;
+			throw std::runtime_error("main logical device is null or expired\n");
 		}
 		VkDevice logicalDevice = *mainLogicalDevice.lock();
 		
@@ -1562,8 +1525,7 @@
 	}
 	void RayTracer::cleanup() {
 		if (mainLogicalDevice.expired()) {
-			std::cout << "Main Logical Device is expired / null!\n";
-			return;
+			throw std::runtime_error("main Logical Device is null or expired\n");
 		}
 		VkDevice logicalDevice = *mainLogicalDevice.lock();
 

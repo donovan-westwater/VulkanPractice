@@ -47,6 +47,25 @@ private:
 #else
     const bool enableValidationLayers = true;
 #endif
+    //Shared Resource Pointers
+    std::shared_ptr<VkCommandPool> shared_pool;
+    std::shared_ptr<VkDescriptorSetLayout> shared_descLayout;
+    std::shared_ptr<std::vector<VkDescriptorSet>> shared_descSetList;
+    std::shared_ptr<LightSource> shared_lightSource;
+    std::shared_ptr<VkDevice> shared_logicalDevice; 
+    std::shared_ptr<VkPhysicalDevice> shared_physicalDevice; 
+    std::shared_ptr<VkSurfaceKHR> shared_surface; 
+    std::shared_ptr<VkCommandPool> shared_commandPool; 
+    std::shared_ptr<VkQueue> shared_graphicsQueue;
+    std::shared_ptr<VkFormat> shared_swapChainFormat;
+    std::shared_ptr<std::vector<VkFence>> shared_fences;
+    std::shared_ptr<VkSwapchainKHR> shared_swapchain;
+    std::shared_ptr<std::vector<VkImage>> shared_swapchainImages;
+    std::shared_ptr<std::vector<VkSemaphore>> shared_imageAvailableSemaphores;
+    std::shared_ptr<std::vector<VkSemaphore>> shared_finishedSemaphores;
+    std::shared_ptr<VkQueue> shared_presentQueue;
+    std::shared_ptr<uint32_t> shared_currentFrame;
+
     GLFWwindow* window; //Reference to the window we draw for vulkan
     VkInstance instance; //An instance is the connection between the app and the vulkan lib
     VkDebugUtilsMessengerEXT debugMessenger; //Debug messenger must be made for debug callbacks to be used
@@ -122,28 +141,48 @@ private:
         return buffer;
     }
     void CreateLightAndPassVarsToRayTracer() {
+        //Shared Pool Setup
+        shared_pool = std::shared_ptr<VkCommandPool>(&commandPool);
+        shared_descLayout = std::shared_ptr<VkDescriptorSetLayout>(&descriptorSetLayout);
+        shared_descSetList = std::shared_ptr<std::vector<VkDescriptorSet>>(&descriptorSets);
+        shared_commandPool = std::shared_ptr <VkCommandPool>(&commandPool);
+        shared_lightSource = std::shared_ptr<LightSource>(&light);
+        shared_physicalDevice = std::shared_ptr<VkPhysicalDevice>(&physicalDevice);
+        shared_logicalDevice = std::shared_ptr<VkDevice>(&device);
+        shared_surface = std::shared_ptr<VkSurfaceKHR>(&surface);
+        shared_graphicsQueue = std::shared_ptr<VkQueue>(&graphicsQueue);
+        shared_presentQueue = std::shared_ptr<VkQueue>(&presentQueue);
+        shared_swapchain = std::shared_ptr<VkSwapchainKHR>(&swapChain);
+        shared_swapChainFormat = std::shared_ptr<VkFormat>(&swapChainImageFormat);
+        shared_swapchainImages = std::shared_ptr<std::vector<VkImage>>(&swapChainImages);
+        shared_fences = std::shared_ptr<std::vector<VkFence>>(&inFlightFences);
+        shared_finishedSemaphores = std::shared_ptr<std::vector<VkSemaphore>>(&renderFinishedSemaphores);
+        shared_imageAvailableSemaphores = std::shared_ptr<std::vector<VkSemaphore>>(&imageAvailableSemaphores);
+        shared_currentFrame = std::shared_ptr<uint32_t>(&currentFrame);
+
         light.dir =  glm::normalize(glm::vec3(0, -1, 1));
         light.intensity = 1.0;
         light.pos = glm::vec3(0, 2, 2);
         light.type = 0;
-        rayTracer.mainCommandPool = &commandPool;
-        rayTracer.mainDescSetLayout = &descriptorSetLayout;
-        rayTracer.mainDescSets = &descriptorSets;
-        rayTracer.mainGraphicsQueue = &graphicsQueue;
-        rayTracer.mainLogicalDevice = &device;
-        rayTracer.mainPhysicalDevice = &physicalDevice;
-        rayTracer.mainSurface = &surface;
-        rayTracer.rastSource = &light;
+
+        rayTracer.mainCommandPool = shared_pool;
+        rayTracer.mainDescSetLayout = shared_descLayout;
+        rayTracer.mainDescSets = shared_descSetList;
+        rayTracer.mainGraphicsQueue = shared_graphicsQueue;
+        rayTracer.mainLogicalDevice = shared_logicalDevice;
+        rayTracer.mainPhysicalDevice = shared_physicalDevice;
+        rayTracer.mainSurface = shared_surface;
+        rayTracer.mainLightSource = shared_lightSource;
         rayTracer.heightRef = HEIGHT;
         rayTracer.widthRef = WIDTH;
-        rayTracer.currentFrameRef = &currentFrame;
-        rayTracer.mainSwapChainFormat = &swapChainImageFormat;
-        rayTracer.rayImageAvailableSemaphores = &imageAvailableSemaphores;
-        rayTracer.rayFinishedSemaphores = &renderFinishedSemaphores;
-        rayTracer.rayFences = &inFlightFences;
-        rayTracer.rayPresentQueue = &presentQueue;
-        rayTracer.raySwapchain = &swapChain;
-        rayTracer.raySwapchainImages = &swapChainImages;
+        rayTracer.currentFrameRef = shared_currentFrame;
+        rayTracer.mainSwapChainFormat = shared_swapChainFormat;
+        rayTracer.rayTracerImageAvailableSemaphores = shared_imageAvailableSemaphores;
+        rayTracer.rayTracerFinishedSemaphores = shared_finishedSemaphores;
+        rayTracer.rayTracerFences = shared_fences;
+        rayTracer.rayTracerPresentQueue = shared_presentQueue;
+        rayTracer.rayTracerSwapchain = shared_swapchain;
+        rayTracer.rayTracerSwapchainImages = shared_swapchainImages;
         rayTracer.maxPrimativeCount = primativeCount;
     }
     void initWindow() {
@@ -1735,7 +1774,7 @@ private:
             vkUnmapMemory(device, vertexBufferMemory);
             */
             if (useRayTracing) {
-                rayTracer.raytrace(commandBuffers[currentFrame],uniformBuffersMapped ,glm::vec4(0, 0, 0, 1));
+                rayTracer.rayTrace(commandBuffers[currentFrame],uniformBuffersMapped ,glm::vec4(0, 0, 0, 1));
                 currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
             }
             else drawFrame();
