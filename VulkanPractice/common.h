@@ -5,6 +5,7 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan.h>
+#include <vulkan/vulkan.hpp>
 
 
 #define GLM_ENABLE_EXPERIMENTAL
@@ -94,7 +95,23 @@ namespace std {
             return ((hash<glm::vec3>()(vertex.pos) ^ (hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^ (hash<glm::vec2>()(vertex.texCoord) << 1);
         }
     };
-}
+};
+//Deleters for smart pointers
+struct VulkanSmartDeleter {
+    VkDevice* logicalDevice;
+    //Make different overloaded operators for each resource
+    void operator()(VkDescriptorSetLayout* p) noexcept {
+        if (p == nullptr) return;
+        std::cout << "Deleting DescriptorSetLayout!\n";
+        vkDestroyDescriptorSetLayout(*logicalDevice, *p, nullptr);
+    }
+    void operator()(VkCommandPool* p) noexcept {
+        if (p == nullptr) return;
+        std::cout << "Deleting command pool!\n";
+        vkDestroyCommandPool(*logicalDevice, *p, nullptr);
+    }
+
+};
 //Debug Code
 #ifndef NDEBUG
 

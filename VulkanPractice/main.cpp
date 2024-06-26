@@ -48,7 +48,6 @@ private:
     const bool enableValidationLayers = true;
 #endif
     //Shared Resource Pointers
-    std::shared_ptr<VkCommandPool> shared_pool;
     std::shared_ptr<VkDescriptorSetLayout> shared_descLayout;
     std::shared_ptr<std::vector<VkDescriptorSet>> shared_descSetList;
     std::shared_ptr<LightSource> shared_lightSource;
@@ -141,11 +140,12 @@ private:
         return buffer;
     }
     void CreateLightAndPassVarsToRayTracer() {
+        VulkanSmartDeleter vkSmartDeleter;
+        vkSmartDeleter.logicalDevice = &device;
         //Shared Pool Setup
-        shared_pool = std::shared_ptr<VkCommandPool>(&commandPool);
-        shared_descLayout = std::shared_ptr<VkDescriptorSetLayout>(&descriptorSetLayout);
+        shared_descLayout = std::shared_ptr<VkDescriptorSetLayout>(&descriptorSetLayout,vkSmartDeleter);
         shared_descSetList = std::shared_ptr<std::vector<VkDescriptorSet>>(&descriptorSets);
-        shared_commandPool = std::shared_ptr <VkCommandPool>(&commandPool);
+        shared_commandPool = std::shared_ptr <VkCommandPool>(&commandPool,vkSmartDeleter);
         shared_lightSource = std::shared_ptr<LightSource>(&light);
         shared_physicalDevice = std::shared_ptr<VkPhysicalDevice>(&physicalDevice);
         shared_logicalDevice = std::shared_ptr<VkDevice>(&device);
@@ -165,7 +165,7 @@ private:
         light.pos = glm::vec3(0, 2, 2);
         light.type = 0;
 
-        rayTracer.mainCommandPool = shared_pool;
+        rayTracer.mainCommandPool = shared_commandPool;
         rayTracer.mainDescSetLayout = shared_descLayout;
         rayTracer.mainDescSets = shared_descSetList;
         rayTracer.mainGraphicsQueue = shared_graphicsQueue;
@@ -1877,6 +1877,8 @@ private:
         memcpy(uniformBuffersMapped[currentFrame], &ubo, sizeof(ubo));
     }
     //Cleaan up everything EXPLICITLY CREATED by us!
+    //Create a destructor for the main resources or create a deleter to pass to shared ptrs
+    //Will probably go with the destructor plan.
     void cleanup() {
         //std::cout << "CLEAN UP\n";
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
@@ -1885,6 +1887,7 @@ private:
 
         }
         rayTracer.cleanup();
+        return;
         cleanupSwapChain();
         vkDestroySampler(device, textureSampler, nullptr);
         vkDestroyImageView(device, textureImageView, nullptr);
@@ -1906,7 +1909,7 @@ private:
             vkDestroySemaphore(device, imageAvailableSemaphores[i], nullptr);
             vkDestroyFence(device, inFlightFences[i], nullptr);
         }
-        vkDestroyCommandPool(device, commandPool, nullptr);
+        //vkDestroyCommandPool(device, commandPool, nullptr);
         //for (auto framebuffer : swapChainFramebuffers) {
         //     vkDestroyFramebuffer(device, framebuffer, nullptr);
         //}
