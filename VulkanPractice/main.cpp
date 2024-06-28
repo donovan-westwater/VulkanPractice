@@ -142,6 +142,7 @@ private:
     void CreateLightAndPassVarsToRayTracer() {
         VulkanSmartDeleter vkSmartDeleter;
         vkSmartDeleter.logicalDevice = &device;
+        vkSmartDeleter.instance = &instance;
         //Shared Pool Setup
         shared_descLayout = std::shared_ptr<VkDescriptorSetLayout>(&descriptorSetLayout,vkSmartDeleter);
         shared_descSetList = std::shared_ptr<std::vector<VkDescriptorSet>>(&descriptorSets);
@@ -149,16 +150,16 @@ private:
         shared_lightSource = std::shared_ptr<LightSource>(&light);
         shared_physicalDevice = std::shared_ptr<VkPhysicalDevice>(&physicalDevice);
         shared_logicalDevice = std::shared_ptr<VkDevice>(&device);
-        shared_surface = std::shared_ptr<VkSurfaceKHR>(&surface);
+        shared_surface = std::shared_ptr<VkSurfaceKHR>(&surface, vkSmartDeleter);
         shared_graphicsQueue = std::shared_ptr<VkQueue>(&graphicsQueue);
         shared_presentQueue = std::shared_ptr<VkQueue>(&presentQueue);
-        shared_swapchain = std::shared_ptr<VkSwapchainKHR>(&swapChain);
+        shared_swapchain = std::shared_ptr<VkSwapchainKHR>(&swapChain,vkSmartDeleter);
         shared_swapChainFormat = std::shared_ptr<VkFormat>(&swapChainImageFormat);
         shared_swapchainImages = std::shared_ptr<std::vector<VkImage>>(&swapChainImages);
         shared_fences = std::shared_ptr<std::vector<VkFence>>(&inFlightFences);
         shared_finishedSemaphores = std::shared_ptr<std::vector<VkSemaphore>>(&renderFinishedSemaphores);
         shared_imageAvailableSemaphores = std::shared_ptr<std::vector<VkSemaphore>>(&imageAvailableSemaphores);
-        shared_currentFrame = std::shared_ptr<uint32_t>(&currentFrame);
+        shared_currentFrame = std::shared_ptr<uint32_t>(&currentFrame,vkSmartDeleter);
 
         light.dir =  glm::normalize(glm::vec3(0, -1, 1));
         light.intensity = 1.0;

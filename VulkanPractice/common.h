@@ -99,18 +99,38 @@ namespace std {
 //Deleters for smart pointers
 struct VulkanSmartDeleter {
     VkDevice* logicalDevice;
+    VkInstance* instance;
     //Make different overloaded operators for each resource
     void operator()(VkDescriptorSetLayout* p) noexcept {
         if (p == nullptr) return;
         std::cout << "Deleting DescriptorSetLayout!\n";
         vkDestroyDescriptorSetLayout(*logicalDevice, *p, nullptr);
     }
+    void operator()(VkDescriptorPool* p) noexcept {
+        if (p == nullptr) return;
+        std::cout << "Deleting DescriptorPool!\n";
+        vkDestroyDescriptorPool(*logicalDevice, *p, nullptr);
+    }
     void operator()(VkCommandPool* p) noexcept {
         if (p == nullptr) return;
         std::cout << "Deleting command pool!\n";
         vkDestroyCommandPool(*logicalDevice, *p, nullptr);
     }
-
+    void operator()(VkSwapchainKHR* p) noexcept {
+        if (p == nullptr) return;
+        std::cout << "Deleting swapchain!\n";
+        vkDestroySwapchainKHR(*logicalDevice, *p, nullptr);
+    }
+    void operator()(VkSurfaceKHR* p) noexcept {
+        if (p == nullptr) return;
+        std::cout << "Deleting surface!\n";
+        vkDestroySurfaceKHR(*instance, *p, nullptr);
+    }
+    void operator()(uint32_t* p) noexcept {
+        if (p == nullptr) return;
+        std::cout << "zeroing out uint\n";
+        *p = 0;
+    }
 };
 //Debug Code
 #ifndef NDEBUG
