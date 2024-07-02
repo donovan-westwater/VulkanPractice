@@ -48,12 +48,13 @@ private:
     const bool enableValidationLayers = true;
 #endif
     //Shared Resource Pointers
+    //Resources with the most dependcies by declared first
+    std::shared_ptr<VkSurfaceKHR> shared_surface;
+    std::shared_ptr<VkDevice> shared_logicalDevice;
+    std::shared_ptr<VkPhysicalDevice> shared_physicalDevice;
     std::shared_ptr<VkDescriptorSetLayout> shared_descLayout;
     std::shared_ptr<std::vector<VkDescriptorSet>> shared_descSetList;
     std::shared_ptr<LightSource> shared_lightSource;
-    std::shared_ptr<VkDevice> shared_logicalDevice; 
-    std::shared_ptr<VkPhysicalDevice> shared_physicalDevice; 
-    std::shared_ptr<VkSurfaceKHR> shared_surface; 
     std::shared_ptr<VkCommandPool> shared_commandPool; 
     std::shared_ptr<VkQueue> shared_graphicsQueue;
     std::shared_ptr<VkFormat> shared_swapChainFormat;
@@ -143,22 +144,23 @@ private:
         VulkanSmartDeleter vkSmartDeleter;
         vkSmartDeleter.logicalDevice = &device;
         vkSmartDeleter.instance = &instance;
+        vkSmartDeleter.MaxFrames = MAX_FRAMES_IN_FLIGHT;
         //Shared Pool Setup
         shared_descLayout = std::shared_ptr<VkDescriptorSetLayout>(&descriptorSetLayout,vkSmartDeleter);
-        shared_descSetList = std::shared_ptr<std::vector<VkDescriptorSet>>(&descriptorSets);
+        shared_descSetList = std::shared_ptr<std::vector<VkDescriptorSet>>(&descriptorSets, vkSmartDeleter);
         shared_commandPool = std::shared_ptr <VkCommandPool>(&commandPool,vkSmartDeleter);
-        shared_lightSource = std::shared_ptr<LightSource>(&light);
-        shared_physicalDevice = std::shared_ptr<VkPhysicalDevice>(&physicalDevice);
-        shared_logicalDevice = std::shared_ptr<VkDevice>(&device);
+        shared_lightSource = std::shared_ptr<LightSource>(&light, vkSmartDeleter);
+        shared_physicalDevice = std::shared_ptr<VkPhysicalDevice>(&physicalDevice, vkSmartDeleter);
+        shared_logicalDevice = std::shared_ptr<VkDevice>(&device, vkSmartDeleter);
         shared_surface = std::shared_ptr<VkSurfaceKHR>(&surface, vkSmartDeleter);
-        shared_graphicsQueue = std::shared_ptr<VkQueue>(&graphicsQueue);
-        shared_presentQueue = std::shared_ptr<VkQueue>(&presentQueue);
+        shared_graphicsQueue = std::shared_ptr<VkQueue>(&graphicsQueue,vkSmartDeleter);
+        shared_presentQueue = std::shared_ptr<VkQueue>(&presentQueue, vkSmartDeleter);
         shared_swapchain = std::shared_ptr<VkSwapchainKHR>(&swapChain,vkSmartDeleter);
-        shared_swapChainFormat = std::shared_ptr<VkFormat>(&swapChainImageFormat);
-        shared_swapchainImages = std::shared_ptr<std::vector<VkImage>>(&swapChainImages);
-        shared_fences = std::shared_ptr<std::vector<VkFence>>(&inFlightFences);
-        shared_finishedSemaphores = std::shared_ptr<std::vector<VkSemaphore>>(&renderFinishedSemaphores);
-        shared_imageAvailableSemaphores = std::shared_ptr<std::vector<VkSemaphore>>(&imageAvailableSemaphores);
+        shared_swapChainFormat = std::shared_ptr<VkFormat>(&swapChainImageFormat, vkSmartDeleter);
+        shared_swapchainImages = std::shared_ptr<std::vector<VkImage>>(&swapChainImages, vkSmartDeleter);
+        shared_fences = std::shared_ptr<std::vector<VkFence>>(&inFlightFences, vkSmartDeleter);
+        shared_finishedSemaphores = std::shared_ptr<std::vector<VkSemaphore>>(&renderFinishedSemaphores, vkSmartDeleter);
+        shared_imageAvailableSemaphores = std::shared_ptr<std::vector<VkSemaphore>>(&imageAvailableSemaphores, vkSmartDeleter);
         shared_currentFrame = std::shared_ptr<uint32_t>(&currentFrame,vkSmartDeleter);
 
         light.dir =  glm::normalize(glm::vec3(0, -1, 1));

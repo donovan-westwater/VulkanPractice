@@ -97,14 +97,23 @@ namespace std {
     };
 };
 //Deleters for smart pointers
+//DEBUG TIP: Remember to look at the call stack when figure out which resources wasnt deleted properly. Very helpfuL!
 struct VulkanSmartDeleter {
     VkDevice* logicalDevice;
     VkInstance* instance;
+    int MaxFrames;
     //Make different overloaded operators for each resource
     void operator()(VkDescriptorSetLayout* p) noexcept {
         if (p == nullptr) return;
         std::cout << "Deleting DescriptorSetLayout!\n";
         vkDestroyDescriptorSetLayout(*logicalDevice, *p, nullptr);
+    }
+    void operator()(std::vector<VkDescriptorSet>* p) noexcept {
+        if (p == nullptr) return;
+        std::cout << "Cleaning up Descriptor Set Vector\n";
+        for(VkDescriptorSet ds : *p) {
+            ds = VK_NULL_HANDLE;
+        }
     }
     void operator()(VkDescriptorPool* p) noexcept {
         if (p == nullptr) return;
@@ -121,15 +130,64 @@ struct VulkanSmartDeleter {
         std::cout << "Deleting swapchain!\n";
         vkDestroySwapchainKHR(*logicalDevice, *p, nullptr);
     }
+    void operator()(VkPhysicalDevice* p) noexcept {
+        if (p == nullptr) return;
+        std::cout << "Deleting Physical Device\n";
+        *p = VK_NULL_HANDLE;
+    }
+    void operator()(VkDevice* p) noexcept {
+        if (p == nullptr) return;
+        std::cout << "Deleting Logical Device\n";
+        *p = 0;
+    }
     void operator()(VkSurfaceKHR* p) noexcept {
         if (p == nullptr) return;
-        std::cout << "Deleting surface!\n";
+        std::cout << "Deleting Surface!\n";
         vkDestroySurfaceKHR(*instance, *p, nullptr);
+    }
+    void operator()(LightSource* p) noexcept {
+        if (p == nullptr) return;
+        std::cout << "zeroing out Light Source\n";
+        p->intensity = 0;
+        p->type = 0;
+        p->pos = glm::vec3(0, 0, 0);
+        p->dir = glm::vec3(0, 0, 0);
     }
     void operator()(uint32_t* p) noexcept {
         if (p == nullptr) return;
         std::cout << "zeroing out uint\n";
         *p = 0;
+    }
+    void operator()(VkQueue* p) noexcept {
+        if (p == nullptr) return;
+        std::cout << "Queue nulled out\n";
+        *p = VK_NULL_HANDLE;
+    }
+    void operator()(std::vector<VkSemaphore>* p) noexcept {
+        if (p == nullptr) return;
+        std::cout << "Semaphore deleted\n";
+        for (size_t i = 0; i < p->size(); i++) {
+            vkDestroySemaphore(*logicalDevice, (*p)[i], nullptr);
+        }
+    }
+    void operator()(std::vector<VkFence>* p) noexcept {
+        if (p == nullptr) return;
+        std::cout << "Fence deleted\n";
+        for (size_t i = 0; i < p->size(); i++) {
+            vkDestroyFence(*logicalDevice, (*p)[i], nullptr);
+        }
+    }
+    void operator()(std::vector<VkImage>* p) noexcept {
+        if (p == nullptr) return;
+        std::cout << "Image deleted\n";
+        for (size_t i = 0; i < p->size(); i++) {
+            vkDestroyImage(*logicalDevice, (*p)[i], nullptr);
+        }
+    }
+    void operator()(VkFormat* p) noexcept {
+        if (p == nullptr) return;
+        std::cout << "Format deleted\n";
+        *p = VK_FORMAT_UNDEFINED;
     }
 };
 //Debug Code
