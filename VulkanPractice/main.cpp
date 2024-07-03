@@ -47,6 +47,25 @@ private:
 #else
     const bool enableValidationLayers = true;
 #endif
+    //Shared Resource Pointers
+    //Resources with the most dependcies by declared first
+    std::shared_ptr<VkSurfaceKHR> shared_surface;
+    std::shared_ptr<VkDevice> shared_logicalDevice;
+    std::shared_ptr<VkPhysicalDevice> shared_physicalDevice;
+    std::shared_ptr<VkDescriptorSetLayout> shared_descLayout;
+    std::shared_ptr<std::vector<VkDescriptorSet>> shared_descSetList;
+    std::shared_ptr<LightSource> shared_lightSource;
+    std::shared_ptr<VkCommandPool> shared_commandPool; 
+    std::shared_ptr<VkQueue> shared_graphicsQueue;
+    std::shared_ptr<VkFormat> shared_swapChainFormat;
+    std::shared_ptr<std::vector<VkFence>> shared_fences;
+    std::shared_ptr<VkSwapchainKHR> shared_swapchain;
+    std::shared_ptr<std::vector<VkImage>> shared_swapchainImages;
+    std::shared_ptr<std::vector<VkSemaphore>> shared_imageAvailableSemaphores;
+    std::shared_ptr<std::vector<VkSemaphore>> shared_finishedSemaphores;
+    std::shared_ptr<VkQueue> shared_presentQueue;
+    std::shared_ptr<uint32_t> shared_currentFrame;
+
     GLFWwindow* window; //Reference to the window we draw for vulkan
     VkInstance instance; //An instance is the connection between the app and the vulkan lib
     VkDebugUtilsMessengerEXT debugMessenger; //Debug messenger must be made for debug callbacks to be used
@@ -122,28 +141,50 @@ private:
         return buffer;
     }
     void CreateLightAndPassVarsToRayTracer() {
+        VulkanSmartDeleter vkSmartDeleter;
+        vkSmartDeleter.logicalDevice = &device;
+        vkSmartDeleter.instance = &instance;
+        //Shared Pool Setup
+        shared_descLayout = std::shared_ptr<VkDescriptorSetLayout>(&descriptorSetLayout,vkSmartDeleter);
+        shared_descSetList = std::shared_ptr<std::vector<VkDescriptorSet>>(&descriptorSets, vkSmartDeleter);
+        shared_commandPool = std::shared_ptr <VkCommandPool>(&commandPool,vkSmartDeleter);
+        shared_lightSource = std::shared_ptr<LightSource>(&light, vkSmartDeleter);
+        shared_physicalDevice = std::shared_ptr<VkPhysicalDevice>(&physicalDevice, vkSmartDeleter);
+        shared_logicalDevice = std::shared_ptr<VkDevice>(&device, vkSmartDeleter);
+        shared_surface = std::shared_ptr<VkSurfaceKHR>(&surface, vkSmartDeleter);
+        shared_graphicsQueue = std::shared_ptr<VkQueue>(&graphicsQueue,vkSmartDeleter);
+        shared_presentQueue = std::shared_ptr<VkQueue>(&presentQueue, vkSmartDeleter);
+        shared_swapchain = std::shared_ptr<VkSwapchainKHR>(&swapChain,vkSmartDeleter);
+        shared_swapChainFormat = std::shared_ptr<VkFormat>(&swapChainImageFormat, vkSmartDeleter);
+        shared_swapchainImages = std::shared_ptr<std::vector<VkImage>>(&swapChainImages, vkSmartDeleter);
+        shared_fences = std::shared_ptr<std::vector<VkFence>>(&inFlightFences, vkSmartDeleter);
+        shared_finishedSemaphores = std::shared_ptr<std::vector<VkSemaphore>>(&renderFinishedSemaphores, vkSmartDeleter);
+        shared_imageAvailableSemaphores = std::shared_ptr<std::vector<VkSemaphore>>(&imageAvailableSemaphores, vkSmartDeleter);
+        shared_currentFrame = std::shared_ptr<uint32_t>(&currentFrame,vkSmartDeleter);
+
         light.dir =  glm::normalize(glm::vec3(0, -1, 1));
         light.intensity = 1.0;
         light.pos = glm::vec3(0, 2, 2);
         light.type = 0;
-        rayTracer.mainCommandPool = &commandPool;
-        rayTracer.mainDescSetLayout = &descriptorSetLayout;
-        rayTracer.mainDescSets = &descriptorSets;
-        rayTracer.mainGraphicsQueue = &graphicsQueue;
-        rayTracer.mainLogicalDevice = &device;
-        rayTracer.mainPhysicalDevice = &physicalDevice;
-        rayTracer.mainSurface = &surface;
-        rayTracer.rastSource = &light;
+
+        rayTracer.mainCommandPool = shared_commandPool;
+        rayTracer.mainDescSetLayout = shared_descLayout;
+        rayTracer.mainDescSets = shared_descSetList;
+        rayTracer.mainGraphicsQueue = shared_graphicsQueue;
+        rayTracer.mainLogicalDevice = shared_logicalDevice;
+        rayTracer.mainPhysicalDevice = shared_physicalDevice;
+        rayTracer.mainSurface = shared_surface;
+        rayTracer.mainLightSource = shared_lightSource;
         rayTracer.heightRef = HEIGHT;
         rayTracer.widthRef = WIDTH;
-        rayTracer.currentFrameRef = &currentFrame;
-        rayTracer.mainSwapChainFormat = &swapChainImageFormat;
-        rayTracer.rayImageAvailableSemaphores = &imageAvailableSemaphores;
-        rayTracer.rayFinishedSemaphores = &renderFinishedSemaphores;
-        rayTracer.rayFences = &inFlightFences;
-        rayTracer.rayPresentQueue = &presentQueue;
-        rayTracer.raySwapchain = &swapChain;
-        rayTracer.raySwapchainImages = &swapChainImages;
+        rayTracer.currentFrameRef = shared_currentFrame;
+        rayTracer.mainSwapChainFormat = shared_swapChainFormat;
+        rayTracer.rayTracerImageAvailableSemaphores = shared_imageAvailableSemaphores;
+        rayTracer.rayTracerFinishedSemaphores = shared_finishedSemaphores;
+        rayTracer.rayTracerFences = shared_fences;
+        rayTracer.rayTracerPresentQueue = shared_presentQueue;
+        rayTracer.rayTracerSwapchain = shared_swapchain;
+        rayTracer.rayTracerSwapchainImages = shared_swapchainImages;
         rayTracer.maxPrimativeCount = primativeCount;
     }
     void initWindow() {
@@ -1735,7 +1776,7 @@ private:
             vkUnmapMemory(device, vertexBufferMemory);
             */
             if (useRayTracing) {
-                rayTracer.raytrace(commandBuffers[currentFrame],uniformBuffersMapped ,glm::vec4(0, 0, 0, 1));
+                rayTracer.rayTrace(commandBuffers[currentFrame],uniformBuffersMapped ,glm::vec4(0, 0, 0, 1));
                 currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
             }
             else drawFrame();
@@ -1838,15 +1879,32 @@ private:
         memcpy(uniformBuffersMapped[currentFrame], &ubo, sizeof(ubo));
     }
     //Cleaan up everything EXPLICITLY CREATED by us!
+    //Create a destructor for the main resources or create a deleter to pass to shared ptrs
+    //Will probably go with the destructor plan.
     void cleanup() {
-        //std::cout << "CLEAN UP\n";
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
             //Unmapping memory
             vkUnmapMemory(device, uniformBuffersMemory[i]);
 
         }
-        rayTracer.Cleanup();
-        cleanupSwapChain();
+        rayTracer.cleanup();
+        //Former Swapchain function cleanup
+        //free color buffer
+        vkDestroyImageView(device, colorImageView, nullptr);
+        vkDestroyImage(device, colorImage, nullptr);
+        vkFreeMemory(device, colorImageMemory, nullptr);
+        //Free depth buffer
+        vkDestroyImageView(device, depthImageView, nullptr);
+        vkDestroyImage(device, depthImage, nullptr);
+        vkFreeMemory(device, depthImageMemory, nullptr);
+        for (size_t i = 0; i < swapChainFramebuffers.size(); i++) {
+            vkDestroyFramebuffer(device, swapChainFramebuffers[i], nullptr);
+        }
+
+        for (size_t i = 0; i < swapChainImageViews.size(); i++) {
+            vkDestroyImageView(device, swapChainImageViews[i], nullptr);
+        }
+        //End of Swap Chain resource Cleanup
         vkDestroySampler(device, textureSampler, nullptr);
         vkDestroyImageView(device, textureImageView, nullptr);
         vkDestroyImage(device, textureImage, nullptr);
@@ -1856,7 +1914,7 @@ private:
             vkFreeMemory(device, uniformBuffersMemory[i], nullptr);
         }
         vkDestroyDescriptorPool(device, descriptorPool, nullptr);
-        vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+        //---Descriptor Set layout destruction here
         vkDestroyBuffer(device, indexBuffer, nullptr);
         vkFreeMemory(device, indexBufferMemory, nullptr);
 
@@ -1867,7 +1925,7 @@ private:
             vkDestroySemaphore(device, imageAvailableSemaphores[i], nullptr);
             vkDestroyFence(device, inFlightFences[i], nullptr);
         }
-        vkDestroyCommandPool(device, commandPool, nullptr);
+        //--- command pool destruction here
         //for (auto framebuffer : swapChainFramebuffers) {
         //     vkDestroyFramebuffer(device, framebuffer, nullptr);
         //}
@@ -1877,14 +1935,14 @@ private:
         //for (auto imageView : swapChainImageViews) {
         //    vkDestroyImageView(device, imageView, nullptr);
         //}
-        //vkDestroySwapchainKHR(device, swapChain, nullptr);
-        vkDestroyDevice(device, nullptr);
+        //---swapchain destruction here
+        //---Logical device destruction here;
         if (enableValidationLayers) {
             DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
         }
-        vkDestroySurfaceKHR(instance, surface, nullptr);
-        vkDestroyInstance(instance, nullptr); //Clean up instance, not adding a callback for now
-        
+        //---Surface Would be Destoried here
+        //---Instance would be destroied here
+
         glfwDestroyWindow(window); //Free up memory used by window
 
         glfwTerminate(); //Clean up GLFW
