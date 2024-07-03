@@ -1882,7 +1882,6 @@ private:
     //Create a destructor for the main resources or create a deleter to pass to shared ptrs
     //Will probably go with the destructor plan.
     void cleanup() {
-        //std::cout << "CLEAN UP\n";
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
             //Unmapping memory
             vkUnmapMemory(device, uniformBuffersMemory[i]);
@@ -1905,6 +1904,7 @@ private:
         for (size_t i = 0; i < swapChainImageViews.size(); i++) {
             vkDestroyImageView(device, swapChainImageViews[i], nullptr);
         }
+        //End of Swap Chain resource Cleanup
         vkDestroySampler(device, textureSampler, nullptr);
         vkDestroyImageView(device, textureImageView, nullptr);
         vkDestroyImage(device, textureImage, nullptr);
@@ -1914,7 +1914,7 @@ private:
             vkFreeMemory(device, uniformBuffersMemory[i], nullptr);
         }
         vkDestroyDescriptorPool(device, descriptorPool, nullptr);
-        //vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+        //---Descriptor Set layout destruction here
         vkDestroyBuffer(device, indexBuffer, nullptr);
         vkFreeMemory(device, indexBufferMemory, nullptr);
 
@@ -1925,7 +1925,7 @@ private:
             vkDestroySemaphore(device, imageAvailableSemaphores[i], nullptr);
             vkDestroyFence(device, inFlightFences[i], nullptr);
         }
-        //vkDestroyCommandPool(device, commandPool, nullptr);
+        //--- command pool destruction here
         //for (auto framebuffer : swapChainFramebuffers) {
         //     vkDestroyFramebuffer(device, framebuffer, nullptr);
         //}
@@ -1935,14 +1935,14 @@ private:
         //for (auto imageView : swapChainImageViews) {
         //    vkDestroyImageView(device, imageView, nullptr);
         //}
-        //vkDestroySwapchainKHR(device, swapChain, nullptr);
-        //vkDestroyDevice(device, nullptr);
+        //---swapchain destruction here
+        //---Logical device destruction here;
         if (enableValidationLayers) {
             DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
         }
-        //vkDestroySurfaceKHR(instance, surface, nullptr);
-        //vkDestroyInstance(instance, nullptr); //Clean up instance, not adding a callback for now
-        
+        //---Surface Would be Destoried here
+        //---Instance would be destroied here
+
         glfwDestroyWindow(window); //Free up memory used by window
 
         glfwTerminate(); //Clean up GLFW
