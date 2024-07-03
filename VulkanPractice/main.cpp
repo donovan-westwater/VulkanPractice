@@ -144,7 +144,6 @@ private:
         VulkanSmartDeleter vkSmartDeleter;
         vkSmartDeleter.logicalDevice = &device;
         vkSmartDeleter.instance = &instance;
-        vkSmartDeleter.MaxFrames = MAX_FRAMES_IN_FLIGHT;
         //Shared Pool Setup
         shared_descLayout = std::shared_ptr<VkDescriptorSetLayout>(&descriptorSetLayout,vkSmartDeleter);
         shared_descSetList = std::shared_ptr<std::vector<VkDescriptorSet>>(&descriptorSets, vkSmartDeleter);
@@ -1890,8 +1889,22 @@ private:
 
         }
         rayTracer.cleanup();
-        return;
-        cleanupSwapChain();
+        //Former Swapchain function cleanup
+        //free color buffer
+        vkDestroyImageView(device, colorImageView, nullptr);
+        vkDestroyImage(device, colorImage, nullptr);
+        vkFreeMemory(device, colorImageMemory, nullptr);
+        //Free depth buffer
+        vkDestroyImageView(device, depthImageView, nullptr);
+        vkDestroyImage(device, depthImage, nullptr);
+        vkFreeMemory(device, depthImageMemory, nullptr);
+        for (size_t i = 0; i < swapChainFramebuffers.size(); i++) {
+            vkDestroyFramebuffer(device, swapChainFramebuffers[i], nullptr);
+        }
+
+        for (size_t i = 0; i < swapChainImageViews.size(); i++) {
+            vkDestroyImageView(device, swapChainImageViews[i], nullptr);
+        }
         vkDestroySampler(device, textureSampler, nullptr);
         vkDestroyImageView(device, textureImageView, nullptr);
         vkDestroyImage(device, textureImage, nullptr);
@@ -1901,7 +1914,7 @@ private:
             vkFreeMemory(device, uniformBuffersMemory[i], nullptr);
         }
         vkDestroyDescriptorPool(device, descriptorPool, nullptr);
-        vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+        //vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
         vkDestroyBuffer(device, indexBuffer, nullptr);
         vkFreeMemory(device, indexBufferMemory, nullptr);
 
@@ -1923,12 +1936,12 @@ private:
         //    vkDestroyImageView(device, imageView, nullptr);
         //}
         //vkDestroySwapchainKHR(device, swapChain, nullptr);
-        vkDestroyDevice(device, nullptr);
+        //vkDestroyDevice(device, nullptr);
         if (enableValidationLayers) {
             DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
         }
-        vkDestroySurfaceKHR(instance, surface, nullptr);
-        vkDestroyInstance(instance, nullptr); //Clean up instance, not adding a callback for now
+        //vkDestroySurfaceKHR(instance, surface, nullptr);
+        //vkDestroyInstance(instance, nullptr); //Clean up instance, not adding a callback for now
         
         glfwDestroyWindow(window); //Free up memory used by window
 

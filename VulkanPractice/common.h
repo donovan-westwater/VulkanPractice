@@ -101,7 +101,7 @@ namespace std {
 struct VulkanSmartDeleter {
     VkDevice* logicalDevice;
     VkInstance* instance;
-    int MaxFrames;
+
     //Make different overloaded operators for each resource
     void operator()(VkDescriptorSetLayout* p) noexcept {
         if (p == nullptr) return;
@@ -129,6 +129,7 @@ struct VulkanSmartDeleter {
         if (p == nullptr) return;
         std::cout << "Deleting swapchain!\n";
         vkDestroySwapchainKHR(*logicalDevice, *p, nullptr);
+        
     }
     void operator()(VkPhysicalDevice* p) noexcept {
         if (p == nullptr) return;
@@ -138,12 +139,14 @@ struct VulkanSmartDeleter {
     void operator()(VkDevice* p) noexcept {
         if (p == nullptr) return;
         std::cout << "Deleting Logical Device\n";
-        *p = 0;
+        vkDestroyDevice(*p, nullptr);
     }
     void operator()(VkSurfaceKHR* p) noexcept {
         if (p == nullptr) return;
         std::cout << "Deleting Surface!\n";
         vkDestroySurfaceKHR(*instance, *p, nullptr);
+        std::cout << "Deleting Instance!\n";
+        vkDestroyInstance(*instance, nullptr);
     }
     void operator()(LightSource* p) noexcept {
         if (p == nullptr) return;
