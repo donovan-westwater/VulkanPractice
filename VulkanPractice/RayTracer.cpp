@@ -26,7 +26,7 @@
 		createRayTracerImageAndImageView();
 		createRayTracerDescriptorSetLayout();
 		createRayTracerDescriptorPool();
-		createRayTracerDescriptorSets();
+		createRayTracerDescriptorSets(vertexBuffer,indexBuffer);
 		createRayTracingPipeline();
 		createShaderBindingTable();
 	}
@@ -574,8 +574,25 @@
 		imageBinding.descriptorCount = 1;
 		imageBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 		imageBinding.pImmutableSamplers = nullptr;
+		//Layout to be used by model infomation
+		VkDescriptorSetLayoutBinding vertexLayoutBinding{};
+		vertexLayoutBinding.binding = 2;
+		vertexLayoutBinding.descriptorCount = 1;
+		vertexLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		vertexLayoutBinding.pImmutableSamplers = nullptr;
+		vertexLayoutBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
 
-		std::array<VkDescriptorSetLayoutBinding, 2> bindings = { accStructureBinding, imageBinding };
+		VkDescriptorSetLayoutBinding indexLayoutBinding{};
+		indexLayoutBinding.binding = 3;
+		indexLayoutBinding.descriptorCount = 1;
+		indexLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		indexLayoutBinding.pImmutableSamplers = nullptr;
+		indexLayoutBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+
+		//Add Material bindings below! ---WIP---
+		//Combining all the layouts
+		std::array<VkDescriptorSetLayoutBinding, 4> bindings = { accStructureBinding, imageBinding,
+		vertexLayoutBinding, indexLayoutBinding };
 		VkDescriptorSetLayoutCreateInfo layoutInfo;
 		layoutInfo.pNext = NULL;
 		layoutInfo.flags = 0;
@@ -606,7 +623,8 @@
 			throw std::runtime_error("failed to create descriptor pool!");
 		}
 	}
-	void RayTracer::createRayTracerDescriptorSets() {
+	//Create Descriptor Sets for a single model
+	void RayTracer::createRayTracerDescriptorSets(VkBuffer& vertexBuffer, VkBuffer& indexBuffer) {
 		//Allocate data for the descriptor sets
 		//Creating the layout
 		if (mainLogicalDevice.expired()) {
@@ -625,22 +643,30 @@
 		}
 		//Configure the sets and pass them to sets
 		for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-			VkWriteDescriptorSetAccelerationStructureKHR descASInfo;
-			descASInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
-			descASInfo.accelerationStructureCount = 1;
-			descASInfo.pAccelerationStructures = &topLevelAccelerationStructure;
-
 			VkDescriptorImageInfo imageInfo;
 			imageInfo.imageLayout = {};
 			imageInfo.imageView = rayTracerImageView;
 			imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-			std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+			
 			VkWriteDescriptorSetAccelerationStructureKHR writeStuct;
 			writeStuct.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
 			writeStuct.pNext = NULL;
 			writeStuct.accelerationStructureCount = 1;
 			writeStuct.pAccelerationStructures = &topLevelAccelerationStructure;
 
+			VkDescriptorBufferInfo vertexInfo;
+			vertexInfo.buffer = vertexBuffer;
+			vertexInfo.offset = 0;
+			vertexInfo.range = VK_WHOLE_SIZE;
+
+			VkDescriptorBufferInfo indexInfo;
+			indexInfo.buffer = indexBuffer;
+			indexInfo.offset = 0;
+			indexInfo.range = VK_WHOLE_SIZE;
+
+			//Assigning Descriptor infomation to bindings in layout
+			std::array<VkWriteDescriptorSet, 4> descriptorWrites{};
+			
 			descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 			descriptorWrites[0].dstSet = descriptorSets[i];
 			descriptorWrites[0].dstBinding = 0;
@@ -656,6 +682,22 @@
 			descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
 			descriptorWrites[1].descriptorCount = 1;
 			descriptorWrites[1].pImageInfo = &imageInfo;
+
+			descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			descriptorWrites[2].dstSet = descriptorSets[i];
+			descriptorWrites[2].dstBinding = 2;
+			descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+			descriptorWrites[2].descriptorCount = 1;
+			descriptorWrites[2].dstArrayElement = 0;
+			descriptorWrites[2].pBufferInfo = &vertexInfo;
+
+			descriptorWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			descriptorWrites[3].dstSet = descriptorSets[i];
+			descriptorWrites[3].dstBinding = 3;
+			descriptorWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+			descriptorWrites[3].descriptorCount = 1;
+			descriptorWrites[3].dstArrayElement = 0;
+			descriptorWrites[3].pBufferInfo = &indexInfo;
 
 			vkUpdateDescriptorSets(logicalDevice, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data()
 				, 0, nullptr);
