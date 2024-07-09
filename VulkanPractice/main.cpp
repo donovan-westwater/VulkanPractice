@@ -25,8 +25,8 @@ private:
     const int MAX_FRAMES_IN_FLIGHT = 2; //The amount of frames that can be processed concurrently
     const uint32_t WIDTH = 800;
     const uint32_t HEIGHT = 600;
-    const std::string MODEL_PATH = "Models/CrappyCornellBox.obj";//"Models/Guilmon.obj";
-    const std::string TEXTURE_PATH = "Textures/TestTex.png";
+    const std::string MODEL_PATH = "Models/cube_scene.obj";// "Models/CrappyCornellBox_TriVersion.obj";//"Models/Guilmon.obj";
+    const std::string TEXTURE_PATH = "";// "Textures/TestTex.png";
 
     const std::vector<const char*> validationLayers = {
     "VK_LAYER_KHRONOS_validation",
@@ -355,6 +355,7 @@ private:
 
         return VK_SAMPLE_COUNT_1_BIT;
     }
+    //BUG: Breaks triangle info because of unique vertices!
     void loadModel() {
         tinyobj::attrib_t attrib; //Contains positions normals texture coords
         std::vector<tinyobj::shape_t> shapes; //seperate objects and faces
@@ -490,6 +491,7 @@ private:
         return imageView;
     }
     void createImageTextureView() {
+        if (TEXTURE_PATH == "") return;
         textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT,mipLevels);
     }
     void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout,uint32_t mipLevels) {
@@ -593,6 +595,12 @@ private:
     //Load in an image using a texture
     void createTextureImage() {
         int texWidth, texHeight, texChannels;
+        if (TEXTURE_PATH == ""){
+            textureImage = NULL;
+            textureImageView = NULL;
+            textureSampler = NULL;
+            return;
+        }
         //Takes path and num of channels as args. Returns pointer to first element of array of pixels
         stbi_uc* pixels = stbi_load(TEXTURE_PATH.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
         VkDeviceSize imageSize = texWidth * texHeight * 4; //A pixel is 4 bytes
