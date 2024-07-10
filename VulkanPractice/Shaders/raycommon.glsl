@@ -12,5 +12,9 @@ struct PushConstantRay
 	float lightIntensity;
 	int lightType;
 };
-
+struct Vertex {
+    vec3 pos;
+    vec3 color;
+    vec2 texCoord;
+};
 #endif
