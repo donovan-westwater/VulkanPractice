@@ -5,7 +5,7 @@
 #include "raycommon.glsl"
 
 layout(location = 0) rayPayloadInEXT HitPayload hitP;
-layout(binding = 2) buffer VertexBuffer { Vertex data[];} vertexBuffer;
+layout(binding = 2) buffer VertexBuffer { Vertex data[];} vertexBuffer; //Positions are being read wrong
 layout(binding = 3) buffer IndexBuffer { uint data[];} indexBuffer;
 
 layout(push_constant) uniform _PushConstantRay {PushConstantRay pcRay;};
@@ -24,14 +24,19 @@ void main()
 	vec3 barycentric = vec3(1.0 - attribs.x - attribs.y,
                           attribs.x, attribs.y);
 	//Derived Properties
-    vec3 testHit = vertexA * barycentric.x + vertexB * barycentric.y +
-                  vertexC * barycentric.z;
+    vec3 testHit = vertexBuffer.data[indices.x].normal * barycentric.x + vertexBuffer.data[indices.y].normal * barycentric.y +
+                  vertexBuffer.data[indices.z].normal * barycentric.z;
+    testHit = vertexBuffer.data[indices.x].pos * barycentric.x + vertexBuffer.data[indices.y].pos * barycentric.y +
+                  vertexBuffer.data[indices.z].pos * barycentric.z;
     testHit = vec3(testHit * gl_ObjectToWorldEXT);
+    //testHit = vertexA;
     vec3 normal = normalize(cross(vertexB - vertexA,vertexC  - vertexA));
-    vec3 worldNormal = normalize(vec3(normal * gl_ObjectToWorldEXT)); 
+    vec3 worldNormal = normalize(vec3(normal * gl_WorldToObjectEXT)); 
+    //testHit = worldNormal;
 	vec3 worldPos = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
+    //testHit = worldPos;
     vec3 lightDir = pcRay.lightPos - worldPos;
     float l = dot(lightDir,worldNormal);
 	float d = length(worldPos)/5.0; 
-	hitP.hitValue = abs(vec3(worldNormal.x,worldNormal.y,worldNormal.z));//vec3(testHit.x,testHit.y,testHit.z);
+	hitP.hitValue = vec3(testHit.x,testHit.y,testHit.z);//abs(vec3(worldNormal.x,worldNormal.y,worldNormal.z));
 }

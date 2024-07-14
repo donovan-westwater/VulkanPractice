@@ -25,7 +25,7 @@ private:
     const int MAX_FRAMES_IN_FLIGHT = 2; //The amount of frames that can be processed concurrently
     const uint32_t WIDTH = 800;
     const uint32_t HEIGHT = 600;
-    const std::string MODEL_PATH = "Models/cube_scene.obj";// "Models/CrappyCornellBox_TriVersion.obj";//"Models/Guilmon.obj";
+    const std::string MODEL_PATH = "Models/BasicCube.obj";// "Models/CrappyCornellBox_TriVersion.obj";//"Models/Guilmon.obj";
     const std::string TEXTURE_PATH = "";// "Textures/TestTex.png";
 
     const std::vector<const char*> validationLayers = {
@@ -378,21 +378,33 @@ private:
                     attrib.vertices[3 * index.vertex_index + 1],
                     attrib.vertices[3 * index.vertex_index + 2]
                 };
+                /*
+                if(!attrib.normals.empty() && index.normal_index > 0){
+                    vertex.normal = {
+                        attrib.normals[3 * index.normal_index + 0],
+                        attrib.normals[3 * index.normal_index + 1],
+                        attrib.normals[3 * index.normal_index + 2]
+                    };
+                }
                 //array of 'vec2' represented as floats only, hence the 3 *
                 //Invert the y axis because of obj format
-                vertex.texCoord = {
-                    attrib.texcoords[2 * index.texcoord_index + 0],
-                    1.0f-attrib.texcoords[2 * index.texcoord_index + 1]
-                };
-
-                vertex.color = { 1.0f, 1.0f, 1.0f };
-                //Load in the indcies and vertices
-                if (uniqueVertices.count(vertex) == 0) {
-                    uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
-                    vertices.push_back(vertex);
+                if (!attrib.texcoords.empty() && index.texcoord_index > 0) {
+                    vertex.texCoord = {
+                        attrib.texcoords[2 * index.texcoord_index + 0],
+                        1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
+                    };
                 }
-
-                indices.push_back(uniqueVertices[vertex]);
+                vertex.color = { 1.0f, 1.0f, 1.0f };
+                */
+                //Load in the indcies and vertices
+                //if (uniqueVertices.count(vertex) == 0) {
+                //    uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
+                //    vertices.push_back(vertex);
+                //}
+                //indices.push_back(uniqueVertices[vertex]);
+                vertices.push_back(vertex);
+                indices.push_back(indices.size());
+                
             }
         }
 
