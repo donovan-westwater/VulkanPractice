@@ -15,7 +15,7 @@ public:
         //Setup RayTracer
         CreateLightAndPassVarsToRayTracer();
         //DEBUG: LOOK FOR BAD / UNITALIZIED COMMAND BUFFERS or ONES WHICH WERENT COMPLETELY CLEANED!
-        rayTracer.setupRayTracer(vertexBuffer, indexBuffer, vertices.size());
+        rayTracer.setupRayTracer(vertexBuffer, indexBuffer, vertices.size(),materialBuffer,materialIndexBuffer);
         mainLoop();
         cleanup();
     }
@@ -95,6 +95,11 @@ private:
     VkDeviceMemory vertexBufferMemory; //handle to deal with allocated memory to vertex buffer
     VkBuffer indexBuffer; //Index buffer to prevent bloat in vertex buffer
     VkDeviceMemory indexBufferMemory; //handle to deal with memory allocated with the index buffer
+    VkBuffer materialBuffer; //Material buffer we can pass to shaders
+    VkDeviceMemory materialBufferMemory; //handle to deal with memory allocated with the material buffer
+    VkBuffer materialIndexBuffer; //Index buffer to prevent bloat in material buffer
+    VkDeviceMemory materialIndexBufferMemory; //handle to deal with memory allocated with the material index buffer
+
     uint32_t mipLevels; //mipsampling levels. Used for LOD 
     VkImage textureImage; //image to hold the texture
     VkImageView textureImageView; //Images are accessed indirectly through image views, so the texture will need one
@@ -120,6 +125,9 @@ private:
     std::vector<Vertex> vertices;
     //Our indices we are passing into the index buffer
     std::vector<uint32_t> indices;
+    //The CPU side Materials and Mat Indices to pass to material buffer and index buffer
+    std::vector<Material> materials;
+    std::vector<uint32_t> materialIndices;
     struct SwapChainSupportDetails {
         VkSurfaceCapabilitiesKHR capabilities; //What basic surface capabilities does the swap chain have?
         std::vector<VkSurfaceFormatKHR>formats; //What surface formats do we have?
@@ -330,6 +338,9 @@ private:
         createVertexBuffer();
         //Create index buffer for vertex shader
         createIndexBuffer();
+        // Create material Buffer
+        createMaterialBuffer();
+        createMaterialIndexBuffer();
         //create ubo buffer
         createUniformBuffers();
         createDescriptorPool();
@@ -359,10 +370,10 @@ private:
     void loadModel() {
         tinyobj::attrib_t attrib; //Contains positions normals texture coords
         std::vector<tinyobj::shape_t> shapes; //seperate objects and faces
-        std::vector<tinyobj::material_t> materials;
+        std::vector<tinyobj::material_t> localMaterials;
         std::string warn, err;
 
-        if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, MODEL_PATH.c_str())) {
+        if (!tinyobj::LoadObj(&attrib, &shapes, &localMaterials, &warn, &err, MODEL_PATH.c_str())) {
             throw std::runtime_error(warn + err);
         }
         std::unordered_map<Vertex, uint32_t> uniqueVertices{};
@@ -409,6 +420,15 @@ private:
                 
             }
         }
+        //Copy material infomation into vector
+        for (uint32_t x = 0; x < localMaterials.size(); x++) {
+            materials[x].ambient = float3ToVec4(localMaterials[x].ambient);
+            materials[x].diffuse = float3ToVec4(localMaterials[x].diffuse);
+            materials[x].specular = float3ToVec4(localMaterials[x].specular);
+            materials[x].emission = float3ToVec4(localMaterials[x].emission);
+            materialIndices.push_back(x);
+        }
+
 
     }//Create the resources for the color buffer used for multisampling
     void createColorResources() {
@@ -1032,6 +1052,64 @@ private:
         //Clean up data after we are done with it
         vkDestroyBuffer(device, stagingBuffer, nullptr);
         vkFreeMemory(device,stagingBufferMemory,nullptr);
+    }
+    void createMaterialIndexBuffer() {
+        VkDeviceSize bufferSize = sizeof(materialIndices[0]) * materialIndices.size();
+        //Staging buffer to transfer data between CPU and GPU
+        VkBuffer stagingBuffer;
+        VkDeviceMemory stagingBufferMemory;
+        createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory,
+            true);
+
+        //Create a memory map between the vertex buffer (CPU) and the shader (GPU)
+        //This allows both sides to access the data
+        void* data;
+        vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+        memcpy(data, materialIndices.data(), (size_t)bufferSize);
+        vkUnmapMemory(device, stagingBufferMemory);
+        VkBufferUsageFlags rayTracingFlags = // used also for building acceleration structures 
+            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+        //The vertex buffer itself
+        createBuffer(bufferSize, rayTracingFlags | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory
+            , true);
+#ifndef NDEBUG
+        setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(materialIndexBuffer), "Material Index Buffer");
+        setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY, reinterpret_cast<uint64_t>(materialIndexBufferMemory), "Material Index Buffer Memory");
+#endif
+        //Copy data from staging buffer to vertex buffer
+        copyBuffer(stagingBuffer, materialIndexBuffer, bufferSize);
+        //Clean up data after we are done with it
+        vkDestroyBuffer(device, stagingBuffer, nullptr);
+        vkFreeMemory(device, stagingBufferMemory, nullptr);
+    }
+    void createMaterialBuffer() {
+        VkDeviceSize bufferSize = sizeof(materials[0]) * materials.size();
+        //Staging buffer to transfer data between CPU and GPU
+        VkBuffer stagingBuffer;
+        VkDeviceMemory stagingBufferMemory;
+        createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory,
+            true);
+
+        //Create a memory map between the vertex buffer (CPU) and the shader (GPU)
+        //This allows both sides to access the data
+        void* data;
+        vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+        memcpy(data, materials.data(), (size_t)bufferSize);
+        vkUnmapMemory(device, stagingBufferMemory);
+        VkBufferUsageFlags rayTracingFlags = // used also for building acceleration structures 
+            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+        //The vertex buffer itself
+        createBuffer(bufferSize, rayTracingFlags | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory
+            , true);
+#ifndef NDEBUG
+        setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(materialBuffer), "Material Buffer");
+        setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY, reinterpret_cast<uint64_t>(materialBufferMemory), "Material Buffer Memory");
+#endif
+        //Copy data from staging buffer to vertex buffer
+        copyBuffer(stagingBuffer, materialBuffer, bufferSize);
+        //Clean up data after we are done with it
+        vkDestroyBuffer(device, stagingBuffer, nullptr);
+        vkFreeMemory(device, stagingBufferMemory, nullptr);
     }
     void createSyncObjects() {
         //make sure there are semaphores and fences for each concurrent frame

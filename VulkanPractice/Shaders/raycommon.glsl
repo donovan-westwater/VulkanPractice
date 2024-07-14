@@ -28,4 +28,10 @@ struct Vertex {
     vec3 color;
     vec2 texCoord;
 };
+struct Material {
+    vec4 ambient;
+    vec4 diffuse;
+    vec4 specular;
+    vec4 emission;
+};
 #endif

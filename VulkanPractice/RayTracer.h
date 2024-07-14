@@ -38,7 +38,7 @@ class RayTracer {
 	uint32_t findBufferMemoryTypeIndex(VkDevice logicalDevice, VkPhysicalDevice physicalDevice
 		, VkBuffer buffer, VkMemoryPropertyFlagBits flagBits);
 	void createTopLevelAccelerationStructure();
-	void createRayTracerDescriptorSets(VkBuffer& vertexBuffer, VkBuffer& indexBuffer);
+	void createRayTracerDescriptorSets(VkBuffer& vertexBuffer, VkBuffer& indexBuffer, VkBuffer& materialBuffer, VkBuffer& materialIndexBuffer);
 	void createRayTracerDescriptorPool();
 	void createRayTracerDescriptorSetLayout();
 	void createShaderBindingTable();
@@ -117,7 +117,7 @@ public:
 
 	void updateRayTracerDescriptorSets();
 
-	void setupRayTracer(VkBuffer& vertexBuffer, VkBuffer& indexBuffer, uint32_t nOfVerts);
+	void setupRayTracer(VkBuffer& vertexBuffer, VkBuffer& indexBuffer, uint32_t nOfVerts,VkBuffer& materialBuffer, VkBuffer& materialIndexBuffer);
 
 };
 

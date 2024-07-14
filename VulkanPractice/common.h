@@ -95,6 +95,12 @@ struct Vertex {
     }
 
 };
+struct Material {
+    glm::vec4 ambient = { 0, 0, 0, 0 };
+    glm::vec4 diffuse = { 0, 0, 0, 0 };
+    glm::vec4 specular = { 0, 0, 0, 0 };
+    glm::vec4 emission = { 0, 0, 0, 0 };
+};
 namespace std {
     template<> struct hash<Vertex> {
         size_t operator()(Vertex const& vertex) const {
@@ -199,6 +205,13 @@ struct VulkanSmartDeleter {
         *p = VK_FORMAT_UNDEFINED;
     }
 };
+static glm::vec4 float3ToVec4(float a[3]) {
+    glm::vec4 out;
+    out.x = a[0];
+    out.y = a[1];
+    out.z = a[2];
+    return out;
+}
 //Debug Code
 #ifndef NDEBUG
 
