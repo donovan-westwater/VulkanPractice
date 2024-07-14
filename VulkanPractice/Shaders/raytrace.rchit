@@ -32,7 +32,7 @@ void main()
     //testHit = vertexA;
     vec3 normal = normalize(cross(vertexB - vertexA,vertexC  - vertexA));
     vec3 worldNormal = normalize(vec3(normal * gl_WorldToObjectEXT)); 
-    //testHit = worldNormal;
+    testHit = worldNormal;
 	vec3 worldPos = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
     //testHit = worldPos;
     vec3 lightDir = pcRay.lightPos - worldPos;
