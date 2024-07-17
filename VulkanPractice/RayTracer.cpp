@@ -592,18 +592,18 @@
 
 		//Add Material bindings
 		VkDescriptorSetLayoutBinding materialLayoutBinding{};
-		indexLayoutBinding.binding = 4;
-		indexLayoutBinding.descriptorCount = 1;
-		indexLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-		indexLayoutBinding.pImmutableSamplers = nullptr;
-		indexLayoutBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+		materialLayoutBinding.binding = 4;
+		materialLayoutBinding.descriptorCount = 1;
+		materialLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		materialLayoutBinding.pImmutableSamplers = nullptr;
+		materialLayoutBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
 
 		VkDescriptorSetLayoutBinding materialIndexLayoutBinding{};
-		indexLayoutBinding.binding = 5;
-		indexLayoutBinding.descriptorCount = 1;
-		indexLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-		indexLayoutBinding.pImmutableSamplers = nullptr;
-		indexLayoutBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+		materialIndexLayoutBinding.binding = 5;
+		materialIndexLayoutBinding.descriptorCount = 1;
+		materialIndexLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+		materialIndexLayoutBinding.pImmutableSamplers = nullptr;
+		materialIndexLayoutBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
 
 		//Combining all the layouts
 		std::array<VkDescriptorSetLayoutBinding, 6> bindings = { accStructureBinding, imageBinding,
@@ -681,14 +681,14 @@
 			indexInfo.range = VK_WHOLE_SIZE;
 
 			VkDescriptorBufferInfo materialInfo;
-			indexInfo.buffer = materialBuffer;
-			indexInfo.offset = 0;
-			indexInfo.range = VK_WHOLE_SIZE;
+			materialInfo.buffer = materialBuffer;
+			materialInfo.offset = 0;
+			materialInfo.range = VK_WHOLE_SIZE;
 
 			VkDescriptorBufferInfo materialIndexInfo;
-			indexInfo.buffer = materialIndexBuffer;
-			indexInfo.offset = 0;
-			indexInfo.range = VK_WHOLE_SIZE;
+			materialIndexInfo.buffer = materialIndexBuffer;
+			materialIndexInfo.offset = 0;
+			materialIndexInfo.range = VK_WHOLE_SIZE;
 			//Assigning Descriptor infomation to bindings in layout
 			std::array<VkWriteDescriptorSet, 6> descriptorWrites{};
 			

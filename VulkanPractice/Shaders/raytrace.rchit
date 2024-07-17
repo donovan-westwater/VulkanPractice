@@ -33,5 +33,5 @@ void main()
     vec3 lightDir = pcRay.lightPos - worldPos;
     float l = dot(lightDir,worldNormal);
 	float d = length(worldPos)/5.0; 
-	hitP.hitValue = vec3(l,l,l);//abs(vec3(worldNormal.x,worldNormal.y,worldNormal.z));
+	hitP.hitValue = materialBuffer.data[0].diffuse.xyz*vec3(l,l,l);//abs(vec3(worldNormal.x,worldNormal.y,worldNormal.z));
 }

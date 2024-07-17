@@ -27,6 +27,7 @@ private:
     const uint32_t HEIGHT = 600;
     const std::string MODEL_PATH = "Models/CrappyCornellBox_TriVersion.obj";//"Models/Guilmon.obj";
     const std::string TEXTURE_PATH = "Textures/TestTex.png";
+    const std::string MATERIALS_PATH = "Materials/";//"Materials/CrappyCornellBox_TriVersion.mtl";
 
     const std::vector<const char*> validationLayers = {
     "VK_LAYER_KHRONOS_validation",
@@ -373,7 +374,7 @@ private:
         std::vector<tinyobj::material_t> localMaterials;
         std::string warn, err;
 
-        if (!tinyobj::LoadObj(&attrib, &shapes, &localMaterials, &warn, &err, MODEL_PATH.c_str())) {
+        if (!tinyobj::LoadObj(&attrib, &shapes, &localMaterials, &warn, &err, MODEL_PATH.c_str(),MATERIALS_PATH.c_str())) {
             throw std::runtime_error(warn + err);
         }
         std::unordered_map<Vertex, uint32_t> uniqueVertices{};
@@ -422,10 +423,12 @@ private:
         }
         //Copy material infomation into vector
         for (uint32_t x = 0; x < localMaterials.size(); x++) {
-            materials[x].ambient = float3ToVec4(localMaterials[x].ambient);
-            materials[x].diffuse = float3ToVec4(localMaterials[x].diffuse);
-            materials[x].specular = float3ToVec4(localMaterials[x].specular);
-            materials[x].emission = float3ToVec4(localMaterials[x].emission);
+            Material m;
+            m.ambient = float3ToVec4(localMaterials[x].ambient);
+            m.diffuse = float3ToVec4(localMaterials[x].diffuse);
+            m.specular = float3ToVec4(localMaterials[x].specular);
+            m.emission = float3ToVec4(localMaterials[x].emission);
+            materials.push_back(m);
             materialIndices.push_back(x);
         }
 
@@ -1070,7 +1073,7 @@ private:
         VkBufferUsageFlags rayTracingFlags = // used also for building acceleration structures 
             VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
         //The vertex buffer itself
-        createBuffer(bufferSize, rayTracingFlags | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory
+        createBuffer(bufferSize, rayTracingFlags | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, materialIndexBuffer, materialIndexBufferMemory
             , true);
 #ifndef NDEBUG
         setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(materialIndexBuffer), "Material Index Buffer");
@@ -1097,9 +1100,9 @@ private:
         memcpy(data, materials.data(), (size_t)bufferSize);
         vkUnmapMemory(device, stagingBufferMemory);
         VkBufferUsageFlags rayTracingFlags = // used also for building acceleration structures 
-            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-        //The vertex buffer itself
-        createBuffer(bufferSize, rayTracingFlags | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory
+            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+        //The material buffer itself
+        createBuffer(bufferSize, rayTracingFlags | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, materialBuffer, materialBufferMemory
             , true);
 #ifndef NDEBUG
         setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(materialBuffer), "Material Buffer");
