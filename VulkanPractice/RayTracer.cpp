@@ -564,7 +564,7 @@
 		//topLevelAccelerationStructure binding
 		VkDescriptorSetLayoutBinding accStructureBinding;
 		accStructureBinding.binding = 0;
-		accStructureBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+		accStructureBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
 		accStructureBinding.descriptorCount = 1;
 		accStructureBinding.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
 		accStructureBinding.pImmutableSamplers = nullptr;

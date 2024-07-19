@@ -920,7 +920,7 @@ private:
         uboLayoutBinding.binding = 0; //Which index you want to bind to for the shader
         uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; //Kind of descriptor set
         uboLayoutBinding.descriptorCount = 1; //How many descriptor sets in the array
-        uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR; //which stage we are sending it to
+        uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR; //which stage we are sending it to
         uboLayoutBinding.pImmutableSamplers = nullptr;
         //Create descriptor set for the image sampler
         VkDescriptorSetLayoutBinding samplerLayoutBinding{};

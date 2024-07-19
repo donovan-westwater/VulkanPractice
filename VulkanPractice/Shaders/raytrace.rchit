@@ -5,6 +5,12 @@
 #include "raycommon.glsl"
 
 layout(location = 0) rayPayloadInEXT HitPayload hitP;
+layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
+layout(binding = 0, set = 1) uniform UniformBufferObject {
+    mat4 model;
+    mat4 view;
+    mat4 proj;
+} ubo;
 layout(binding = 2) buffer VertexBuffer { Vertex data[];} vertexBuffer; //Positions are being read wrong
 layout(binding = 3) buffer IndexBuffer { uint data[];} indexBuffer;
 layout(binding = 4) buffer MaterialBuffer { Material data[];} materialBuffer;
@@ -32,6 +38,26 @@ void main()
     
     vec3 lightDir = pcRay.lightPos - worldPos;
     float l = dot(lightDir,worldNormal);
-	float d = length(worldPos)/5.0; 
-	hitP.hitValue = materialBuffer.data[0].diffuse.xyz*vec3(l,l,l);//abs(vec3(worldNormal.x,worldNormal.y,worldNormal.z));
+    hitP.rayDepth += 1;
+	hitP.hitValue += 0.5*l*materialBuffer.data[0].diffuse.xyz;
+    //Send new ray
+    //Set flags to describe the geometry being dealt with
+    uint rayFlags = gl_RayFlagsOpaqueEXT;
+    float tMin = 0.001;
+    float tMax = 10000.0;
+    vec3 rayDirection = randomHemisphereVector(vec2(.27,.62),worldNormal);
+    if(hitP.rayDepth < 2){
+        traceRayEXT(topLevelAS, // acceleration structure
+                rayFlags,       // rayFlags
+                0xFF,           // cullMask
+                0,              // sbtRecordOffset
+                0,              // sbtRecordStride
+                0,              // missIndex
+                worldPos.xyz,     // ray origin
+                tMin,           // ray min range
+                rayDirection,  // ray direction
+                tMax,           // ray max range
+                0               // payload (location = 0)
+        );
+    }
 }
