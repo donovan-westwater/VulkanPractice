@@ -39,14 +39,15 @@ void main()
     vec3 lightDir = pcRay.lightPos - worldPos;
     float l = dot(lightDir,worldNormal);
     hitP.rayDepth += 1;
-	hitP.hitValue += 0.5*l*materialBuffer.data[0].diffuse.xyz;
+	hitP.hitValue += pow(0.5,hitP.rayDepth)*l*materialBuffer.data[gl_PrimitiveID].diffuse.xyz;
     //Send new ray
     //Set flags to describe the geometry being dealt with
     uint rayFlags = gl_RayFlagsOpaqueEXT;
     float tMin = 0.001;
     float tMax = 10000.0;
     vec3 rayDirection = randomHemisphereVector(vec2(.27,.62),worldNormal);
-    if(hitP.rayDepth < 2){
+    //TO DO: Should pass in max depth from CPU side. Pipeline controls depth!
+    if(hitP.rayDepth < 6){
         traceRayEXT(topLevelAS, // acceleration structure
                 rayFlags,       // rayFlags
                 0xFF,           // cullMask

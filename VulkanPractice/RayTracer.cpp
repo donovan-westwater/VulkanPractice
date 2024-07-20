@@ -1205,7 +1205,7 @@
 		rayTracerPipeline.groupCount = raytracingShaderGroups.size();
 		rayTracerPipeline.pGroups = raytracingShaderGroups.data();
 		rayTracerPipeline.layout = rayPipelineLayout;
-		rayTracerPipeline.maxPipelineRayRecursionDepth = 1;
+		rayTracerPipeline.maxPipelineRayRecursionDepth = rayTracingProperties.maxRayRecursionDepth;
 		rayTracerPipeline.basePipelineHandle = VK_NULL_HANDLE;
 		rayTracerPipeline.basePipelineIndex = 0;
 		rayTracerPipeline.pDynamicState = NULL;
