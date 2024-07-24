@@ -7,6 +7,6 @@ layout(location = 0) rayPayloadInEXT HitPayload hitP;
 
 void main()
 {
-    hitP.hitValue += vec3(0.0, 1.0, 1.0);
+    if( hitP.rayDepth < 1) hitP.hitValue = vec3(0.0, 1.0, 1.0);
     hitP.rayDepth = 100;
 }

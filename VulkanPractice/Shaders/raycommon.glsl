@@ -42,7 +42,7 @@ float rand(vec2 co){
 
 vec3 randomUnitVector(vec2 co){
     vec3 outVector;
-    outVector = vec3(2.0*rand(co)-1.0,2.0*rand(co-1.0)-1.0,2.0*rand(co-2.0)-1.0);
+    outVector = vec3(2.0*rand(co)-1.0,2.0*rand(co-0.1)-1.0,2.0*rand(co-.2)-1.0);
     outVector = normalize(outVector);
     return outVector;
 }
