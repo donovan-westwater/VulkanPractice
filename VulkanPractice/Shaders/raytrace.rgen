@@ -55,5 +55,6 @@ void main()
         );
         outColor += prd.hitValue/samplesPerPixel;
     }
+    outColor = vec3(linear_to_gamma(outColor.x),linear_to_gamma(outColor.y),linear_to_gamma(outColor.z));
     imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(outColor, 1.0));
 }

@@ -53,4 +53,10 @@ vec3 randomHemisphereVector(vec2 co,vec3 normal){
     if(d < 0) unitVector = -unitVector;
     return unitVector;
 }
+
+float linear_to_gamma(float linear){
+    float value = 0.0;
+    if(linear > 0.0) value = sqrt(linear);
+    return value;
+}
 #endif
