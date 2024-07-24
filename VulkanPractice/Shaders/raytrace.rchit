@@ -48,7 +48,8 @@ void main()
     float tMax = 10000.0;
     vec3 dir = gl_WorldRayDirectionEXT;
     vec2 seed = vec2(fract(dir.x)*fract(dir.y),fract(dir.z)*fract(dir.y));
-    vec3 rayDirection = randomHemisphereVector(seed,worldNormal);
+    vec3 rayDirection = randomUnitVector(seed)+worldNormal;
+    rayDirection = normalize(rayDirection);
     //hitP.hitValue = rayDirection;
     //TO DO: Should pass in max depth from CPU side. Pipeline controls depth!
     if(hitP.rayDepth < 6){
