@@ -39,7 +39,8 @@ void main()
     vec3 lightDir = pcRay.lightPos - worldPos;
     float l = dot(lightDir,worldNormal);
     hitP.rayDepth += 1;
-    vec3 hitcolor = vec3(1,1,1);//materialBuffer.data[gl_PrimitiveID].diffuse.xyz
+    uint matIndex = materialIndexBuffer.data[gl_PrimitiveID];
+    vec3 hitcolor = materialBuffer.data[matIndex].diffuse.xyz;
 	hitP.hitValue = pow(0.5,hitP.rayDepth)*hitcolor;
     //Send new ray
     //Set flags to describe the geometry being dealt with
