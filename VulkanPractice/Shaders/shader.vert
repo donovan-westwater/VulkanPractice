@@ -9,8 +9,9 @@ layout(binding = 0) uniform UniformBufferObject {
 //These are vertex attributes. Layout corrsponds to indices setup in the vertex part of the pipeline
 //NOTE: dvec3 are 64 bit vectors which means they use MULTIPLE SLOTS! next index must be >=2 higher
 layout(location = 0) in vec3 inPosition;
-layout(location = 1) in vec3 inColor;
-layout(location = 2) in vec2 inTexCoord;
+layout(location = 1) in vec3 inNormal;
+layout(location = 2) in vec3 inColor;
+layout(location = 3) in vec2 inTexCoord;
 //This should corrispond to indices in the frag section of pipeline
 layout(location = 0) out vec3 fragColor;
 layout(location = 1) out vec2 fragTexCoord;

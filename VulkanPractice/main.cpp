@@ -1,116 +1,46 @@
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
-
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
+#include "common.h"
+#include "RayTracer.h"
+//#include "RayTracer.cpp"
 
-#define GLM_ENABLE_EXPERIMENTAL
-#include <glm/gtx/hash.hpp>
-
-#include <iostream>
-#include <stdexcept>
-#include <cstdlib>
-#include <vector>
-#include <optional>
-#include <set>
-#include <algorithm>
-#include <fstream>
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-
-#include <chrono>
-#include <array>
-#include <unordered_map>
-
-struct UniformBufferObject {
-    glm::mat4 model;
-    glm::mat4 view;
-    glm::mat4 proj;
-    //glm::vec4 colorAdd;
-};
-struct QueueFamilyIndices {
-    std::optional<uint32_t> graphicsFamily;
-    std::optional<uint32_t> presentFamily;
-
-    bool isComplete() {
-        return graphicsFamily.has_value() && presentFamily.has_value();
-    }
-};
-//Vertex attributes: assigned per vertex
-struct Vertex {
-    glm::vec3 pos;
-    glm::vec3 color;
-    glm::vec2 texCoord;
-    //Our vertex Binding description: how to bind vertex to the shader in the GPU
-    static VkVertexInputBindingDescription getBindingDescription() {
-        //All of our per vertex data is packed in one array. Only need 1 binding
-        VkVertexInputBindingDescription bindingDescription{};
-        bindingDescription.binding = 0; //Index to bind the array to
-        bindingDescription.stride = sizeof(Vertex); //How far are the data points in the array?
-        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX; //Movee to the next data entry after each vertex
-        return bindingDescription;
-    }
-    static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions() {
-        std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{}; //one for vertex pos, one for vetex color
-        attributeDescriptions[0].binding = 0; //Which binding our we getting our vertex info from?
-        attributeDescriptions[0].location = 0; //Which location in the vertex shader should this go to?
-        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attributeDescriptions[0].offset = offsetof(Vertex, pos); //num of bytes from the start of the per vetex data to read from
-        //The above is for positions, so we offset to the start of the pos var in the struct
-
-        attributeDescriptions[1].binding = 0; //Which binding our we getting our vertex info from?
-        attributeDescriptions[1].location = 1; //Which location in the vertex shader should this go to?
-        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT; //How much data are we providing to each channel?
-        attributeDescriptions[1].offset = offsetof(Vertex, color); //num of bytes from the start of the per vetex data to read from
-
-        attributeDescriptions[2].binding = 0; //Which binding our we getting our vertex info from?
-        attributeDescriptions[2].location = 2; //Which location in the vertex shader should this go to?
-        attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT; //How much data are we providing to each channel?
-        attributeDescriptions[2].offset = offsetof(Vertex, texCoord); //num of bytes from the start of the per vetex data to read from
-
-
-        return attributeDescriptions;
-    }
-    bool operator==(const Vertex& other) const {
-        return pos == other.pos && color == other.color && texCoord == other.texCoord;
-    }
-
-};
-namespace std {
-    template<> struct hash<Vertex> {
-        size_t operator()(Vertex const& vertex) const {
-            return ((hash<glm::vec3>()(vertex.pos) ^ (hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^ (hash<glm::vec2>()(vertex.texCoord) << 1);
-        }
-    };
-}
 
 class HelloTriangleApplication {
 public:
     void run() {
         initWindow();
         initVulkan();
+        //Setup RayTracer
+        CreateLightAndPassVarsToRayTracer();
+        //DEBUG: LOOK FOR BAD / UNITALIZIED COMMAND BUFFERS or ONES WHICH WERENT COMPLETELY CLEANED!
+        rayTracer.setupRayTracer(vertexBuffer, indexBuffer, vertices.size(),materialBuffer,materialIndexBuffer);
         mainLoop();
         cleanup();
     }
 
 private:
+    bool useRayTracing = true;
     const int MAX_FRAMES_IN_FLIGHT = 2; //The amount of frames that can be processed concurrently
     const uint32_t WIDTH = 800;
     const uint32_t HEIGHT = 600;
-    const std::string MODEL_PATH = "Models/Guilmon.obj";
-    const std::string TEXTURE_PATH = "Textures/guilmon.png";
+    const std::string MODEL_PATH = "Models/CornellBox-Original.obj";//"Models/Guilmon.obj";
+    const std::string TEXTURE_PATH = "Textures/TestTex.png";
+    const std::string MATERIALS_PATH = "Materials/";//"Materials/CrappyCornellBox_TriVersion.mtl";
 
     const std::vector<const char*> validationLayers = {
     "VK_LAYER_KHRONOS_validation",
     "VK_LAYER_LUNARG_monitor"
     }; //Provides a list of required validation layers for the system
     const std::vector<const char*> deviceExtensions = {
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+        "VK_KHR_ray_tracing_pipeline",
+      "VK_KHR_acceleration_structure",
+      "VK_EXT_descriptor_indexing",
+      "VK_KHR_maintenance3",
+      "VK_KHR_buffer_device_address",
+      "VK_KHR_deferred_host_operations"
     }; //Provides a list of required extensions for the system
 
 #ifdef NDEBUG
@@ -118,6 +48,25 @@ private:
 #else
     const bool enableValidationLayers = true;
 #endif
+    //Shared Resource Pointers
+    //Resources with the most dependcies by declared first
+    std::shared_ptr<VkSurfaceKHR> shared_surface;
+    std::shared_ptr<VkDevice> shared_logicalDevice;
+    std::shared_ptr<VkPhysicalDevice> shared_physicalDevice;
+    std::shared_ptr<VkDescriptorSetLayout> shared_descLayout;
+    std::shared_ptr<std::vector<VkDescriptorSet>> shared_descSetList;
+    std::shared_ptr<LightSource> shared_lightSource;
+    std::shared_ptr<VkCommandPool> shared_commandPool; 
+    std::shared_ptr<VkQueue> shared_graphicsQueue;
+    std::shared_ptr<VkFormat> shared_swapChainFormat;
+    std::shared_ptr<std::vector<VkFence>> shared_fences;
+    std::shared_ptr<VkSwapchainKHR> shared_swapchain;
+    std::shared_ptr<std::vector<VkImage>> shared_swapchainImages;
+    std::shared_ptr<std::vector<VkSemaphore>> shared_imageAvailableSemaphores;
+    std::shared_ptr<std::vector<VkSemaphore>> shared_finishedSemaphores;
+    std::shared_ptr<VkQueue> shared_presentQueue;
+    std::shared_ptr<uint32_t> shared_currentFrame;
+
     GLFWwindow* window; //Reference to the window we draw for vulkan
     VkInstance instance; //An instance is the connection between the app and the vulkan lib
     VkDebugUtilsMessengerEXT debugMessenger; //Debug messenger must be made for debug callbacks to be used
@@ -147,6 +96,11 @@ private:
     VkDeviceMemory vertexBufferMemory; //handle to deal with allocated memory to vertex buffer
     VkBuffer indexBuffer; //Index buffer to prevent bloat in vertex buffer
     VkDeviceMemory indexBufferMemory; //handle to deal with memory allocated with the index buffer
+    VkBuffer materialBuffer; //Material buffer we can pass to shaders
+    VkDeviceMemory materialBufferMemory; //handle to deal with memory allocated with the material buffer
+    VkBuffer materialIndexBuffer; //Index buffer to prevent bloat in material buffer
+    VkDeviceMemory materialIndexBufferMemory; //handle to deal with memory allocated with the material index buffer
+
     uint32_t mipLevels; //mipsampling levels. Used for LOD 
     VkImage textureImage; //image to hold the texture
     VkImageView textureImageView; //Images are accessed indirectly through image views, so the texture will need one
@@ -161,15 +115,20 @@ private:
     VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;//How many times are we sampling for rasterization? reduces jagged edges
     std::vector<VkBuffer> uniformBuffers; //ubo buffer
     std::vector<VkDeviceMemory> uniformBuffersMemory;//handle to allocated buffer memory
-    std::vector<void*> uniformBuffersMapped; //Buffer for staging 
+    std::vector<void*> uniformBuffersMapped; //Buffer for staging
+    RayTracer rayTracer;
+    LightSource light;
     uint32_t currentFrame = 0;
     bool framebufferResized = false;
-    
+    int primativeCount = 0;
 
     //Our sample set of vertices we are passing into the vertex buffer
     std::vector<Vertex> vertices;
     //Our indices we are passing into the index buffer
     std::vector<uint32_t> indices;
+    //The CPU side Materials and Mat Indices to pass to material buffer and index buffer
+    std::vector<Material> materials;
+    std::vector<uint32_t> materialIndices;
     struct SwapChainSupportDetails {
         VkSurfaceCapabilitiesKHR capabilities; //What basic surface capabilities does the swap chain have?
         std::vector<VkSurfaceFormatKHR>formats; //What surface formats do we have?
@@ -190,6 +149,53 @@ private:
 
         return buffer;
     }
+    void CreateLightAndPassVarsToRayTracer() {
+        VulkanSmartDeleter vkSmartDeleter;
+        vkSmartDeleter.logicalDevice = &device;
+        vkSmartDeleter.instance = &instance;
+        //Shared Pool Setup
+        shared_descLayout = std::shared_ptr<VkDescriptorSetLayout>(&descriptorSetLayout,vkSmartDeleter);
+        shared_descSetList = std::shared_ptr<std::vector<VkDescriptorSet>>(&descriptorSets, vkSmartDeleter);
+        shared_commandPool = std::shared_ptr <VkCommandPool>(&commandPool,vkSmartDeleter);
+        shared_lightSource = std::shared_ptr<LightSource>(&light, vkSmartDeleter);
+        shared_physicalDevice = std::shared_ptr<VkPhysicalDevice>(&physicalDevice, vkSmartDeleter);
+        shared_logicalDevice = std::shared_ptr<VkDevice>(&device, vkSmartDeleter);
+        shared_surface = std::shared_ptr<VkSurfaceKHR>(&surface, vkSmartDeleter);
+        shared_graphicsQueue = std::shared_ptr<VkQueue>(&graphicsQueue,vkSmartDeleter);
+        shared_presentQueue = std::shared_ptr<VkQueue>(&presentQueue, vkSmartDeleter);
+        shared_swapchain = std::shared_ptr<VkSwapchainKHR>(&swapChain,vkSmartDeleter);
+        shared_swapChainFormat = std::shared_ptr<VkFormat>(&swapChainImageFormat, vkSmartDeleter);
+        shared_swapchainImages = std::shared_ptr<std::vector<VkImage>>(&swapChainImages, vkSmartDeleter);
+        shared_fences = std::shared_ptr<std::vector<VkFence>>(&inFlightFences, vkSmartDeleter);
+        shared_finishedSemaphores = std::shared_ptr<std::vector<VkSemaphore>>(&renderFinishedSemaphores, vkSmartDeleter);
+        shared_imageAvailableSemaphores = std::shared_ptr<std::vector<VkSemaphore>>(&imageAvailableSemaphores, vkSmartDeleter);
+        shared_currentFrame = std::shared_ptr<uint32_t>(&currentFrame,vkSmartDeleter);
+
+        light.dir =  glm::normalize(glm::vec3(0, -1, 1));
+        light.intensity = 1.0;
+        light.pos = glm::vec3(0, 2, 2);
+        light.type = 0;
+
+        rayTracer.mainCommandPool = shared_commandPool;
+        rayTracer.mainDescSetLayout = shared_descLayout;
+        rayTracer.mainDescSets = shared_descSetList;
+        rayTracer.mainGraphicsQueue = shared_graphicsQueue;
+        rayTracer.mainLogicalDevice = shared_logicalDevice;
+        rayTracer.mainPhysicalDevice = shared_physicalDevice;
+        rayTracer.mainSurface = shared_surface;
+        rayTracer.mainLightSource = shared_lightSource;
+        rayTracer.heightRef = HEIGHT;
+        rayTracer.widthRef = WIDTH;
+        rayTracer.currentFrameRef = shared_currentFrame;
+        rayTracer.mainSwapChainFormat = shared_swapChainFormat;
+        rayTracer.rayTracerImageAvailableSemaphores = shared_imageAvailableSemaphores;
+        rayTracer.rayTracerFinishedSemaphores = shared_finishedSemaphores;
+        rayTracer.rayTracerFences = shared_fences;
+        rayTracer.rayTracerPresentQueue = shared_presentQueue;
+        rayTracer.rayTracerSwapchain = shared_swapchain;
+        rayTracer.rayTracerSwapchainImages = shared_swapchainImages;
+        rayTracer.maxPrimativeCount = primativeCount;
+    }
     void initWindow() {
         glfwInit();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); //Disable openGL API
@@ -202,6 +208,7 @@ private:
     static void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
         auto app = reinterpret_cast<HelloTriangleApplication*>(glfwGetWindowUserPointer(window));
         app->framebufferResized = true;
+        //if(app->r.isEnabled) app->r.updateRTDescriptorSets();
     }
     //Check if validation layers if validation layers are available
     // These layers are important for checcking for any mistakes made in coding process
@@ -262,10 +269,10 @@ private:
         VkApplicationInfo appInfo{};
         appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
         appInfo.pApplicationName = "Hello Triangle";
-        appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+        appInfo.applicationVersion = VK_MAKE_VERSION(1, 3, 255);
         appInfo.pEngineName = "No Engine";
-        appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-        appInfo.apiVersion = VK_API_VERSION_1_0;
+        appInfo.engineVersion = VK_MAKE_VERSION(1, 3, 255);
+        appInfo.apiVersion = VK_API_VERSION_1_3;
         //Basic instance info and attaches app struct to info struct
         VkInstanceCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -332,11 +339,16 @@ private:
         createVertexBuffer();
         //Create index buffer for vertex shader
         createIndexBuffer();
+        // Create material Buffer
+        createMaterialBuffer();
+        createMaterialIndexBuffer();
         //create ubo buffer
         createUniformBuffers();
         createDescriptorPool();
         createDescriptorSets();
         createCommandBuffers();
+        //Raytracing pipeline section
+
         createSyncObjects(); //create objects for syncing cpu with gpu
     }
     //Figure out how many samples we can do with our device safely
@@ -355,18 +367,20 @@ private:
 
         return VK_SAMPLE_COUNT_1_BIT;
     }
+    //BUG: Breaks triangle info because of unique vertices!
     void loadModel() {
         tinyobj::attrib_t attrib; //Contains positions normals texture coords
         std::vector<tinyobj::shape_t> shapes; //seperate objects and faces
-        std::vector<tinyobj::material_t> materials;
+        std::vector<tinyobj::material_t> localMaterials;
         std::string warn, err;
 
-        if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, MODEL_PATH.c_str())) {
+        if (!tinyobj::LoadObj(&attrib, &shapes, &localMaterials, &warn, &err, MODEL_PATH.c_str(),MATERIALS_PATH.c_str())) {
             throw std::runtime_error(warn + err);
         }
         std::unordered_map<Vertex, uint32_t> uniqueVertices{};
         //Going to combine all the faces into to one model
         for (const auto& shape : shapes) {
+            primativeCount += shape.mesh.num_face_vertices.size();
             for (const auto& index : shape.mesh.indices) {
                 Vertex vertex{};
 
@@ -376,23 +390,50 @@ private:
                     attrib.vertices[3 * index.vertex_index + 1],
                     attrib.vertices[3 * index.vertex_index + 2]
                 };
+                
+                if(!attrib.normals.empty() && index.normal_index > 0){
+                    vertex.normal = {
+                        attrib.normals[3 * index.normal_index + 0],
+                        attrib.normals[3 * index.normal_index + 1],
+                        attrib.normals[3 * index.normal_index + 2]
+                    };
+                }
                 //array of 'vec2' represented as floats only, hence the 3 *
                 //Invert the y axis because of obj format
-                vertex.texCoord = {
-                    attrib.texcoords[2 * index.texcoord_index + 0],
-                    1.0f-attrib.texcoords[2 * index.texcoord_index + 1]
-                };
-
+                if (!attrib.texcoords.empty() && index.texcoord_index > 0) {
+                    vertex.texCoord = {
+                        attrib.texcoords[2 * index.texcoord_index + 0],
+                        1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
+                    };
+                }
                 vertex.color = { 1.0f, 1.0f, 1.0f };
+                
+                
                 //Load in the indcies and vertices
                 if (uniqueVertices.count(vertex) == 0) {
                     uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
                     vertices.push_back(vertex);
                 }
-
                 indices.push_back(uniqueVertices[vertex]);
+                
+                //vertices.push_back(vertex);
+                //indices.push_back(indices.size());
+                
+            }
+            for (int matIndex : shape.mesh.material_ids) {
+                materialIndices.push_back(matIndex);
             }
         }
+        //Copy material infomation into vector
+        for (uint32_t x = 0; x < localMaterials.size(); x++) {
+            Material m;
+            m.ambient = float3ToVec4(localMaterials[x].ambient);
+            m.diffuse = float3ToVec4(localMaterials[x].diffuse);
+            m.specular = float3ToVec4(localMaterials[x].specular);
+            m.emission = float3ToVec4(localMaterials[x].emission);
+            materials.push_back(m);
+        }
+
 
     }//Create the resources for the color buffer used for multisampling
     void createColorResources() {
@@ -489,6 +530,7 @@ private:
         return imageView;
     }
     void createImageTextureView() {
+        if (TEXTURE_PATH == "") return;
         textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT,mipLevels);
     }
     void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout,uint32_t mipLevels) {
@@ -592,6 +634,12 @@ private:
     //Load in an image using a texture
     void createTextureImage() {
         int texWidth, texHeight, texChannels;
+        if (TEXTURE_PATH == ""){
+            textureImage = NULL;
+            textureImageView = NULL;
+            textureSampler = NULL;
+            return;
+        }
         //Takes path and num of channels as args. Returns pointer to first element of array of pixels
         stbi_uc* pixels = stbi_load(TEXTURE_PATH.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
         VkDeviceSize imageSize = texWidth * texHeight * 4; //A pixel is 4 bytes
@@ -604,7 +652,8 @@ private:
         //Create temporary staging buffer for loading texturs
         VkBuffer stagingBuffer;
         VkDeviceMemory stagingBufferMemory;
-        createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+        createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory,
+            false);
         //Transfer image to staging buffer
         void* data;
         vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
@@ -854,7 +903,11 @@ private:
         uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
         //Create buffers for the frames that are being worked on in parallel
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-            createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i]);
+            createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i]
+            ,true);
+#ifndef NDEBUG
+        setDebugObjectName(device,VkObjectType::VK_OBJECT_TYPE_BUFFER ,reinterpret_cast<uint64_t>(uniformBuffers[i]), "Uniform Buffer Object "+i);
+#endif
             //We dont want to remap memory all the time since mem mapping is costly
             //Having the buffers mapped this way means we can update whenever we want!
             vkMapMemory(device, uniformBuffersMemory[i], 0, bufferSize, 0, &uniformBuffersMapped[i]);
@@ -869,7 +922,7 @@ private:
         uboLayoutBinding.binding = 0; //Which index you want to bind to for the shader
         uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; //Kind of descriptor set
         uboLayoutBinding.descriptorCount = 1; //How many descriptor sets in the array
-        uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT; //which stage we are sending it to
+        uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR; //which stage we are sending it to
         uboLayoutBinding.pImmutableSamplers = nullptr;
         //Create descriptor set for the image sampler
         VkDescriptorSetLayoutBinding samplerLayoutBinding{};
@@ -877,7 +930,7 @@ private:
         samplerLayoutBinding.descriptorCount = 1;
         samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         samplerLayoutBinding.pImmutableSamplers = nullptr;
-        samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
 
         std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding };
         //Placing bindings into the layout
@@ -896,15 +949,21 @@ private:
         //Create staging buffer for to transfer the index buffer with
         VkBuffer stagingBuffer;
         VkDeviceMemory stagingBufferMemory;
-        createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+        createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory
+        ,true);
 
         void* data;
         vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
         memcpy(data, indices.data(), (size_t)bufferSize);
         vkUnmapMemory(device, stagingBufferMemory);
-
-        createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory);
-
+        VkBufferUsageFlags rayTracingFlags = // used also for building acceleration structures 
+            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+        createBuffer(bufferSize, rayTracingFlags | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory
+        ,true);
+#ifndef NDEBUG
+        setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(indexBuffer), "Index Buffer");
+        setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY, reinterpret_cast<uint64_t>(indexBufferMemory), "Index Buffer Memory");
+#endif
         copyBuffer(stagingBuffer, indexBuffer, bufferSize);
 
         vkDestroyBuffer(device, stagingBuffer, nullptr);
@@ -924,7 +983,8 @@ private:
 
         throw std::runtime_error("failed to find suitable memory type!");
     }
-    void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) {
+    void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory
+    ,bool rayTracingMemAlloc) {
         VkBufferCreateInfo bufferInfo{};
         bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
         bufferInfo.size = size; //size of our buffer
@@ -942,11 +1002,20 @@ private:
         allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
         allocInfo.allocationSize = memRequirements.size;
         allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
+        VkMemoryAllocateFlagsInfo rayTraceMemInfo;
+        if (rayTracingMemAlloc) {
+            rayTraceMemInfo = rayTracer.getDefaultAllocationFlags();
+            allocInfo.pNext = &rayTraceMemInfo;
+        }
         if (vkAllocateMemory(device, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS) {
             throw std::runtime_error("failed to allocate vertex buffer memory!");
         }
         //Bind the allocated memory to the vertex buffer
         vkBindBufferMemory(device, buffer, bufferMemory, 0);
+#ifndef NDEBUG
+        setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(buffer), "Temp Buffer");
+        setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY, reinterpret_cast<uint64_t>(bufferMemory), "Temp Buffer Memory");
+#endif
     }
     //Copying vulkan buffer from src to dst 
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
@@ -965,7 +1034,8 @@ private:
         //Staging buffer to transfer data between CPU and GPU
         VkBuffer stagingBuffer;
         VkDeviceMemory stagingBufferMemory;
-        createBuffer(bufferSize,VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory);
+        createBuffer(bufferSize,VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory,
+            true);
 
         //Create a memory map between the vertex buffer (CPU) and the shader (GPU)
         //This allows both sides to access the data
@@ -973,13 +1043,78 @@ private:
         vkMapMemory(device, stagingBufferMemory, 0, bufferSize,0,&data);
         memcpy(data, vertices.data(), (size_t)bufferSize);
         vkUnmapMemory(device, stagingBufferMemory);
+        VkBufferUsageFlags rayTracingFlags = // used also for building acceleration structures 
+            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
         //The vertex buffer itself
-        createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory);
+        createBuffer(bufferSize, rayTracingFlags | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory
+        ,true);
+#ifndef NDEBUG
+        setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(vertexBuffer), "Vertex Buffer");
+        setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY, reinterpret_cast<uint64_t>(vertexBufferMemory), "Vertex Buffer Memory");
+#endif
         //Copy data from staging buffer to vertex buffer
         copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
         //Clean up data after we are done with it
         vkDestroyBuffer(device, stagingBuffer, nullptr);
         vkFreeMemory(device,stagingBufferMemory,nullptr);
+    }
+    void createMaterialIndexBuffer() {
+        VkDeviceSize bufferSize = sizeof(materialIndices[0]) * materialIndices.size();
+        //Staging buffer to transfer data between CPU and GPU
+        VkBuffer stagingBuffer;
+        VkDeviceMemory stagingBufferMemory;
+        createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory,
+            true);
+
+        //Create a memory map between the vertex buffer (CPU) and the shader (GPU)
+        //This allows both sides to access the data
+        void* data;
+        vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+        memcpy(data, materialIndices.data(), (size_t)bufferSize);
+        vkUnmapMemory(device, stagingBufferMemory);
+        VkBufferUsageFlags rayTracingFlags = // used also for building acceleration structures 
+            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+        //The vertex buffer itself
+        createBuffer(bufferSize, rayTracingFlags | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, materialIndexBuffer, materialIndexBufferMemory
+            , true);
+#ifndef NDEBUG
+        setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(materialIndexBuffer), "Material Index Buffer");
+        setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY, reinterpret_cast<uint64_t>(materialIndexBufferMemory), "Material Index Buffer Memory");
+#endif
+        //Copy data from staging buffer to vertex buffer
+        copyBuffer(stagingBuffer, materialIndexBuffer, bufferSize);
+        //Clean up data after we are done with it
+        vkDestroyBuffer(device, stagingBuffer, nullptr);
+        vkFreeMemory(device, stagingBufferMemory, nullptr);
+    }
+    void createMaterialBuffer() {
+        VkDeviceSize bufferSize = sizeof(materials[0]) * materials.size();
+        //Staging buffer to transfer data between CPU and GPU
+        VkBuffer stagingBuffer;
+        VkDeviceMemory stagingBufferMemory;
+        createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory,
+            true);
+
+        //Create a memory map between the vertex buffer (CPU) and the shader (GPU)
+        //This allows both sides to access the data
+        void* data;
+        vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+        memcpy(data, materials.data(), (size_t)bufferSize);
+        vkUnmapMemory(device, stagingBufferMemory);
+        VkBufferUsageFlags rayTracingFlags = // used also for building acceleration structures 
+            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+        //The material buffer itself
+        createBuffer(bufferSize, rayTracingFlags | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, materialBuffer, materialBufferMemory
+            , true);
+#ifndef NDEBUG
+        setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(materialBuffer), "Material Buffer");
+        setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY, reinterpret_cast<uint64_t>(materialBufferMemory), "Material Buffer Memory");
+#endif
+        //Copy data from staging buffer to vertex buffer
+        copyBuffer(stagingBuffer, materialBuffer, bufferSize);
+        //Clean up data after we are done with it
+        vkDestroyBuffer(device, stagingBuffer, nullptr);
+        vkFreeMemory(device, stagingBufferMemory, nullptr);
     }
     void createSyncObjects() {
         //make sure there are semaphores and fences for each concurrent frame
@@ -1419,6 +1554,7 @@ private:
         VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
         VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities); 
         uint32_t imageCount = swapChainSupport.capabilities.minImageCount+1; //Decide how many images we want from swapchain
+        if (useRayTracing) imageCount = swapChainSupport.capabilities.minImageCount;
         if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount) {
             imageCount = swapChainSupport.capabilities.maxImageCount;
         }
@@ -1433,7 +1569,7 @@ private:
         createInfo.imageExtent = extent;
         createInfo.imageArrayLayers = 1; //Always 1 unless making something in steroscopic 3D
         createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT; //Edit this to do things like post processing
-
+        if (useRayTracing) createInfo.imageUsage |= VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL; //Transfer src and dst bits
         QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
         uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value(),indices.presentFamily.value() };
 
@@ -1468,6 +1604,35 @@ private:
         }
     }
     void createLogicalDevice() {
+        VkPhysicalDeviceBufferDeviceAddressFeatures
+            physicalDeviceBufferDeviceAddressFeatures;
+        VkPhysicalDeviceAccelerationStructureFeaturesKHR
+            physicalDeviceAccelerationStructureFeatures;
+        VkPhysicalDeviceRayTracingPipelineFeaturesKHR
+            physicalDeviceRayTracingPipelineFeatures;
+        if (useRayTracing) {
+            physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddress = VK_TRUE;
+            physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddressCaptureReplay = VK_FALSE;
+            physicalDeviceBufferDeviceAddressFeatures.bufferDeviceAddressMultiDevice = VK_FALSE;
+            physicalDeviceBufferDeviceAddressFeatures.pNext = NULL;
+            physicalDeviceBufferDeviceAddressFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
+
+            physicalDeviceAccelerationStructureFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR,
+            physicalDeviceAccelerationStructureFeatures.pNext = &physicalDeviceBufferDeviceAddressFeatures,
+            physicalDeviceAccelerationStructureFeatures.accelerationStructure = VK_TRUE;
+            physicalDeviceAccelerationStructureFeatures.accelerationStructureCaptureReplay = VK_FALSE;
+            physicalDeviceAccelerationStructureFeatures.accelerationStructureIndirectBuild = VK_FALSE;
+            physicalDeviceAccelerationStructureFeatures.accelerationStructureHostCommands = VK_FALSE;
+            physicalDeviceAccelerationStructureFeatures.descriptorBindingAccelerationStructureUpdateAfterBind = VK_FALSE;
+        
+            physicalDeviceRayTracingPipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+            physicalDeviceRayTracingPipelineFeatures.pNext = &physicalDeviceAccelerationStructureFeatures;
+            physicalDeviceRayTracingPipelineFeatures.rayTracingPipeline = VK_TRUE;
+            physicalDeviceRayTracingPipelineFeatures.rayTracingPipelineShaderGroupHandleCaptureReplay = VK_FALSE;
+            physicalDeviceRayTracingPipelineFeatures.rayTracingPipelineShaderGroupHandleCaptureReplayMixed = VK_FALSE;
+            physicalDeviceRayTracingPipelineFeatures.rayTracingPipelineTraceRaysIndirect = VK_FALSE;
+            physicalDeviceRayTracingPipelineFeatures.rayTraversalPrimitiveCulling = VK_FALSE;
+        }
         QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
         //Create a set for all unique queues nesseary for our program
         std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
@@ -1488,12 +1653,13 @@ private:
         
         //Specify which features we are going to be using
         VkPhysicalDeviceFeatures deviceFeatures{};
+        if (useRayTracing) deviceFeatures.geometryShader = VK_TRUE;
         deviceFeatures.samplerAnisotropy = VK_TRUE;
         VkDeviceCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
         createInfo.pQueueCreateInfos = queueCreateInfos.data();
         createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
-
+        if (useRayTracing) createInfo.pNext = &physicalDeviceRayTracingPipelineFeatures;
         createInfo.pEnabledFeatures = &deviceFeatures;
         //Will look like the instance create info but it is device specific
         createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
@@ -1511,6 +1677,13 @@ private:
         if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) != VK_SUCCESS) {
             throw std::runtime_error("failed to create logical device!");
         }
+#ifndef NDEBUG
+        pvkSetDebugUtilsObjectNameEXT =
+            (PFN_vkSetDebugUtilsObjectNameEXT)vkGetDeviceProcAddr(
+                device, "vkSetDebugUtilsObjectNameEXT");
+        setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_DEVICE,reinterpret_cast<uint64_t>(device)
+            , "Main Logical Device");
+#endif // !NDEBUG
         vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
         vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
     }
@@ -1707,7 +1880,11 @@ private:
             memcpy(data, vertices.data(), (size_t)(sizeof(vertices[0]) * vertices.size()));
             vkUnmapMemory(device, vertexBufferMemory);
             */
-            drawFrame();
+            if (useRayTracing) {
+                rayTracer.rayTrace(commandBuffers[currentFrame],uniformBuffersMapped ,glm::vec4(0, 0, 0, 1));
+                currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+            }
+            else drawFrame();
             //timer += 0.01f;
         }
         //Wait for drawing and presnetation operations to stop
@@ -1797,7 +1974,7 @@ private:
         ubo.model[3][2] = -1.0f;
         ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-        ubo.model = glm::rotate(ubo.model, time*glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        ubo.model = glm::rotate(ubo.model, time*glm::radians(10.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         //Create a camera matrix at pos 2,2,2 look at 0 0 0, with up being Z
         ubo.view = glm::lookAt(glm::vec3(2.0f,2.0f,2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
         //Create a perspective based projection matrix for our camera
@@ -1807,9 +1984,32 @@ private:
         memcpy(uniformBuffersMapped[currentFrame], &ubo, sizeof(ubo));
     }
     //Cleaan up everything EXPLICITLY CREATED by us!
+    //Create a destructor for the main resources or create a deleter to pass to shared ptrs
+    //Will probably go with the destructor plan.
     void cleanup() {
-        //std::cout << "CLEAN UP\n";
-        cleanupSwapChain();
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            //Unmapping memory
+            vkUnmapMemory(device, uniformBuffersMemory[i]);
+
+        }
+        rayTracer.cleanup();
+        //Former Swapchain function cleanup
+        //free color buffer
+        vkDestroyImageView(device, colorImageView, nullptr);
+        vkDestroyImage(device, colorImage, nullptr);
+        vkFreeMemory(device, colorImageMemory, nullptr);
+        //Free depth buffer
+        vkDestroyImageView(device, depthImageView, nullptr);
+        vkDestroyImage(device, depthImage, nullptr);
+        vkFreeMemory(device, depthImageMemory, nullptr);
+        for (size_t i = 0; i < swapChainFramebuffers.size(); i++) {
+            vkDestroyFramebuffer(device, swapChainFramebuffers[i], nullptr);
+        }
+
+        for (size_t i = 0; i < swapChainImageViews.size(); i++) {
+            vkDestroyImageView(device, swapChainImageViews[i], nullptr);
+        }
+        //End of Swap Chain resource Cleanup
         vkDestroySampler(device, textureSampler, nullptr);
         vkDestroyImageView(device, textureImageView, nullptr);
         vkDestroyImage(device, textureImage, nullptr);
@@ -1819,7 +2019,7 @@ private:
             vkFreeMemory(device, uniformBuffersMemory[i], nullptr);
         }
         vkDestroyDescriptorPool(device, descriptorPool, nullptr);
-        vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+        //---Descriptor Set layout destruction here
         vkDestroyBuffer(device, indexBuffer, nullptr);
         vkFreeMemory(device, indexBufferMemory, nullptr);
 
@@ -1830,7 +2030,7 @@ private:
             vkDestroySemaphore(device, imageAvailableSemaphores[i], nullptr);
             vkDestroyFence(device, inFlightFences[i], nullptr);
         }
-        vkDestroyCommandPool(device, commandPool, nullptr);
+        //--- command pool destruction here
         //for (auto framebuffer : swapChainFramebuffers) {
         //     vkDestroyFramebuffer(device, framebuffer, nullptr);
         //}
@@ -1840,14 +2040,14 @@ private:
         //for (auto imageView : swapChainImageViews) {
         //    vkDestroyImageView(device, imageView, nullptr);
         //}
-        //vkDestroySwapchainKHR(device, swapChain, nullptr);
-        vkDestroyDevice(device, nullptr);
+        //---swapchain destruction here
+        //---Logical device destruction here;
         if (enableValidationLayers) {
             DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
         }
-        vkDestroySurfaceKHR(instance, surface, nullptr);
-        vkDestroyInstance(instance, nullptr); //Clean up instance, not adding a callback for now
-        
+        //---Surface Would be Destoried here
+        //---Instance would be destroied here
+
         glfwDestroyWindow(window); //Free up memory used by window
 
         glfwTerminate(); //Clean up GLFW
@@ -1856,7 +2056,6 @@ private:
 
 int main() {
     HelloTriangleApplication app;
-
     try {
         app.run();
     }
