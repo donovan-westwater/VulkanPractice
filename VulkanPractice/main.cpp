@@ -25,7 +25,7 @@ private:
     const int MAX_FRAMES_IN_FLIGHT = 2; //The amount of frames that can be processed concurrently
     const uint32_t WIDTH = 800;
     const uint32_t HEIGHT = 600;
-    const std::string MODEL_PATH = "Models/CornellBox-Original.obj";//"Models/Guilmon.obj";
+    const std::string MODEL_PATH = "Models/CrappyCornellBox_TriVersion.obj";//"Models/Guilmon.obj";
     const std::string TEXTURE_PATH = "Textures/TestTex.png";
     const std::string MATERIALS_PATH = "Materials/";//"Materials/CrappyCornellBox_TriVersion.mtl";
 
