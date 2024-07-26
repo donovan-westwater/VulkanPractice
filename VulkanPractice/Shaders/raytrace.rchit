@@ -41,7 +41,9 @@ void main()
     hitP.rayDepth += 1;
     uint matIndex = materialIndexBuffer.data[gl_PrimitiveID];
     vec3 hitcolor = materialBuffer.data[matIndex].diffuse.xyz;
-	hitP.hitValue = pow(0.5,hitP.rayDepth)*hitcolor;
+    vec3 specColor = materialBuffer.data[matIndex].specular.xyz;
+    float shininess = materialBuffer.data[matIndex].specular.w;
+	hitP.hitValue *= 0.5*hitcolor;
     //Send new ray
     //Set flags to describe the geometry being dealt with
     uint rayFlags = gl_RayFlagsOpaqueEXT;
@@ -49,11 +51,18 @@ void main()
     float tMax = 10000.0;
     vec3 dir = gl_WorldRayDirectionEXT;
     vec2 seed = vec2(fract(dir.x)*fract(dir.y),fract(dir.z)*fract(dir.y));
+    //Diffuse Direction Calculation
     vec3 rayDirection = randomUnitVector(seed)+worldNormal;
+    if(length(rayDirection) < 0.0001) rayDirection = worldNormal;
     rayDirection = normalize(rayDirection);
+    //Specular Direction Calculation
+    vec3 specReflectDir = gl_WorldRayDirectionEXT - worldNormal*dot(gl_WorldRayDirectionEXT,worldNormal)*2;
+    //Final Direction Result
+    vec3 blendDir = mix(rayDirection,specReflectDir,shininess);
+    rayDirection = blendDir;
     //hitP.hitValue = rayDirection;
     //TO DO: Should pass in max depth from CPU side. Pipeline controls depth!
-    if(hitP.rayDepth < 6){
+    if(hitP.rayDepth < 11){
         traceRayEXT(topLevelAS, // acceleration structure
                 rayFlags,       // rayFlags
                 0xFF,           // cullMask

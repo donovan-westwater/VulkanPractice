@@ -39,7 +39,7 @@ void main()
         //Step 2) Create target and direction. Reset hit payload
         vec4 target = ubo.proj * vec4(d.x,d.y,1,1);
         vec4 direction = ubo.view  * vec4(normalize(target.xyz),0);
-         prd.hitValue = vec3(0,0,0);
+         prd.hitValue = vec3(1,1,1);
          prd.rayDepth = 0;
          traceRayEXT(topLevelAS, // acceleration structure
               rayFlags,       // rayFlags

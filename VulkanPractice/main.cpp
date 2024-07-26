@@ -430,6 +430,11 @@ private:
             m.ambient = float3ToVec4(localMaterials[x].ambient);
             m.diffuse = float3ToVec4(localMaterials[x].diffuse);
             m.specular = float3ToVec4(localMaterials[x].specular);
+            float clampedShininess = localMaterials[x].shininess;
+            //Use shininess as a blending value for reflective surfaces
+            if (clampedShininess < 0) clampedShininess = 0.0;
+            if (clampedShininess > 1.0) clampedShininess = 1.0;
+            m.specular.a = clampedShininess;
             m.emission = float3ToVec4(localMaterials[x].emission);
             materials.push_back(m);
         }
