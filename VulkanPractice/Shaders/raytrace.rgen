@@ -33,7 +33,7 @@ void main()
     for(uint i = 0; i < samplesPerPixel;i++){
         //Convert into rays with ubo
         //Step 1) randomize ray dir a little bit to smooth out edges and noise
-        vec3 offset = 0.5*randomUnitVector(rng_state);
+        vec3 offset = 0.05*randomUnitVector(rng_state);
         d.x += offset.x*deltaOffset.x;
         d.y += offset.y*deltaOffset.y;
         //Step 2) Create target and direction. Reset hit payload
