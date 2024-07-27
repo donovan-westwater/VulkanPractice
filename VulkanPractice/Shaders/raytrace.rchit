@@ -62,7 +62,7 @@ void main()
     rayDirection = blendDir;
     //hitP.hitValue = rayDirection;
     //TO DO: Should pass in max depth from CPU side. Pipeline controls depth!
-    if(hitP.rayDepth < 11){
+    if(hitP.rayDepth < 6){
         traceRayEXT(topLevelAS, // acceleration structure
                 rayFlags,       // rayFlags
                 0xFF,           // cullMask
