@@ -43,7 +43,7 @@ void main()
     vec3 hitcolor = materialBuffer.data[matIndex].diffuse.xyz;
     vec3 specColor = materialBuffer.data[matIndex].specular.xyz;
     float shininess = materialBuffer.data[matIndex].specular.w;
-	hitP.hitValue *= 0.5*hitcolor;
+    float specProb = materialBuffer.data[matIndex].diffuse.w;
     //Send new ray
     //Set flags to describe the geometry being dealt with
     uint rayFlags = gl_RayFlagsOpaqueEXT;
@@ -54,13 +54,24 @@ void main()
     //Diffuse Direction Calculation
     vec3 rayDirection = randomUnitVector(seed)+worldNormal;
     if(length(rayDirection) < 0.0001) rayDirection = worldNormal;
+    //Create new seed from old results
+    seed = vec2(fract(rayDirection.x)*fract(dir.y),fract(rayDirection.z)*fract(dir.y));
     rayDirection = normalize(rayDirection);
     //Specular Direction Calculation
     vec3 specReflectDir = gl_WorldRayDirectionEXT - worldNormal*dot(gl_WorldRayDirectionEXT,worldNormal)*2;
+    float doSpec = rand(seed) <= specProb ? 1.0 : 0.0;
     //Final Direction Result
-    vec3 blendDir = mix(rayDirection,specReflectDir,shininess);
-    rayDirection = blendDir;
+    vec3 blendDir = normalize(mix(rayDirection,specReflectDir,shininess*shininess));
+    vec3 finalDir = mix(rayDirection,blendDir,doSpec);
+    rayDirection = finalDir;
+
+    vec3 finalColor = mix(hitcolor.xyz,specColor.xyz,doSpec);
+    hitP.hitValue += materialBuffer.data[matIndex].emission.xyz;
+    hitP.hitValue *= 0.5*finalColor;
     //TO DO: Should pass in max depth from CPU side. Pipeline controls depth!
+    //Glossy Step: Goaling to coopt Ni parameter as a specular probablity and use that method for glossy
+    //Based off this: https://blog.demofox.org/2020/06/06/casual-shadertoy-path-tracing-2-image-improvement-and-glossy-reflections/
+    //I'll attempt physically based stuff later once the foundation is more rock solid
     if(hitP.rayDepth < 6){
         traceRayEXT(topLevelAS, // acceleration structure
                 rayFlags,       // rayFlags
