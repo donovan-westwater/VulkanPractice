@@ -15,6 +15,7 @@ using uint = unsigned int;
 struct HitPayload{
     vec3 hitValue;
     int rayDepth;
+    uint rngState;
 };
 struct PushConstantRay
 {
@@ -36,19 +37,29 @@ struct Material {
     vec4 emission;
 };
 
-float rand(vec2 co){
-    return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+float rand(inout uint v)
+{
+	uint state = v * 747796405u + 2891336453u;
+    v = state;
+	uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+	uint result = (word >> 22u) ^ word;
+    return (float(result)/ float(uint(0xffffffff)));
 }
 
-vec3 randomUnitVector(vec2 co){
+vec3 randomUnitVector(inout uint v){
+    uint tmpV = v;
+    float x = rand(tmpV);
+    float y = rand(tmpV);
+    float z = rand(tmpV);
     vec3 outVector;
-    outVector = vec3(2.0*rand(co)-1.0,2.0*rand(co-0.1)-1.0,2.0*rand(co-.2)-1.0);
+    outVector = vec3(2.0*x-1.0,2.0*y-1.0,2.0*z-1.0);
     outVector = normalize(outVector);
+    v = tmpV;
     return outVector;
 }
 
-vec3 randomHemisphereVector(vec2 co,vec3 normal){
-    vec3 unitVector = randomUnitVector(co);
+vec3 randomHemisphereVector(inout uint v,vec3 normal){
+    vec3 unitVector = randomUnitVector(v);
     float d = dot(normal,unitVector);
     if(d < 0) unitVector = -unitVector;
     return unitVector;

@@ -50,24 +50,23 @@ void main()
     float tMin = 0.001;
     float tMax = 10000.0;
     vec3 dir = gl_WorldRayDirectionEXT;
-    vec2 seed = vec2(fract(dir.x)*fract(dir.y),fract(dir.z)*fract(dir.y));
+    uint state = hitP.rngState;
     //Diffuse Direction Calculation
-    vec3 rayDirection = randomUnitVector(seed)+worldNormal;
+    vec3 rayDirection = randomUnitVector(state)+worldNormal;
     if(length(rayDirection) < 0.0001) rayDirection = worldNormal;
-    //Create new seed from old results
-    seed = vec2(fract(rayDirection.x)*fract(dir.y),fract(rayDirection.z)*fract(dir.y));
     rayDirection = normalize(rayDirection);
     //Specular Direction Calculation
     vec3 specReflectDir = gl_WorldRayDirectionEXT - worldNormal*dot(gl_WorldRayDirectionEXT,worldNormal)*2;
-    float doSpec = rand(seed) <= specProb ? 1.0 : 0.0;
+    float doSpec = rand(state) <= specProb ? 1.0 : 0.0;
     //Final Direction Result
     vec3 blendDir = normalize(mix(rayDirection,specReflectDir,shininess*shininess));
     vec3 finalDir = mix(rayDirection,blendDir,doSpec);
     rayDirection = finalDir;
 
     vec3 finalColor = mix(hitcolor.xyz,specColor.xyz,doSpec);
-    hitP.hitValue += materialBuffer.data[matIndex].emission.xyz;
+    //hitP.hitValue += materialBuffer.data[matIndex].emission.xyz;
     hitP.hitValue *= 0.5*finalColor;
+    hitP.rngState = state;
     //TO DO: Should pass in max depth from CPU side. Pipeline controls depth!
     //Glossy Step: Goaling to coopt Ni parameter as a specular probablity and use that method for glossy
     //Based off this: https://blog.demofox.org/2020/06/06/casual-shadertoy-path-tracing-2-image-improvement-and-glossy-reflections/
