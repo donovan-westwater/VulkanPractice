@@ -18,7 +18,7 @@ void main()
     // split up our rays into directions
     const vec2 pixelCenter = vec2(gl_LaunchIDEXT.xy) + vec2(0.5);
     const vec2 inUV = pixelCenter/vec2(gl_LaunchSizeEXT.xy);
-    const uint samplesPerPixel = 10;
+    const uint samplesPerPixel = 15;
     const vec2 deltaOffset = vec2(0.01,0.01);
     vec2 d = inUV * 2.0 - 1.0;
     
@@ -35,6 +35,7 @@ void main()
         //Convert into rays with ubo
         //Step 1) randomize ray dir a little bit to smooth out edges and noise
         vec3 offset = 0.05*randomUnitVector(rng_state);
+        prd.rngState = rng_state;
         d.x += offset.x*deltaOffset.x;
         d.y += offset.y*deltaOffset.y;
         //Step 2) Create target and direction. Reset hit payload
@@ -57,8 +58,7 @@ void main()
         outColor += prd.hitValue/samplesPerPixel;
         rng_state = prd.rngState;
     }
-    //outColor = clamp(outColor,vec3(0,0,0),vec3(1,1,1));
+    outColor = clamp(outColor,vec3(0,0,0),vec3(1,1,1));
     outColor = vec3(linear_to_gamma(outColor.x),linear_to_gamma(outColor.y),linear_to_gamma(outColor.z));
-    outColor = randomUnitVector(rng_state);
     imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(outColor, 1.0));
 }
