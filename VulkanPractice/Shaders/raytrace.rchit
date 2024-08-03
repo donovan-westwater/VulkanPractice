@@ -44,6 +44,7 @@ void main()
     vec3 specColor = materialBuffer.data[matIndex].specular.xyz;
     float shininess = materialBuffer.data[matIndex].specular.w;
     float specProb = materialBuffer.data[matIndex].diffuse.w;
+    float ior = materialBuffer.data[matIndex].ambient.x;
     //Send new ray
     //Set flags to describe the geometry being dealt with
     uint rayFlags = gl_RayFlagsOpaqueEXT;
@@ -64,8 +65,9 @@ void main()
     rayDirection = finalDir;
 
     vec3 finalColor = mix(hitcolor.xyz,specColor.xyz,doSpec);
-    //hitP.hitValue += materialBuffer.data[matIndex].emission.xyz;
     hitP.hitValue *= 0.5*finalColor;
+    //Skipping Emission for now until noise is better dealt with
+    //hitP.hitValue += materialBuffer.data[matIndex].emission.xyz;
     hitP.rngState = state;
     //TO DO: Should pass in max depth from CPU side. Pipeline controls depth!
     //Glossy Step: Goaling to coopt Ni parameter as a specular probablity and use that method for glossy

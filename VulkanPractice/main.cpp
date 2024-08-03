@@ -429,8 +429,9 @@ private:
             Material m;
             m.ambient = float3ToVec4(localMaterials[x].ambient);
             m.diffuse = float3ToVec4(localMaterials[x].diffuse);
-            //Using IOR as specualr probablity
-            float clampProb = localMaterials[x].ior;
+            //Using IOR Is stored in ambient
+            m.ambient.x = localMaterials[x].ior;
+            float clampProb = localMaterials[x].ambient[0];
             if (clampProb < 0) clampProb = 0.0;
             if (clampProb > 1.0) clampProb = 1.0;
             m.diffuse.a = clampProb;
