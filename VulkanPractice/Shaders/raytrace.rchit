@@ -61,9 +61,9 @@ void main()
 	    vec3 outwardNormal = testDot > 0 ? -worldNormal : worldNormal;
 	    float niOverNt = testDot > 0 ? ior : 1 / ior;
 	    float cosine = testDot > 0 ? ior * testDot : -testDot;
-        float sin_theta = sqrt(1-testDot*testDot);
+        float sin_theta = sqrt(1-cosine*cosine);
         //Light reflects iternally at glancing angles
-        if(sin_theta*ior > 1.0){
+        if(sin_theta*ior > 1.0 || reflectance(cosine,ior) > rand(state)){
             rayDirection = reflect(dir,outwardNormal);
         //Otherwise we refract the light traveling through
         }else{
