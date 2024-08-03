@@ -431,6 +431,7 @@ private:
             m.diffuse = float3ToVec4(localMaterials[x].diffuse);
             //Using IOR Is stored in ambient
             m.ambient.x = localMaterials[x].ior;
+            m.ambient.y = localMaterials[x].illum;
             float clampProb = localMaterials[x].ambient[0];
             if (clampProb < 0) clampProb = 0.0;
             if (clampProb > 1.0) clampProb = 1.0;

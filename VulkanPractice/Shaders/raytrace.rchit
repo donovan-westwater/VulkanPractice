@@ -45,6 +45,7 @@ void main()
     float shininess = materialBuffer.data[matIndex].specular.w;
     float specProb = materialBuffer.data[matIndex].diffuse.w;
     float ior = materialBuffer.data[matIndex].ambient.x;
+    float ill = materialBuffer.data[matIndex].ambient.y;
     //Send new ray
     //Set flags to describe the geometry being dealt with
     uint rayFlags = gl_RayFlagsOpaqueEXT;
@@ -52,20 +53,30 @@ void main()
     float tMax = 10000.0;
     vec3 dir = gl_WorldRayDirectionEXT;
     uint state = hitP.rngState;
-    //Diffuse Direction Calculation
-    vec3 rayDirection = randomUnitVector(state)+worldNormal;
-    if(length(rayDirection) < 0.0001) rayDirection = worldNormal;
-    rayDirection = normalize(rayDirection);
-    //Specular Direction Calculation
-    vec3 specReflectDir = gl_WorldRayDirectionEXT - worldNormal*dot(gl_WorldRayDirectionEXT,worldNormal)*2;
-    float doSpec = rand(state) <= specProb ? 1.0 : 0.0;
-    //Final Direction Result
-    vec3 blendDir = normalize(mix(rayDirection,specReflectDir,shininess*shininess));
-    vec3 finalDir = mix(rayDirection,blendDir,doSpec);
-    rayDirection = finalDir;
-
-    vec3 finalColor = mix(hitcolor.xyz,specColor.xyz,doSpec);
-    hitP.hitValue *= 0.5*finalColor;
+    vec3 rayDirection = vec3(0,0,0);
+    if(ill == 4){
+        //Dieletric response - Handles refraction through clear materials
+        float testDot = dot(dir, worldNormal);
+        //are we entering or leaving the material?
+	    vec3 outwardNormal = testDot > 0 ? -worldNormal : worldNormal;
+	    float niOverNt = testDot > 0 ? ior : 1 / ior;
+	    float cosine = testDot > 0 ? ior * testDot : -testDot;
+        rayDirection  = refract(dir,outwardNormal,niOverNt);
+    }else{
+        //Diffuse Direction Calculation
+        rayDirection = randomUnitVector(state)+worldNormal;
+        if(length(rayDirection) < 0.0001) rayDirection = worldNormal;
+        rayDirection = normalize(rayDirection);
+        //Specular Direction Calculation
+        vec3 specReflectDir = gl_WorldRayDirectionEXT - worldNormal*dot(gl_WorldRayDirectionEXT,worldNormal)*2;
+        float doSpec = rand(state) <= specProb ? 1.0 : 0.0;
+        //Final Direction Result
+        vec3 blendDir = normalize(mix(rayDirection,specReflectDir,shininess*shininess));
+        vec3 finalDir = mix(rayDirection,blendDir,doSpec);
+            rayDirection = finalDir;
+        vec3 finalColor = mix(hitcolor.xyz,specColor.xyz,doSpec);
+        hitP.hitValue *= 0.5*finalColor;
+    }
     //Skipping Emission for now until noise is better dealt with
     //hitP.hitValue += materialBuffer.data[matIndex].emission.xyz;
     hitP.rngState = state;
