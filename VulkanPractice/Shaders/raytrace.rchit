@@ -61,7 +61,14 @@ void main()
 	    vec3 outwardNormal = testDot > 0 ? -worldNormal : worldNormal;
 	    float niOverNt = testDot > 0 ? ior : 1 / ior;
 	    float cosine = testDot > 0 ? ior * testDot : -testDot;
-        rayDirection  = refract(dir,outwardNormal,niOverNt);
+        float sin_theta = sqrt(1-testDot*testDot);
+        //Light reflects iternally at glancing angles
+        if(sin_theta*ior > 1.0){
+            rayDirection = reflect(dir,outwardNormal);
+        //Otherwise we refract the light traveling through
+        }else{
+            rayDirection  = refract(dir,outwardNormal,niOverNt);
+        }
     }else{
         //Diffuse Direction Calculation
         rayDirection = randomUnitVector(state)+worldNormal;
