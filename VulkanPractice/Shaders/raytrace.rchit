@@ -58,12 +58,12 @@ void main()
         //Dieletric response - Handles refraction through clear materials
         float testDot = dot(dir, worldNormal);
         //are we entering or leaving the material?
-	    vec3 outwardNormal = testDot > 0 ? -worldNormal : worldNormal;
-	    float niOverNt = testDot > 0 ? ior : 1 / ior;
-	    float cosine = testDot > 0 ? ior * testDot : -testDot;
+	    vec3 outwardNormal = worldNormal;
+	    float niOverNt = testDot > 0 ? ior : 1.0 / ior; // < 0 means front face, > 0 means back face
+	    float cosine = testDot;
         float sin_theta = sqrt(1-cosine*cosine);
         //Light reflects iternally at glancing angles
-        if(sin_theta*ior > 1.0 || reflectance(cosine,ior) > rand(state)){
+        if(sin_theta*niOverNt> 1.0 || reflectance(cosine,niOverNt) > rand(state)){
             rayDirection = reflect(dir,outwardNormal);
         //Otherwise we refract the light traveling through
         }else{
