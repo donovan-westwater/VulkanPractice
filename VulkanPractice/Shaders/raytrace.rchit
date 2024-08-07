@@ -41,18 +41,56 @@ void main()
     hitP.rayDepth += 1;
     uint matIndex = materialIndexBuffer.data[gl_PrimitiveID];
     vec3 hitcolor = materialBuffer.data[matIndex].diffuse.xyz;
-	hitP.hitValue = pow(0.5,hitP.rayDepth)*hitcolor;
+    vec3 specColor = materialBuffer.data[matIndex].specular.xyz;
+    float shininess = materialBuffer.data[matIndex].specular.w;
+    float specProb = materialBuffer.data[matIndex].diffuse.w;
+    float ior = materialBuffer.data[matIndex].ambient.x;
+    float ill = materialBuffer.data[matIndex].ambient.y;
     //Send new ray
     //Set flags to describe the geometry being dealt with
     uint rayFlags = gl_RayFlagsOpaqueEXT;
     float tMin = 0.001;
     float tMax = 10000.0;
     vec3 dir = gl_WorldRayDirectionEXT;
-    vec2 seed = vec2(fract(dir.x)*fract(dir.y),fract(dir.z)*fract(dir.y));
-    vec3 rayDirection = randomUnitVector(seed)+worldNormal;
-    rayDirection = normalize(rayDirection);
-    //hitP.hitValue = rayDirection;
+    uint state = hitP.rngState;
+    vec3 rayDirection = vec3(0,0,0);
+    if(ill == 4){
+        //Dieletric response - Handles refraction through clear materials
+        float testDot = dot(dir, worldNormal);
+        //are we entering or leaving the material?
+	    vec3 outwardNormal = worldNormal;
+	    float niOverNt = testDot > 0 ? ior : 1.0 / ior; // < 0 means front face, > 0 means back face
+	    float cosine = testDot;
+        float sin_theta = sqrt(1-cosine*cosine);
+        //Light reflects iternally at glancing angles
+        if(sin_theta*niOverNt> 1.0 || reflectance(cosine,niOverNt) > rand(state)){
+            rayDirection = reflect(dir,outwardNormal);
+        //Otherwise we refract the light traveling through
+        }else{
+            rayDirection  = refract(dir,outwardNormal,niOverNt);
+        }
+    }else{
+        //Diffuse Direction Calculation
+        rayDirection = randomUnitVector(state)+worldNormal;
+        if(length(rayDirection) < 0.0001) rayDirection = worldNormal;
+        rayDirection = normalize(rayDirection);
+        //Specular Direction Calculation
+        vec3 specReflectDir = gl_WorldRayDirectionEXT - worldNormal*dot(gl_WorldRayDirectionEXT,worldNormal)*2;
+        float doSpec = rand(state) <= specProb ? 1.0 : 0.0;
+        //Final Direction Result
+        vec3 blendDir = normalize(mix(rayDirection,specReflectDir,shininess*shininess));
+        vec3 finalDir = mix(rayDirection,blendDir,doSpec);
+            rayDirection = finalDir;
+        vec3 finalColor = mix(hitcolor.xyz,specColor.xyz,doSpec);
+        hitP.hitValue *= 0.5*finalColor;
+    }
+    //Skipping Emission for now until noise is better dealt with
+    //hitP.hitValue += materialBuffer.data[matIndex].emission.xyz;
+    hitP.rngState = state;
     //TO DO: Should pass in max depth from CPU side. Pipeline controls depth!
+    //Glossy Step: Goaling to coopt Ni parameter as a specular probablity and use that method for glossy
+    //Based off this: https://blog.demofox.org/2020/06/06/casual-shadertoy-path-tracing-2-image-improvement-and-glossy-reflections/
+    //I'll attempt physically based stuff later once the foundation is more rock solid
     if(hitP.rayDepth < 6){
         traceRayEXT(topLevelAS, // acceleration structure
                 rayFlags,       // rayFlags

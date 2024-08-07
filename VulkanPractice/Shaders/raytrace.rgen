@@ -18,7 +18,7 @@ void main()
     // split up our rays into directions
     const vec2 pixelCenter = vec2(gl_LaunchIDEXT.xy) + vec2(0.5);
     const vec2 inUV = pixelCenter/vec2(gl_LaunchSizeEXT.xy);
-    const uint samplesPerPixel = 10;
+    const uint samplesPerPixel = 15;
     const vec2 deltaOffset = vec2(0.01,0.01);
     vec2 d = inUV * 2.0 - 1.0;
     
@@ -28,18 +28,20 @@ void main()
     float tMax = 10000.0;
     vec3 outColor = vec3(0,0,0);
     //RAY TRACE TIME
-    vec2 rng_state = vec2(.5,.5);
+    uint rng_state = uint(256*gl_LaunchIDEXT.y + gl_LaunchIDEXT.x);
     vec4 origin = ubo.view * vec4(0,0,0,1);
+    //TODO: Pass rng state into hit payload to actually to make averaging work
     for(uint i = 0; i < samplesPerPixel;i++){
         //Convert into rays with ubo
         //Step 1) randomize ray dir a little bit to smooth out edges and noise
-        vec3 offset = 0.5*randomUnitVector(rng_state);
+        vec3 offset = 0.05*randomUnitVector(rng_state);
+        prd.rngState = rng_state;
         d.x += offset.x*deltaOffset.x;
         d.y += offset.y*deltaOffset.y;
         //Step 2) Create target and direction. Reset hit payload
         vec4 target = ubo.proj * vec4(d.x,d.y,1,1);
         vec4 direction = ubo.view  * vec4(normalize(target.xyz),0);
-         prd.hitValue = vec3(0,0,0);
+         prd.hitValue = vec3(1,1,1);
          prd.rayDepth = 0;
          traceRayEXT(topLevelAS, // acceleration structure
               rayFlags,       // rayFlags
@@ -54,7 +56,9 @@ void main()
               0               // payload (location = 0)
         );
         outColor += prd.hitValue/samplesPerPixel;
+        rng_state = prd.rngState;
     }
+    outColor = clamp(outColor,vec3(0,0,0),vec3(1,1,1));
     outColor = vec3(linear_to_gamma(outColor.x),linear_to_gamma(outColor.y),linear_to_gamma(outColor.z));
     imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(outColor, 1.0));
 }

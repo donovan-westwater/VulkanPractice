@@ -25,7 +25,7 @@ private:
     const int MAX_FRAMES_IN_FLIGHT = 2; //The amount of frames that can be processed concurrently
     const uint32_t WIDTH = 800;
     const uint32_t HEIGHT = 600;
-    const std::string MODEL_PATH = "Models/CrappyCornellBox_TriVersion.obj";//"Models/Guilmon.obj";
+    const std::string MODEL_PATH = "Models/CornellBox-Original.obj";//"Models/CrappyCornellBox_TriVersion.obj";//"Models/Guilmon.obj";
     const std::string TEXTURE_PATH = "Textures/TestTex.png";
     const std::string MATERIALS_PATH = "Materials/";//"Materials/CrappyCornellBox_TriVersion.mtl";
 
@@ -429,7 +429,19 @@ private:
             Material m;
             m.ambient = float3ToVec4(localMaterials[x].ambient);
             m.diffuse = float3ToVec4(localMaterials[x].diffuse);
+            //Using IOR Is stored in ambient
+            m.ambient.x = localMaterials[x].ior;
+            m.ambient.y = localMaterials[x].illum;
+            float clampProb = localMaterials[x].ambient[0];
+            if (clampProb < 0) clampProb = 0.0;
+            if (clampProb > 1.0) clampProb = 1.0;
+            m.diffuse.a = clampProb;
             m.specular = float3ToVec4(localMaterials[x].specular);
+            float clampedShininess = localMaterials[x].shininess;
+            //Use shininess as a blending value for reflective surfaces
+            if (clampedShininess < 0) clampedShininess = 0.0;
+            if (clampedShininess > 1.0) clampedShininess = 1.0;
+            m.specular.a = clampedShininess;
             m.emission = float3ToVec4(localMaterials[x].emission);
             materials.push_back(m);
         }
