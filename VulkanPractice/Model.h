@@ -2,19 +2,19 @@
 #ifndef MODEL_H
 #define MODEL_H
 #include "common.h"
+#include "Pipeline.h"
 #include "Mesh.h"
 
 //Make a manager class?
-struct Model
+class Model
 {
+public:
 	glm::mat4x4 modelMatrix;
 	Mesh* referenceMesh;
 	uint32_t referenceMeshIndex;
 	Material* referenceMaterial;
 	uint32_t referenceMaterialIndex;
-	VkDescriptorSetLayout* referenceLayout;
-	VkPipeline* referencePipeline;
-	VkDescriptorPool* referencePool;
+	Pipeline* referencePipeline;
 };
 //Make a manager class?
 

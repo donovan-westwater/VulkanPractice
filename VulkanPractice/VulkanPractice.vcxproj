@@ -163,6 +163,7 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="RayTracer.cpp" />
+    <ClCompile Include="Texture.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Shaders\raycommon.glsl" />
@@ -179,6 +180,7 @@
     <ClInclude Include="Model.h" />
     <ClInclude Include="Pipeline.h" />
     <ClInclude Include="RayTracer.h" />
+    <ClInclude Include="Texture.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

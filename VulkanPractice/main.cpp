@@ -3,6 +3,8 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
 #include "common.h"
+#include "Pipeline.h"
+#include "Model.h"
 #include "RayTracer.h"
 //#include "RayTracer.cpp"
 
@@ -13,15 +15,15 @@ public:
         initWindow();
         initVulkan();
         //Setup RayTracer
-        CreateLightAndPassVarsToRayTracer();
+        //CreateLightAndPassVarsToRayTracer();
         //DEBUG: LOOK FOR BAD / UNITALIZIED COMMAND BUFFERS or ONES WHICH WERENT COMPLETELY CLEANED!
-        rayTracer.setupRayTracer(vertexBuffer, indexBuffer, vertices.size(),materialBuffer,materialIndexBuffer);
+        //rayTracer.setupRayTracer(vertexBuffer, indexBuffer, vertices.size(),materialBuffer,materialIndexBuffer);
         mainLoop();
         cleanup();
     }
 
 private:
-    bool useRayTracing = true;
+    bool useRayTracing = false;
     const int MAX_FRAMES_IN_FLIGHT = 2; //The amount of frames that can be processed concurrently
     const uint32_t WIDTH = 800;
     const uint32_t HEIGHT = 600;
@@ -53,8 +55,7 @@ private:
     std::shared_ptr<VkSurfaceKHR> shared_surface;
     std::shared_ptr<VkDevice> shared_logicalDevice;
     std::shared_ptr<VkPhysicalDevice> shared_physicalDevice;
-    std::shared_ptr<VkDescriptorSetLayout> shared_descLayout;
-    std::shared_ptr<std::vector<VkDescriptorSet>> shared_descSetList;
+    std::shared_ptr<Pipeline> shared_mainPipeline;
     std::shared_ptr<LightSource> shared_lightSource;
     std::shared_ptr<VkCommandPool> shared_commandPool; 
     std::shared_ptr<VkQueue> shared_graphicsQueue;
@@ -66,7 +67,7 @@ private:
     std::shared_ptr<std::vector<VkSemaphore>> shared_finishedSemaphores;
     std::shared_ptr<VkQueue> shared_presentQueue;
     std::shared_ptr<uint32_t> shared_currentFrame;
-
+    //Universal Resources
     GLFWwindow* window; //Reference to the window we draw for vulkan
     VkInstance instance; //An instance is the connection between the app and the vulkan lib
     VkDebugUtilsMessengerEXT debugMessenger; //Debug messenger must be made for debug callbacks to be used
@@ -81,31 +82,15 @@ private:
     VkExtent2D swapChainExtent; //window extents for the images
     std::vector<VkImageView> swapChainImageViews; //Creates an object to use the images from swapchain. its literally a view into an image. Describes how to access the image
     std::vector<VkFramebuffer> swapChainFramebuffers; //references all imageview objects that represent attachments
-    VkRenderPass renderPass; //The render pass used to render images
-    VkDescriptorSetLayout descriptorSetLayout; //holds values to setup the descriptor sets
-    std::vector<VkDescriptorSet> descriptorSets; //The actual descr sets
-    VkDescriptorPool descriptorPool; //pool of allocated descr sets
-    VkPipelineLayout pipelineLayout; //Holds uniform values you pass to the shaders
-    VkPipeline graphicsPipeline; //The actual graphics pipeline that will be used to draw the triangle
+    Pipeline graphicsPipeline; //Main Rasterization pipline
     VkCommandPool commandPool; //Manages memory used to store buffers used for command buffers
     std::vector<VkCommandBuffer> commandBuffers; //Used to store draw calls
     std::vector<VkSemaphore> imageAvailableSemaphores; //Need to synchronize the GPU calls using semaphores
     std::vector<VkSemaphore> renderFinishedSemaphores;
     std::vector <VkFence> inFlightFences; //Used to for order execution on the cpu to sync with gpu
-    VkBuffer vertexBuffer; //The vertex buffer we pass during the vertex shader step
-    VkDeviceMemory vertexBufferMemory; //handle to deal with allocated memory to vertex buffer
-    VkBuffer indexBuffer; //Index buffer to prevent bloat in vertex buffer
-    VkDeviceMemory indexBufferMemory; //handle to deal with memory allocated with the index buffer
-    VkBuffer materialBuffer; //Material buffer we can pass to shaders
-    VkDeviceMemory materialBufferMemory; //handle to deal with memory allocated with the material buffer
-    VkBuffer materialIndexBuffer; //Index buffer to prevent bloat in material buffer
-    VkDeviceMemory materialIndexBufferMemory; //handle to deal with memory allocated with the material index buffer
 
-    uint32_t mipLevels; //mipsampling levels. Used for LOD 
-    VkImage textureImage; //image to hold the texture
-    VkImageView textureImageView; //Images are accessed indirectly through image views, so the texture will need one
-    VkDeviceMemory textureImageMemory; //memory allocated for the texture
-    VkSampler textureSampler;//Texture sampler for shader
+  
+    //Anti-Aliasing Resources. Leave in main layer for now
     VkImage depthImage; //Image for depth buffer
     VkDeviceMemory depthImageMemory; //Memory allocated for depth buffer
     VkImageView depthImageView; //View for depth test
@@ -122,13 +107,11 @@ private:
     bool framebufferResized = false;
     int primativeCount = 0;
 
+    //Model and Mesh Manager
     //Our sample set of vertices we are passing into the vertex buffer
-    std::vector<Vertex> vertices;
+    std::vector<Mesh> meshes;
     //Our indices we are passing into the index buffer
-    std::vector<uint32_t> indices;
-    //The CPU side Materials and Mat Indices to pass to material buffer and index buffer
-    std::vector<Material> materials;
-    std::vector<uint32_t> materialIndices;
+    std::vector<Model> models;
     struct SwapChainSupportDetails {
         VkSurfaceCapabilitiesKHR capabilities; //What basic surface capabilities does the swap chain have?
         std::vector<VkSurfaceFormatKHR>formats; //What surface formats do we have?
@@ -149,6 +132,8 @@ private:
 
         return buffer;
     }
+    //Will disable for now
+    /*
     void CreateLightAndPassVarsToRayTracer() {
         VulkanSmartDeleter vkSmartDeleter;
         vkSmartDeleter.logicalDevice = &device;
@@ -196,6 +181,7 @@ private:
         rayTracer.rayTracerSwapchainImages = shared_swapchainImages;
         rayTracer.maxPrimativeCount = primativeCount;
     }
+    */
     void initWindow() {
         glfwInit();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); //Disable openGL API
@@ -329,10 +315,7 @@ private:
         createDepthResources();
         //Create framebuffers to draw the actual images with
         createFramebuffers();
-        //Create teture image to load textures with
-        createTextureImage();
-        createImageTextureView();
-        createTextureSampler();
+        //TEXTURE LOADING WAS HERE
         //Load in the model
         loadModel();
         //Create vertex buffer for vertex shader
@@ -373,7 +356,10 @@ private:
         std::vector<tinyobj::shape_t> shapes; //seperate objects and faces
         std::vector<tinyobj::material_t> localMaterials;
         std::string warn, err;
-
+        Model model;
+        Mesh modelMesh;
+        model.referenceMesh = &modelMesh;
+        model.referencePipeline = &graphicsPipeline;
         if (!tinyobj::LoadObj(&attrib, &shapes, &localMaterials, &warn, &err, MODEL_PATH.c_str(),MATERIALS_PATH.c_str())) {
             throw std::runtime_error(warn + err);
         }
@@ -411,17 +397,17 @@ private:
                 
                 //Load in the indcies and vertices
                 if (uniqueVertices.count(vertex) == 0) {
-                    uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
-                    vertices.push_back(vertex);
+                    uniqueVertices[vertex] = static_cast<uint32_t>(modelMesh.vertices.size());
+                    modelMesh.vertices.push_back(vertex);
                 }
-                indices.push_back(uniqueVertices[vertex]);
+                modelMesh.indices.push_back(uniqueVertices[vertex]);
                 
                 //vertices.push_back(vertex);
                 //indices.push_back(indices.size());
                 
             }
             for (int matIndex : shape.mesh.material_ids) {
-                materialIndices.push_back(matIndex);
+                modelMesh.materialIndices.push_back(matIndex);
             }
         }
         //Copy material infomation into vector
@@ -443,10 +429,11 @@ private:
             if (clampedShininess > 1.0) clampedShininess = 1.0;
             m.specular.a = clampedShininess;
             m.emission = float3ToVec4(localMaterials[x].emission);
-            materials.push_back(m);
+            modelMesh.materials.push_back(m);
         }
 
-
+        meshes.push_back(modelMesh);
+        models.push_back(model);
     }//Create the resources for the color buffer used for multisampling
     void createColorResources() {
         VkFormat colorFormat = swapChainImageFormat;
@@ -488,37 +475,7 @@ private:
         }
         throw std::runtime_error("failed to find supported format!");
     }
-    //Creates a sampler for the shader
-    void createTextureSampler() {
-        //Controls filters and transformations of the image
-        VkSamplerCreateInfo samplerInfo{};
-        samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-        samplerInfo.magFilter = VK_FILTER_LINEAR;
-        samplerInfo.minFilter = VK_FILTER_LINEAR;
-        samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        //We need to figure out what max anisotropy should be
-        VkPhysicalDeviceProperties properties{};
-        vkGetPhysicalDeviceProperties(physicalDevice, &properties);
-
-        samplerInfo.anisotropyEnable = VK_FALSE;
-        samplerInfo.maxAnisotropy = 1.0f;
-       // samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy; //limits the amount of texel samples that can be used to calc final color
-        samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK; //What is the color when you go outside image bounds
-        samplerInfo.unnormalizedCoordinates = VK_FALSE; //[0,1) or [0,texWidth/height)
-        samplerInfo.compareEnable = VK_FALSE;
-        samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-        //minmapping
-        samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-        samplerInfo.mipLodBias = 0.0f;
-        samplerInfo.minLod = 0.0f;
-        samplerInfo.maxLod = static_cast<float>(mipLevels);
-
-        if (vkCreateSampler(device, &samplerInfo, nullptr, &textureSampler) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create texture sampler!");
-        }
-    }
+    
     //Creates an image view
     VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlag, uint32_t mipLevels) {
         VkImageViewCreateInfo viewInfo{};
@@ -541,10 +498,7 @@ private:
 
         return imageView;
     }
-    void createImageTextureView() {
-        if (TEXTURE_PATH == "") return;
-        textureImageView = createImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT,mipLevels);
-    }
+
     void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout,uint32_t mipLevels) {
         VkCommandBuffer commandBuffer = beginSingleTimeCommands();
         //pipeline barrir is used to synchonoize resources
@@ -643,50 +597,7 @@ private:
         );
         endSingleTimeCommands(commandBuffer);
     }
-    //Load in an image using a texture
-    void createTextureImage() {
-        int texWidth, texHeight, texChannels;
-        if (TEXTURE_PATH == ""){
-            textureImage = NULL;
-            textureImageView = NULL;
-            textureSampler = NULL;
-            return;
-        }
-        //Takes path and num of channels as args. Returns pointer to first element of array of pixels
-        stbi_uc* pixels = stbi_load(TEXTURE_PATH.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-        VkDeviceSize imageSize = texWidth * texHeight * 4; //A pixel is 4 bytes
-        //We are figuring out how many times can we reduce the image by sqrt rooting the diamensions of the image
-        //This is why we use log2. Floor handles cases where the largest diamension isn't a power of 2
-        mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(texWidth, texHeight)))) + 1;
-        if (!pixels) {
-            throw std::runtime_error("failed to load texture image!");
-        }
-        //Create temporary staging buffer for loading texturs
-        VkBuffer stagingBuffer;
-        VkDeviceMemory stagingBufferMemory;
-        createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory,
-            false);
-        //Transfer image to staging buffer
-        void* data;
-        vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
-        memcpy(data, pixels, static_cast<size_t>(imageSize));
-        vkUnmapMemory(device, stagingBufferMemory);
-        stbi_image_free(pixels);
-        createImage(texWidth, texHeight,mipLevels,VK_SAMPLE_COUNT_1_BIT ,VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL
-            , VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-            , textureImage, textureImageMemory);
-        //Transfer image to to layout
-        transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB
-            , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,mipLevels);
-        //execute buffer to image copy operation
-        copyBufferToImage(stagingBuffer, textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
-        //Change the layout so that we only read from the image
-        //transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,mipLevels);
-        vkDestroyBuffer(device, stagingBuffer, nullptr);
-        vkFreeMemory(device, stagingBufferMemory, nullptr);
-        //Generate the mipmaps
-        generateMipmaps(textureImage, VK_FORMAT_R8G8B8A8_SRGB, texWidth, texHeight, mipLevels);
-    }
+   
     //Generate minmaps
     void generateMipmaps(VkImage image,VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels) {
         

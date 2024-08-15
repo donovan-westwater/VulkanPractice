@@ -205,7 +205,7 @@ struct VulkanSmartDeleter {
         *p = VK_FORMAT_UNDEFINED;
     }
 };
-static glm::vec4 float3ToVec4(float a[3]) {
+inline static glm::vec4 float3ToVec4(float a[3]) {
     glm::vec4 out;
     out.x = a[0];
     out.y = a[1];
@@ -230,5 +230,8 @@ inline static void setDebugObjectName(VkDevice device,VkObjectType objType,uint6
     }
 }
 #endif 
-
+//All of the common vulkan functions should go here
+//Transition layer, create buffer, create image etc.
+//Any function left over in main should go here as a static function
+//Dont make them inline! Debug is fine since it is small
 #endif

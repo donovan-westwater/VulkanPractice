@@ -13,7 +13,7 @@ public:
 	//Should be able to apply transforms onto it	
 	//---Rotations---
 	//---Translations---
-
+	//Add Delete function
 };
 
 #endif

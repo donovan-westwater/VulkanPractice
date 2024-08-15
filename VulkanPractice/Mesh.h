@@ -2,11 +2,12 @@
 #ifndef MESH_H
 #define MESH_H
 #include "common.h"
-
+#include "Texture.h"
 //Move into its own header and make a class for manager
-struct Mesh {
+class Mesh {
+public:
 	std::vector<Vertex> vertices;
-	std::vector<Vertex> indices;
+	std::vector<uint32_t> indices;
 	std::vector<Material> materials;
 	std::vector<uint32_t> materialIndices;
 	uint32_t vertexCount;
@@ -21,7 +22,7 @@ struct Mesh {
 	VkDeviceMemory materialIndexBufferMemory; //handle to deal with memory allocated with the material index buffer
 
 	//Add texture infomation here later
-
+	Texture texture;
 	//Add Delete function
 };
 
