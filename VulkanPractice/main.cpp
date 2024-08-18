@@ -117,6 +117,7 @@ private:
         std::vector<VkSurfaceFormatKHR>formats; //What surface formats do we have?
         std::vector<VkPresentModeKHR> presentModes; //What available presentation formats?
     };
+    //move to common
     static std::vector<char> readFile(const std::string& filename) {
         std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
@@ -190,12 +191,14 @@ private:
         //Create a callback for window resizing
         glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
     }
+    //stays in main
     //Call back for when we want to resize the widow. Static GLFW doesn't know what to do with a member function version
     static void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
         auto app = reinterpret_cast<HelloTriangleApplication*>(glfwGetWindowUserPointer(window));
         app->framebufferResized = true;
         //if(app->r.isEnabled) app->r.updateRTDescriptorSets();
     }
+    //stays in main
     //Check if validation layers if validation layers are available
     // These layers are important for checcking for any mistakes made in coding process
     bool checkValidationLayerSupport() {
@@ -246,6 +249,7 @@ private:
         
         return VK_FALSE;
     }
+    //stays in main
     //Fills in the instance struct with relevant infomation
     void createInstance() {
         if (enableValidationLayers && !checkValidationLayerSupport()) {
@@ -334,6 +338,7 @@ private:
 
         createSyncObjects(); //create objects for syncing cpu with gpu
     }
+    //stays in main
     //Figure out how many samples we can do with our device safely
     //takes in both color buffer and depth buffers into account
     VkSampleCountFlagBits getMaxUsableSampleCount() {
@@ -350,7 +355,8 @@ private:
 
         return VK_SAMPLE_COUNT_1_BIT;
     }
-    //BUG: Breaks triangle info because of unique vertices!
+
+    //Move to Model
     void loadModel() {
         tinyobj::attrib_t attrib; //Contains positions normals texture coords
         std::vector<tinyobj::shape_t> shapes; //seperate objects and faces
@@ -434,13 +440,16 @@ private:
 
         meshes.push_back(modelMesh);
         models.push_back(model);
-    }//Create the resources for the color buffer used for multisampling
+    }
+    //Move to pipeline?
+    //Create the resources for the color buffer used for multisampling
     void createColorResources() {
         VkFormat colorFormat = swapChainImageFormat;
 
         createImage(swapChainExtent.width, swapChainExtent.height, 1, msaaSamples, colorFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, colorImage, colorImageMemory);
         colorImageView = createImageView(colorImage, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
     }
+    //Move to pipeline?
     //create the resources for depth testing
     void createDepthResources() {
         VkFormat depthFormat = findDepthFormat();
@@ -451,9 +460,11 @@ private:
             , VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,1);
 
     }
+    //Move to pipeline
     bool hasStencilComponent(VkFormat format) {
         return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
     }
+    //Move to Pipeline
     //Find a format that works with depth testing
     VkFormat findDepthFormat() {
         return findSupportedFormat(
@@ -462,6 +473,7 @@ private:
             VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
         );
     }
+    //Move to Pipeline
     VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
         for (VkFormat format : candidates) {
             VkFormatProperties props;
@@ -475,7 +487,7 @@ private:
         }
         throw std::runtime_error("failed to find supported format!");
     }
-    
+    //Move to common
     //Creates an image view
     VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlag, uint32_t mipLevels) {
         VkImageViewCreateInfo viewInfo{};
@@ -498,7 +510,7 @@ private:
 
         return imageView;
     }
-
+    //Move to common
     void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout,uint32_t mipLevels) {
         VkCommandBuffer commandBuffer = beginSingleTimeCommands();
         //pipeline barrir is used to synchonoize resources
@@ -567,6 +579,7 @@ private:
 
         endSingleTimeCommands(commandBuffer);
     }
+    //Move to common
     //Copy buffer to image
     void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) {
         VkCommandBuffer commandBuffer = beginSingleTimeCommands();
@@ -598,6 +611,7 @@ private:
         endSingleTimeCommands(commandBuffer);
     }
    
+    //Move to Texture
     //Generate minmaps
     void generateMipmaps(VkImage image,VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels) {
         
@@ -682,6 +696,7 @@ private:
             1, &barrier);
         endSingleTimeCommands(commandBuffer);
     }
+    //Move to common
     //Create, allocate, and bind the image to memory
     void createImage(uint32_t width, uint32_t height,uint32_t mipLevels ,VkSampleCountFlagBits numSamples,VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage
         , VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory) {
@@ -721,6 +736,7 @@ private:
         //Bind the image to the allocated memory
         vkBindImageMemory(device, image, imageMemory, 0);
     }
+    //Move to common
     //begins a command buffer to be used for a single use
     VkCommandBuffer beginSingleTimeCommands() {
         VkCommandBufferAllocateInfo allocInfo{};
@@ -739,6 +755,7 @@ private:
 
         return commandBuffer;
     }
+    //Move to common
     //ends the recording of a single frame
     void endSingleTimeCommands(VkCommandBuffer commandBuffer) {
         vkEndCommandBuffer(commandBuffer);
@@ -752,146 +769,7 @@ private:
         vkQueueWaitIdle(graphicsQueue); //Wait for the transfer queue to become idle
         vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer); //Cleanup once we are done with the buffer
     }
-    //Create the descriptor sets
-    void createDescriptorSets() {
-        //Allocate data for the descriptor sets
-        std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
-        VkDescriptorSetAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        allocInfo.descriptorPool = descriptorPool;
-        allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-        allocInfo.pSetLayouts = layouts.data();
-        descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
-        if (vkAllocateDescriptorSets(device, &allocInfo, descriptorSets.data()) != VK_SUCCESS) {
-            throw std::runtime_error("failed to allocate descriptor sets!");
-        }
-        //Configure the sets and pass them to sets
-        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-            VkDescriptorBufferInfo bufferInfo{};
-            bufferInfo.buffer = uniformBuffers[i];
-            bufferInfo.offset = 0;
-            bufferInfo.range = sizeof(UniformBufferObject);
-
-            VkDescriptorImageInfo imageInfo{};
-            imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            imageInfo.imageView = textureImageView;
-            imageInfo.sampler = textureSampler;
-
-            std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
-
-            descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrites[0].dstSet = descriptorSets[i];
-            descriptorWrites[0].dstBinding = 0;
-            descriptorWrites[0].dstArrayElement = 0;
-            descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            descriptorWrites[0].descriptorCount = 1;
-            descriptorWrites[0].pBufferInfo = &bufferInfo;
-
-            descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorWrites[1].dstSet = descriptorSets[i];
-            descriptorWrites[1].dstBinding = 1;
-            descriptorWrites[1].dstArrayElement = 0;
-            descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            descriptorWrites[1].descriptorCount = 1;
-            descriptorWrites[1].pImageInfo = &imageInfo;
-
-            vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()),descriptorWrites.data()
-            , 0, nullptr);
-        }
-
-    }
-    //Descriptor sets cant be created directly. They must be allocated like command buffers
-    void createDescriptorPool() {
-        std::array<VkDescriptorPoolSize, 2> poolSizes{};
-        poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-        poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-
-        VkDescriptorPoolCreateInfo poolInfo{};
-        poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-        poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
-        poolInfo.pPoolSizes = poolSizes.data();
-        poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-        if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create descriptor pool!");
-        }
-    }
-    //Create the uniform object buffers
-    void createUniformBuffers() {
-        VkDeviceSize bufferSize = sizeof(UniformBufferObject);
-
-        uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-        uniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
-        uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
-        //Create buffers for the frames that are being worked on in parallel
-        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-            createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i]
-            ,true);
-#ifndef NDEBUG
-        setDebugObjectName(device,VkObjectType::VK_OBJECT_TYPE_BUFFER ,reinterpret_cast<uint64_t>(uniformBuffers[i]), "Uniform Buffer Object "+i);
-#endif
-            //We dont want to remap memory all the time since mem mapping is costly
-            //Having the buffers mapped this way means we can update whenever we want!
-            vkMapMemory(device, uniformBuffersMemory[i], 0, bufferSize, 0, &uniformBuffersMapped[i]);
-
-        }
-        
-    }
-
-    void createDescriptorSetLayout() {
-        //We need a descriptor set to help send the infomation over to the shader
-        VkDescriptorSetLayoutBinding uboLayoutBinding{};
-        uboLayoutBinding.binding = 0; //Which index you want to bind to for the shader
-        uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; //Kind of descriptor set
-        uboLayoutBinding.descriptorCount = 1; //How many descriptor sets in the array
-        uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR; //which stage we are sending it to
-        uboLayoutBinding.pImmutableSamplers = nullptr;
-        //Create descriptor set for the image sampler
-        VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-        samplerLayoutBinding.binding = 1;
-        samplerLayoutBinding.descriptorCount = 1;
-        samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        samplerLayoutBinding.pImmutableSamplers = nullptr;
-        samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-
-        std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding };
-        //Placing bindings into the layout
-        VkDescriptorSetLayoutCreateInfo layoutInfo{};
-        layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-        layoutInfo.pBindings = bindings.data(); //Array of bindings
-
-        if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create descriptor set layout!");
-        }
-
-    }
-    void createIndexBuffer() {
-        VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
-        //Create staging buffer for to transfer the index buffer with
-        VkBuffer stagingBuffer;
-        VkDeviceMemory stagingBufferMemory;
-        createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory
-        ,true);
-
-        void* data;
-        vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-        memcpy(data, indices.data(), (size_t)bufferSize);
-        vkUnmapMemory(device, stagingBufferMemory);
-        VkBufferUsageFlags rayTracingFlags = // used also for building acceleration structures 
-            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-        createBuffer(bufferSize, rayTracingFlags | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory
-        ,true);
-#ifndef NDEBUG
-        setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(indexBuffer), "Index Buffer");
-        setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY, reinterpret_cast<uint64_t>(indexBufferMemory), "Index Buffer Memory");
-#endif
-        copyBuffer(stagingBuffer, indexBuffer, bufferSize);
-
-        vkDestroyBuffer(device, stagingBuffer, nullptr);
-        vkFreeMemory(device, stagingBufferMemory, nullptr);
-    }
+    //Move to common
     //Checking the physical memory of our GPU to see if we have room
     uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
         //Check the physical memory of our device
@@ -906,6 +784,7 @@ private:
 
         throw std::runtime_error("failed to find suitable memory type!");
     }
+    //Move to common
     void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory
     ,bool rayTracingMemAlloc) {
         VkBufferCreateInfo bufferInfo{};
@@ -940,6 +819,7 @@ private:
         setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY, reinterpret_cast<uint64_t>(bufferMemory), "Temp Buffer Memory");
 #endif
     }
+    //Move to common
     //Copying vulkan buffer from src to dst 
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
         VkCommandBuffer commandBuffer = beginSingleTimeCommands();
@@ -952,93 +832,7 @@ private:
         endSingleTimeCommands(commandBuffer);
 
     }
-    void createVertexBuffer() {
-        VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
-        //Staging buffer to transfer data between CPU and GPU
-        VkBuffer stagingBuffer;
-        VkDeviceMemory stagingBufferMemory;
-        createBuffer(bufferSize,VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory,
-            true);
-
-        //Create a memory map between the vertex buffer (CPU) and the shader (GPU)
-        //This allows both sides to access the data
-        void* data;
-        vkMapMemory(device, stagingBufferMemory, 0, bufferSize,0,&data);
-        memcpy(data, vertices.data(), (size_t)bufferSize);
-        vkUnmapMemory(device, stagingBufferMemory);
-        VkBufferUsageFlags rayTracingFlags = // used also for building acceleration structures 
-            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-        //The vertex buffer itself
-        createBuffer(bufferSize, rayTracingFlags | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory
-        ,true);
-#ifndef NDEBUG
-        setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(vertexBuffer), "Vertex Buffer");
-        setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY, reinterpret_cast<uint64_t>(vertexBufferMemory), "Vertex Buffer Memory");
-#endif
-        //Copy data from staging buffer to vertex buffer
-        copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
-        //Clean up data after we are done with it
-        vkDestroyBuffer(device, stagingBuffer, nullptr);
-        vkFreeMemory(device,stagingBufferMemory,nullptr);
-    }
-    void createMaterialIndexBuffer() {
-        VkDeviceSize bufferSize = sizeof(materialIndices[0]) * materialIndices.size();
-        //Staging buffer to transfer data between CPU and GPU
-        VkBuffer stagingBuffer;
-        VkDeviceMemory stagingBufferMemory;
-        createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory,
-            true);
-
-        //Create a memory map between the vertex buffer (CPU) and the shader (GPU)
-        //This allows both sides to access the data
-        void* data;
-        vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-        memcpy(data, materialIndices.data(), (size_t)bufferSize);
-        vkUnmapMemory(device, stagingBufferMemory);
-        VkBufferUsageFlags rayTracingFlags = // used also for building acceleration structures 
-            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-        //The vertex buffer itself
-        createBuffer(bufferSize, rayTracingFlags | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, materialIndexBuffer, materialIndexBufferMemory
-            , true);
-#ifndef NDEBUG
-        setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(materialIndexBuffer), "Material Index Buffer");
-        setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY, reinterpret_cast<uint64_t>(materialIndexBufferMemory), "Material Index Buffer Memory");
-#endif
-        //Copy data from staging buffer to vertex buffer
-        copyBuffer(stagingBuffer, materialIndexBuffer, bufferSize);
-        //Clean up data after we are done with it
-        vkDestroyBuffer(device, stagingBuffer, nullptr);
-        vkFreeMemory(device, stagingBufferMemory, nullptr);
-    }
-    void createMaterialBuffer() {
-        VkDeviceSize bufferSize = sizeof(materials[0]) * materials.size();
-        //Staging buffer to transfer data between CPU and GPU
-        VkBuffer stagingBuffer;
-        VkDeviceMemory stagingBufferMemory;
-        createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory,
-            true);
-
-        //Create a memory map between the vertex buffer (CPU) and the shader (GPU)
-        //This allows both sides to access the data
-        void* data;
-        vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-        memcpy(data, materials.data(), (size_t)bufferSize);
-        vkUnmapMemory(device, stagingBufferMemory);
-        VkBufferUsageFlags rayTracingFlags = // used also for building acceleration structures 
-            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
-        //The material buffer itself
-        createBuffer(bufferSize, rayTracingFlags | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, materialBuffer, materialBufferMemory
-            , true);
-#ifndef NDEBUG
-        setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(materialBuffer), "Material Buffer");
-        setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY, reinterpret_cast<uint64_t>(materialBufferMemory), "Material Buffer Memory");
-#endif
-        //Copy data from staging buffer to vertex buffer
-        copyBuffer(stagingBuffer, materialBuffer, bufferSize);
-        //Clean up data after we are done with it
-        vkDestroyBuffer(device, stagingBuffer, nullptr);
-        vkFreeMemory(device, stagingBufferMemory, nullptr);
-    }
+    //Render loop only function - stay in main
     void createSyncObjects() {
         //make sure there are semaphores and fences for each concurrent frame
         imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
@@ -1059,6 +853,7 @@ private:
         }
         
     }
+    //Universal function - Go in common
     void createCommandBuffers() {
         commandBuffers.resize(MAX_FRAMES_IN_FLIGHT); //Resize to match the number of inflight frames
         VkCommandBufferAllocateInfo allocInfo{};
@@ -1071,6 +866,7 @@ private:
             throw std::runtime_error("failed to allocate command buffers!");
         }
     }
+    //Universal for traditional rendering - Move to common and adjust
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
         VkCommandBufferBeginInfo beginInfo{};
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -1129,6 +925,7 @@ private:
             throw std::runtime_error("failed to record command buffer!");
         }
     }
+    //Universal - Move to common and adjust
     //Create command pool for the command buffers
     void createCommandPool() {
         QueueFamilyIndices queueFamilyIndices = findQueueFamilies(physicalDevice);
@@ -1142,6 +939,7 @@ private:
             throw std::runtime_error("failed to create command pool!");
         }
     }
+    //Rendering specifc, should stay here
     //Create framebuffers for drawing images
     void createFramebuffers() {
         swapChainFramebuffers.resize(swapChainImageViews.size());
@@ -1166,89 +964,7 @@ private:
             }
         }
     }
-    //Creates a render pass object which tells Vulkan about framebuffer attachemnts, color and depth buffers
-    //How many samples to use for each of the them, and how their contents should be handled throughout rendering process
-    void createRenderPass() {
-        VkAttachmentDescription colorAttachment{};
-        colorAttachment.format = swapChainImageFormat; //should match format of swapchain
-        colorAttachment.samples = msaaSamples; //multisampling
-        colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR; //Should clear before renderig
-        colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE; //should store after rendering
-        //Stenicl ops: We dont care about stencils right now since we aren't using it
-        colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        //This bit is important for texturing
-        colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED; //dont care about inital layout
-        colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL; //Images to be presented in the swap chain
-        //Create a second description for color becuase we need to go over the image again to resolve the multiple samples
-        VkAttachmentDescription colorAttachmentResolve{};
-        colorAttachmentResolve.format = swapChainImageFormat;
-        colorAttachmentResolve.samples = VK_SAMPLE_COUNT_1_BIT;
-        colorAttachmentResolve.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        colorAttachmentResolve.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        colorAttachmentResolve.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        colorAttachmentResolve.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        colorAttachmentResolve.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        colorAttachmentResolve.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;                                                                                
-        //Subpasses and attachment references
-        //Useful to have passes that sequential stack on eachother for post processing
-        //sticking to a single pass
-        VkAttachmentReference colorAttachmentRef{};
-        colorAttachmentRef.attachment = 0; //which attachment to reference by index
-        colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL; //species which layout we would like to have during a subpass that uses this reference
-        //Create second attachment for the resolution description
-        VkAttachmentReference colorAttachmentResolveRef{};
-        colorAttachmentResolveRef.attachment = 2;
-        colorAttachmentResolveRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-
-        //Depth Testing
-        VkAttachmentDescription depthAttachment{};
-        depthAttachment.format = findDepthFormat();
-        depthAttachment.samples = msaaSamples;
-        depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-        VkAttachmentReference depthAttachmentRef{};
-        depthAttachmentRef.attachment = 1;
-        depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-       
-        VkSubpassDescription subpass{};
-        subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-        subpass.colorAttachmentCount = 1;
-        subpass.pColorAttachments = &colorAttachmentRef;
-        subpass.pDepthStencilAttachment = &depthAttachmentRef;
-        subpass.pResolveAttachments = &colorAttachmentResolveRef;
-        
-        //Finally the render pass itself
-        std::array<VkAttachmentDescription, 3> attachments = { colorAttachment, depthAttachment,colorAttachmentResolve };
-        VkRenderPassCreateInfo renderPassInfo{};
-        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-        renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-        renderPassInfo.pAttachments = attachments.data();
-        renderPassInfo.subpassCount = 1;
-        renderPassInfo.pSubpasses = &subpass;
-        //Create a subpass dependency to prevent a transation from occuring before the image is qcquired at the start
-        //Specify indices of hte dependency and the dependent subpass
-        VkSubpassDependency dependency{};
-        dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-        dependency.dstSubpass = 0;
-        //Specify which operations to wait on
-        //Prevents transition from happening unitl its necessary and allowed
-        dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-        dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-        dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-        renderPassInfo.dependencyCount = 1;
-        renderPassInfo.pDependencies = &dependency;
-
-        if (vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create render pass!");
-        }
-
-    }
+    //Move to Pipeline, maybe even as a static function?
     void createGraphicsPipeline() {
         auto vertShaderCode = readFile("shaders/vert.spv");
         auto fragShaderCode = readFile("shaders/frag.spv");
@@ -1412,6 +1128,7 @@ private:
         vkDestroyShaderModule(device, fragShaderModule, nullptr);
         vkDestroyShaderModule(device, vertShaderModule, nullptr);
     }
+    //Move to Pipeline
     //Module to handle shader programs compiled into the vulkan byte code
     VkShaderModule createShaderModule(const std::vector<char>& code) {
         VkShaderModuleCreateInfo createInfo{};
@@ -1424,12 +1141,14 @@ private:
         }
         return shaderModule; //A thin wrapper around the byte code. Compliation + linking occurs at graphics pipeline time
     }
+    //Stay in main?
     void createImageViews() {
         swapChainImageViews.resize(swapChainImages.size()); //Should be same size as the amount of images
         for (size_t i = 0; i < swapChainImages.size(); i++) {
             swapChainImageViews[i] = createImageView(swapChainImages[i], swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT,1);
         }
     }
+    //Stays in main
     //Cleans up swapChain related resources
     void cleanupSwapChain() {
         //free color buffer
@@ -1450,6 +1169,7 @@ private:
 
         vkDestroySwapchainKHR(device, swapChain, nullptr);
     }
+    //Move to pipeline as static function?
     //Should create a new swap chain when the window is updated
     void recreateSwapChain() {
         //We should pause the rendering when the window is minimized
@@ -1470,6 +1190,7 @@ private:
         createDepthResources();
         createFramebuffers();
     }
+    //stay in main
     void createSwapChain() {
         SwapChainSupportDetails swapChainSupport = querySwapChainSupport(physicalDevice);
 
@@ -1521,11 +1242,13 @@ private:
         swapChainExtent = extent;
         swapChainImageFormat = surfaceFormat.format;
     }
+    //stay in main
     void createSurface() {
         if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS) {
             throw std::runtime_error("failed to create window surface!");
         }
     }
+    //stay in main
     void createLogicalDevice() {
         VkPhysicalDeviceBufferDeviceAddressFeatures
             physicalDeviceBufferDeviceAddressFeatures;
@@ -1610,6 +1333,7 @@ private:
         vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
         vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
     }
+    //stay in main
     void pickPhysicalDevice() {
         uint32_t deviceCount = 0;
         vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
@@ -1630,6 +1354,7 @@ private:
             throw std::runtime_error("Failed to find a suitable GPU!");
         }
     }
+    //stay in main
     bool isDeviceSuitable(VkPhysicalDevice device) {
         //We can query some details about the device to determine suitablity
         QueueFamilyIndices indices = findQueueFamilies(device);
@@ -1648,6 +1373,7 @@ private:
         //and could even rank them by some heuristic and select the best one!
         return indices.isComplete() && extensionsSupported && swapChainAdequate && supportedFeatures.samplerAnisotropy;
     }
+    //stay in main
     bool checkDeviceExtensionSupport(VkPhysicalDevice device) {
         uint32_t extensionCount;
         vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
@@ -1663,6 +1389,7 @@ private:
         //If supported, all the names should be removed from the set
         return requiredExtensions.empty();
     }
+    //stay in main
     //Everything in  vulkan rquires commands to be submitted to a queue
     //Different kinds of queues are come from different queue families
     //We need to able to check which kinds of queue families are supported by the device
@@ -1694,6 +1421,7 @@ private:
         return indices;
 
     }
+    //stay in main
     //Even if there is swapchain support, that doesn't mean it will for us.
     //We need to figure out the details of the device's swapchain to see if there is a match
     SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device) {
@@ -1727,6 +1455,7 @@ private:
         //If we can't find anything ideal just pick the first format we can find
         return availableFormats[0];
     }
+    //stay in main
     //Pick a presentation mode for the swap chain
     VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes) {
         //If mailbox mode is supported just pick that, other pick the default mode
@@ -1758,6 +1487,7 @@ private:
             return actualExtent;
         }
     }
+    //stay in main
     VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
         auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
         if (func != nullptr) {
@@ -1767,12 +1497,14 @@ private:
             return VK_ERROR_EXTENSION_NOT_PRESENT;
         }
     }
+    //stay in main
     void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
         auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
         if (func != nullptr) {
             func(instance, debugMessenger, pAllocator);
         }
     }
+    //stay in main
     void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo) {
         createInfo = {};
         createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
@@ -1780,6 +1512,7 @@ private:
         createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
         createInfo.pfnUserCallback = debugCallback;
     }
+    //stay in main
     void setupDebugMessenger() {
         if (!enableValidationLayers) return;
         VkDebugUtilsMessengerCreateInfoEXT createInfo;
@@ -1884,6 +1617,7 @@ private:
         }
         currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT; //Make sure we know which of the in flight frames we are updating
     }
+    //Move to pipleine and rename to updateMainUniformBuffers
     void updateUniformBuffers(uint32_t currentFrame) {
         //Using chrono to keep track of time independent of framerate
         static auto startTime = std::chrono::high_resolution_clock::now();

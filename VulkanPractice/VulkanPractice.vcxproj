@@ -162,6 +162,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Mesh.cpp" />
+    <ClCompile Include="Model.cpp" />
+    <ClCompile Include="Pipeline.cpp" />
     <ClCompile Include="RayTracer.cpp" />
     <ClCompile Include="Texture.cpp" />
   </ItemGroup>

@@ -20,7 +20,11 @@ public:
 	VkDeviceMemory materialBufferMemory; //handle to deal with memory allocated with the material buffer
 	VkBuffer materialIndexBuffer; //Index buffer to prevent bloat in material buffer
 	VkDeviceMemory materialIndexBufferMemory; //handle to deal with memory allocated with the material index buffer
-
+	//Functions section
+	void createIndexBuffer();
+	void createVertexBuffer();
+	void createMaterialIndexBuffer();
+	void createMaterialBuffer();
 	//Add texture infomation here later
 	Texture texture;
 	//Add Delete function

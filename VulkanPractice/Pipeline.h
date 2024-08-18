@@ -13,6 +13,12 @@ public:
 	std::vector<VkDescriptorSet> descriptorSets;
 	VkDescriptorPool descriptorPool;
 	VkRenderPass renderPass; //The render pass used to render images
+	
+	void createMainDescriptorSets();
+	void createMainDescriptorPool();
+	void createMainDescriptorSetLayout();
+	void createMainRenderPass();
+
 	//Add deleter
 };
 //Make a manager class?
