@@ -14,11 +14,16 @@ public:
 	VkDescriptorPool descriptorPool;
 	VkRenderPass renderPass; //The render pass used to render images
 	
+	//Besides the MainGraphics pipeline function, the rest should be private
 	void createMainDescriptorSets();
 	void createMainDescriptorPool();
 	void createMainDescriptorSetLayout();
 	void createMainRenderPass();
-
+	void createColorResources();
+	void createDepthResources();
+	VkShaderModule createShaderModule(const std::vector<char>& code);
+	void createDefaultGraphicsPipeline();
+	void createFramebuffers();
 	//Add deleter
 };
 //Make a manager class?
