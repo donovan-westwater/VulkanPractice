@@ -13,7 +13,18 @@ public:
 	std::vector<VkDescriptorSet> descriptorSets;
 	VkDescriptorPool descriptorPool;
 	VkRenderPass renderPass; //The render pass used to render images
-	
+	//Depth and Image resources in case the pipeline wants them
+	VkImage depthImage; //Image for depth buffer
+	VkDeviceMemory depthImageMemory; //Memory allocated for depth buffer
+	VkImageView depthImageView; //View for depth test
+	VkImage colorImage; //Color buffer image used to for multi sampling
+	VkDeviceMemory colorImageMemory; //Handle for memory allocated image used for multi sampling
+	VkImageView colorImageView; //var used to access color buffer used for multisampling
+	//UBO section
+	std::vector<VkBuffer> uniformBuffers; //ubo buffer
+	std::vector<VkDeviceMemory> uniformBuffersMemory;//handle to allocated buffer memory
+	std::vector<void*> uniformBuffersMapped; //Buffer for staging
+
 	//Besides the MainGraphics pipeline function, the rest should be private
 	void createMainDescriptorSets();
 	void createMainDescriptorPool();
@@ -24,6 +35,9 @@ public:
 	VkShaderModule createShaderModule(const std::vector<char>& code);
 	void createDefaultGraphicsPipeline();
 	void createFramebuffers();
+	void createMainUniformBuffers();
+	void recordMainPipelineCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+
 	//Add deleter
 };
 //Make a manager class?

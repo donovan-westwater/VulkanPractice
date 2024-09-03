@@ -6,7 +6,6 @@
 #include "Pipeline.h"
 #include "Model.h"
 #include "RayTracer.h"
-//#include "RayTracer.cpp"
 
 
 class HelloTriangleApplication {
@@ -91,16 +90,8 @@ private:
 
   
     //Anti-Aliasing Resources. Leave in main layer for now
-    VkImage depthImage; //Image for depth buffer
-    VkDeviceMemory depthImageMemory; //Memory allocated for depth buffer
-    VkImageView depthImageView; //View for depth test
-    VkImage colorImage; //Color buffer image used to for multi sampling
-    VkDeviceMemory colorImageMemory; //Handle for memory allocated image used for multi sampling
-    VkImageView colorImageView; //var used to access color buffer used for multisampling
     VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;//How many times are we sampling for rasterization? reduces jagged edges
-    std::vector<VkBuffer> uniformBuffers; //ubo buffer
-    std::vector<VkDeviceMemory> uniformBuffersMemory;//handle to allocated buffer memory
-    std::vector<void*> uniformBuffersMapped; //Buffer for staging
+
     RayTracer rayTracer;
     LightSource light;
     uint32_t currentFrame = 0;
@@ -476,65 +467,7 @@ private:
             throw std::runtime_error("failed to allocate command buffers!");
         }
     }
-    //Only makes sense in main pipeline - Move this there
-    void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
-        VkCommandBufferBeginInfo beginInfo{};
-        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        beginInfo.flags = 0; // Optional Controls how command buffer will be used
-        beginInfo.pInheritanceInfo = nullptr; // Optional
-
-        if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
-            throw std::runtime_error("failed to begin recording command buffer!");
-        }
-        //start the render pass which is the start of the drawing process
-        //First binds attachments to render pass
-        //Then defines render area size
-        //Then defines the clear values
-        VkRenderPassBeginInfo renderPassInfo{};
-        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        renderPassInfo.renderPass = renderPass;
-        renderPassInfo.framebuffer = swapChainFramebuffers[imageIndex];
-        renderPassInfo.renderArea.offset = { 0, 0 };
-        renderPassInfo.renderArea.extent = swapChainExtent;
-        //Clear the depth buffer
-        std::array<VkClearValue, 2> clearValues{};
-        clearValues[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };
-        clearValues[1].depthStencil = { 1.0f, 0 };
-
-        renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-        renderPassInfo.pClearValues = clearValues.data();
-        vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-        //Bind the commandBuffer to the pipeline
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-
-        //Setup the viewport and scissors state
-        VkViewport viewport{};
-        viewport.x = 0.0f;
-        viewport.y = 0.0f;
-        viewport.width = static_cast<float>(swapChainExtent.width);
-        viewport.height = static_cast<float>(swapChainExtent.height);
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
-        vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-
-        VkRect2D scissor{};
-        scissor.offset = { 0, 0 };
-        scissor.extent = swapChainExtent;
-        vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-        //Assign the vertex buffer to the command buffer
-        VkBuffer vertexBuffers[] = { vertexBuffer };
-        VkDeviceSize offsets[] = { 0 };
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-        vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-        //Update descriptor sets
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
-        //The actual draw call!
-        vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
-        vkCmdEndRenderPass(commandBuffer);
-        if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
-            throw std::runtime_error("failed to record command buffer!");
-        }
-    }
+    
     //Universal - Move to common and adjust
     //Create command pool for the command buffers
     void createCommandPool() {

@@ -15,6 +15,8 @@ public:
 	Material* referenceMaterial;
 	uint32_t referenceMaterialIndex;
 	Pipeline* referencePipeline;
+
+
 };
 //Make a manager class?
 
