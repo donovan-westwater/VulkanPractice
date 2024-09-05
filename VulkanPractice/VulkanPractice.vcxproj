@@ -166,6 +166,7 @@
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="Pipeline.cpp" />
     <ClCompile Include="RayTracer.cpp" />
+    <ClCompile Include="ResourceManager.cpp" />
     <ClCompile Include="Texture.cpp" />
   </ItemGroup>
   <ItemGroup>

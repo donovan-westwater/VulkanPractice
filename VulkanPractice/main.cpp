@@ -6,10 +6,12 @@
 #include "Pipeline.h"
 #include "Model.h"
 #include "RayTracer.h"
+#include "ResourceManager.h"
 
 
 class HelloTriangleApplication {
 public:
+    static ResourceManager resourceManager;
     void run() {
         initWindow();
         initVulkan();
@@ -49,60 +51,10 @@ private:
 #else
     const bool enableValidationLayers = true;
 #endif
-    //Shared Resource Pointers
-    //Resources with the most dependcies by declared first
-    std::shared_ptr<VkSurfaceKHR> shared_surface;
-    std::shared_ptr<VkDevice> shared_logicalDevice;
-    std::shared_ptr<VkPhysicalDevice> shared_physicalDevice;
-    std::shared_ptr<Pipeline> shared_mainPipeline;
-    std::shared_ptr<LightSource> shared_lightSource;
-    std::shared_ptr<VkCommandPool> shared_commandPool; 
-    std::shared_ptr<VkQueue> shared_graphicsQueue;
-    std::shared_ptr<VkFormat> shared_swapChainFormat;
-    std::shared_ptr<std::vector<VkFence>> shared_fences;
-    std::shared_ptr<VkSwapchainKHR> shared_swapchain;
-    std::shared_ptr<std::vector<VkImage>> shared_swapchainImages;
-    std::shared_ptr<std::vector<VkSemaphore>> shared_imageAvailableSemaphores;
-    std::shared_ptr<std::vector<VkSemaphore>> shared_finishedSemaphores;
-    std::shared_ptr<VkQueue> shared_presentQueue;
-    std::shared_ptr<uint32_t> shared_currentFrame;
-    //Universal Resources
-    GLFWwindow* window; //Reference to the window we draw for vulkan
-    VkInstance instance; //An instance is the connection between the app and the vulkan lib
-    VkDebugUtilsMessengerEXT debugMessenger; //Debug messenger must be made for debug callbacks to be used
-    VkPhysicalDevice physicalDevice = VK_NULL_HANDLE; //Manages API for the physical hardware
-    VkDevice device; //Logical device to interface with the physical device
-    VkQueue graphicsQueue; //The queue for submitting graphics commands
-    VkQueue presentQueue; //The queue for submitting windows surface commands
-    VkSurfaceKHR surface; //Handles apis between vulkan and the window system to present results to screen
-    VkSwapchainKHR swapChain; //Handles the swapchain
-    std::vector<VkImage> swapChainImages; //stores images retrieved from swapchain
-    VkFormat swapChainImageFormat; //Format for swap chain images
-    VkExtent2D swapChainExtent; //window extents for the images
-    std::vector<VkImageView> swapChainImageViews; //Creates an object to use the images from swapchain. its literally a view into an image. Describes how to access the image
-    std::vector<VkFramebuffer> swapChainFramebuffers; //references all imageview objects that represent attachments
-    Pipeline graphicsPipeline; //Main Rasterization pipline
-    VkCommandPool commandPool; //Manages memory used to store buffers used for command buffers
-    std::vector<VkCommandBuffer> commandBuffers; //Used to store draw calls
-    std::vector<VkSemaphore> imageAvailableSemaphores; //Need to synchronize the GPU calls using semaphores
-    std::vector<VkSemaphore> renderFinishedSemaphores;
-    std::vector <VkFence> inFlightFences; //Used to for order execution on the cpu to sync with gpu
-
-  
-    //Anti-Aliasing Resources. Leave in main layer for now
-    VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;//How many times are we sampling for rasterization? reduces jagged edges
-
     RayTracer rayTracer;
-    LightSource light;
-    uint32_t currentFrame = 0;
     bool framebufferResized = false;
     int primativeCount = 0;
 
-    //Model and Mesh Manager
-    //Our sample set of vertices we are passing into the vertex buffer
-    std::vector<Mesh> meshes;
-    //Our indices we are passing into the index buffer
-    std::vector<Model> models;
     struct SwapChainSupportDetails {
         VkSurfaceCapabilitiesKHR capabilities; //What basic surface capabilities does the swap chain have?
         std::vector<VkSurfaceFormatKHR>formats; //What surface formats do we have?
@@ -127,27 +79,6 @@ private:
     //Will disable for now
     /*
     void CreateLightAndPassVarsToRayTracer() {
-        VulkanSmartDeleter vkSmartDeleter;
-        vkSmartDeleter.logicalDevice = &device;
-        vkSmartDeleter.instance = &instance;
-        //Shared Pool Setup
-        shared_descLayout = std::shared_ptr<VkDescriptorSetLayout>(&descriptorSetLayout,vkSmartDeleter);
-        shared_descSetList = std::shared_ptr<std::vector<VkDescriptorSet>>(&descriptorSets, vkSmartDeleter);
-        shared_commandPool = std::shared_ptr <VkCommandPool>(&commandPool,vkSmartDeleter);
-        shared_lightSource = std::shared_ptr<LightSource>(&light, vkSmartDeleter);
-        shared_physicalDevice = std::shared_ptr<VkPhysicalDevice>(&physicalDevice, vkSmartDeleter);
-        shared_logicalDevice = std::shared_ptr<VkDevice>(&device, vkSmartDeleter);
-        shared_surface = std::shared_ptr<VkSurfaceKHR>(&surface, vkSmartDeleter);
-        shared_graphicsQueue = std::shared_ptr<VkQueue>(&graphicsQueue,vkSmartDeleter);
-        shared_presentQueue = std::shared_ptr<VkQueue>(&presentQueue, vkSmartDeleter);
-        shared_swapchain = std::shared_ptr<VkSwapchainKHR>(&swapChain,vkSmartDeleter);
-        shared_swapChainFormat = std::shared_ptr<VkFormat>(&swapChainImageFormat, vkSmartDeleter);
-        shared_swapchainImages = std::shared_ptr<std::vector<VkImage>>(&swapChainImages, vkSmartDeleter);
-        shared_fences = std::shared_ptr<std::vector<VkFence>>(&inFlightFences, vkSmartDeleter);
-        shared_finishedSemaphores = std::shared_ptr<std::vector<VkSemaphore>>(&renderFinishedSemaphores, vkSmartDeleter);
-        shared_imageAvailableSemaphores = std::shared_ptr<std::vector<VkSemaphore>>(&imageAvailableSemaphores, vkSmartDeleter);
-        shared_currentFrame = std::shared_ptr<uint32_t>(&currentFrame,vkSmartDeleter);
-
         light.dir =  glm::normalize(glm::vec3(0, -1, 1));
         light.intensity = 1.0;
         light.pos = glm::vec3(0, 2, 2);

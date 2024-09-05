@@ -24,6 +24,9 @@ public:
 	std::vector<VkBuffer> uniformBuffers; //ubo buffer
 	std::vector<VkDeviceMemory> uniformBuffersMemory;//handle to allocated buffer memory
 	std::vector<void*> uniformBuffersMapped; //Buffer for staging
+	//Default pipeline settings
+	//Anti-Aliasing Resources. Leave in main layer for now
+	VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;//How many times are we sampling for rasterization? reduces jagged edges
 
 	//Besides the MainGraphics pipeline function, the rest should be private
 	void createMainDescriptorSets();
