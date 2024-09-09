@@ -20,6 +20,13 @@ public:
 	VkDeviceMemory materialBufferMemory; //handle to deal with memory allocated with the material buffer
 	VkBuffer materialIndexBuffer; //Index buffer to prevent bloat in material buffer
 	VkDeviceMemory materialIndexBufferMemory; //handle to deal with memory allocated with the material index buffer
+	uint32_t mipLevels; //mipsampling levels. Used for LOD 
+	VkImage textureImage; //image to hold the texture
+	VkImageView textureImageView; //Images are accessed indirectly through image views, so the texture will need one
+	VkDeviceMemory textureImageMemory; //memory allocated for the texture
+	VkSampler textureSampler;//Texture sampler for shader
+	int primativeCount = 0;
+
 	//Functions section
 	void createIndexBuffer();
 	void createVertexBuffer();
@@ -28,6 +35,7 @@ public:
 	//Add texture infomation here later
 	Texture texture;
 	//Add Delete function
+	void free();
 };
 
 

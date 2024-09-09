@@ -27,7 +27,7 @@ public:
 	//Default pipeline settings
 	//Anti-Aliasing Resources. Leave in main layer for now
 	VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;//How many times are we sampling for rasterization? reduces jagged edges
-
+	bool isDefaultPipeline = false;
 	//Besides the MainGraphics pipeline function, the rest should be private
 	void createMainDescriptorSets();
 	void createMainDescriptorPool();
@@ -39,9 +39,11 @@ public:
 	void createDefaultGraphicsPipeline();
 	void createFramebuffers();
 	void createMainUniformBuffers();
-	void recordMainPipelineCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
-
+	void updateMainUniformBuffers(uint32_t currentFrame);
+	void recordDrawCallCommandBuffer(VkCommandBuffer commandBuffer,Mesh m, uint32_t imageIndex);
+	VkSampleCountFlagBits getMaxUsableSampleCount();
 	//Add deleter
+	void free();
 };
 //Make a manager class?
 

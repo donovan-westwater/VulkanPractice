@@ -17,6 +17,8 @@ public:
 	Pipeline* referencePipeline;
 
 
+	void loadModel();
+
 };
 //Make a manager class?
 

@@ -1,7 +1,32 @@
 #pragma once
 #ifndef RESOURCE_MANAGER_H
 #define RESOURCE_MANAGER_H
-#include "common.h"
+
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
+#include <vulkan/vulkan.h>
+#include <vulkan/vulkan.hpp>
+
+
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/hash.hpp>
+
+#include <iostream>
+#include <stdexcept>
+#include <cstdlib>
+#include <vector>
+#include <optional>
+#include <set>
+#include <algorithm>
+#include <fstream>
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
+#include <chrono>
+#include <array>
+#include <unordered_map>
 #include "Pipeline.h"
 #include "Mesh.h"
 #include "Model.h"
@@ -28,8 +53,28 @@ public:
     std::shared_ptr<VkQueue> shared_presentQueue;
     std::shared_ptr<uint32_t> shared_currentFrame;
 };
+struct SwapChainSupportDetails {
+    VkSurfaceCapabilitiesKHR capabilities; //What basic surface capabilities does the swap chain have?
+    std::vector<VkSurfaceFormatKHR>formats; //What surface formats do we have?
+    std::vector<VkPresentModeKHR> presentModes; //What available presentation formats?
+};
 class ResourceManager {
 public:
+    const std::vector<const char*> deviceExtensions = {
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+        "VK_KHR_ray_tracing_pipeline",
+      "VK_KHR_acceleration_structure",
+      "VK_EXT_descriptor_indexing",
+      "VK_KHR_maintenance3",
+      "VK_KHR_buffer_device_address",
+      "VK_KHR_deferred_host_operations"
+    }; //Provides a list of required extensions for the system
+    const std::vector<const char*> validationLayers = {
+    "VK_LAYER_KHRONOS_validation",
+    "VK_LAYER_LUNARG_monitor"
+    }; //Provides a list of required validation layers for the system
+
+    bool useRayTracing = false;
 	//Game life resources
     UniversalResourcePool universalResourcePool;
     GLFWwindow* window; //Reference to the window we draw for vulkan
@@ -60,5 +105,64 @@ public:
 	//Might move materials to be managed here rather than managed by mesh
 
     void InitUniversalResourcePool();
+
+    void createImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
+
+    VkCommandBuffer beginSingleTimeCommands();
+
+
+    void endSingleTimeCommands(VkCommandBuffer commandBuffer);
+
+    uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+
+    void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory, bool rayTracingMemAlloc);
+
+    void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+
+    VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlag, uint32_t mipLevels);
+
+    void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels);
+
+    void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+
+    VkFormat findDepthFormat();
+
+    VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
+
+    void createSyncObjects();
+
+    void createCommandBuffers();
+
+    void createCommandPool();
+
+    void createImageViews();
+
+    void cleanupSwapChain();
+
+    void recreateSwapChain();
+
+    void createSwapChain();
+
+    void createSurface();
+
+    void createLogicalDevice();
+
+    void pickPhysicalDevice();
+
+    bool isDeviceSuitable(VkPhysicalDevice device);
+
+    bool checkDeviceExtensionSupport(VkPhysicalDevice device);
+
+    QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
+
+    SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
+
+    VkSurfaceFormatKHR chooseSwapChainSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
+
+    VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
+
+    VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+
+    void resourceCleanUp();
 };
 #endif

@@ -10,7 +10,7 @@ void Pipeline::createMainDescriptorSets() {
     allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
     allocInfo.pSetLayouts = layouts.data();
     descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
-    if (vkAllocateDescriptorSets(device, &allocInfo, descriptorSets.data()) != VK_SUCCESS) {
+    if (vkAllocateDescriptorSets(resourceManager.device, &allocInfo, descriptorSets.data()) != VK_SUCCESS) {
         throw std::runtime_error("failed to allocate descriptor sets!");
     }
     //Configure the sets and pass them to sets
@@ -22,8 +22,8 @@ void Pipeline::createMainDescriptorSets() {
 
         VkDescriptorImageInfo imageInfo{};
         imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        imageInfo.imageView = textureImageView;
-        imageInfo.sampler = textureSampler;
+        imageInfo.imageView = resourceManager.pipelineList[0].textureImageView;
+        imageInfo.sampler = resourceManager.pipelineList[0].textureSampler;
 
         std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
 
@@ -43,7 +43,7 @@ void Pipeline::createMainDescriptorSets() {
         descriptorWrites[1].descriptorCount = 1;
         descriptorWrites[1].pImageInfo = &imageInfo;
 
-        vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data()
+        vkUpdateDescriptorSets(resourceManager.device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data()
             , 0, nullptr);
     }
 
@@ -61,7 +61,7 @@ void Pipeline::createMainDescriptorPool() {
     poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
     poolInfo.pPoolSizes = poolSizes.data();
     poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
-    if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
+    if (vkCreateDescriptorPool(resourceManager.device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
         throw std::runtime_error("failed to create descriptor pool!");
     }
 }
@@ -74,14 +74,14 @@ void Pipeline::createMainUniformBuffers() {
     uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
     //Create buffers for the frames that are being worked on in parallel
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i]
+        resourceManager.createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i]
             , true);
 #ifndef NDEBUG
-        setDebugObjectName(device, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(uniformBuffers[i]), "Uniform Buffer Object " + i);
+        setDebugObjectName(resourceManager.device, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(uniformBuffers[i]), "Uniform Buffer Object " + i);
 #endif
         //We dont want to remap memory all the time since mem mapping is costly
         //Having the buffers mapped this way means we can update whenever we want!
-        vkMapMemory(device, uniformBuffersMemory[i], 0, bufferSize, 0, &uniformBuffersMapped[i]);
+        vkMapMemory(resourceManager.device, uniformBuffersMemory[i], 0, bufferSize, 0, &uniformBuffersMapped[i]);
 
     }
 
@@ -110,7 +110,7 @@ void Pipeline::createMainDescriptorSetLayout() {
     layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
     layoutInfo.pBindings = bindings.data(); //Array of bindings
 
-    if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
+    if (vkCreateDescriptorSetLayout(resourceManager.device, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create descriptor set layout!");
     }
 
@@ -120,7 +120,7 @@ void Pipeline::createMainDescriptorSetLayout() {
     //How many samples to use for each of the them, and how their contents should be handled throughout rendering process
 void Pipeline::createMainRenderPass() {
     VkAttachmentDescription colorAttachment{};
-    colorAttachment.format = swapChainImageFormat; //should match format of swapchain
+    colorAttachment.format = resourceManager.swapChainImageFormat; //should match format of swapchain
     colorAttachment.samples = msaaSamples; //multisampling
     colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR; //Should clear before renderig
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE; //should store after rendering
@@ -132,7 +132,7 @@ void Pipeline::createMainRenderPass() {
     colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL; //Images to be presented in the swap chain
     //Create a second description for color becuase we need to go over the image again to resolve the multiple samples
     VkAttachmentDescription colorAttachmentResolve{};
-    colorAttachmentResolve.format = swapChainImageFormat;
+    colorAttachmentResolve.format = resourceManager.swapChainImageFormat;
     colorAttachmentResolve.samples = VK_SAMPLE_COUNT_1_BIT;
     colorAttachmentResolve.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     colorAttachmentResolve.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -154,7 +154,7 @@ void Pipeline::createMainRenderPass() {
 
     //Depth Testing
     VkAttachmentDescription depthAttachment{};
-    depthAttachment.format = findDepthFormat();
+    depthAttachment.format = resourceManager.findDepthFormat();
     depthAttachment.samples = msaaSamples;
     depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -194,7 +194,7 @@ void Pipeline::createMainRenderPass() {
     renderPassInfo.dependencyCount = 1;
     renderPassInfo.pDependencies = &dependency;
 
-    if (vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
+    if (vkCreateRenderPass(resourceManager.device, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
         throw std::runtime_error("failed to create render pass!");
     }
 
@@ -202,49 +202,54 @@ void Pipeline::createMainRenderPass() {
 //Move to pipeline?
 //Create the resources for the color buffer used for multisampling
 void Pipeline::createColorResources() {
-    VkFormat colorFormat = swapChainImageFormat;
+    VkFormat colorFormat = resourceManager.swapChainImageFormat;
 
-    createImage(swapChainExtent.width, swapChainExtent.height, 1, msaaSamples, colorFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, colorImage, colorImageMemory);
-    colorImageView = createImageView(colorImage, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+    resourceManager.createImage(resourceManager.swapChainExtent.width, resourceManager.swapChainExtent.height, 1, msaaSamples, colorFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, colorImage, colorImageMemory);
+    colorImageView = resourceManager.createImageView(colorImage, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
 }
 //Move to pipeline?
 //create the resources for depth testing
 void Pipeline::createDepthResources() {
-    VkFormat depthFormat = findDepthFormat();
-    createImage(swapChainExtent.width, swapChainExtent.height, 1, msaaSamples, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage, depthImageMemory);
-    depthImageView = createImageView(depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
+    VkFormat depthFormat = resourceManager.findDepthFormat();
+    resourceManager.createImage(resourceManager.swapChainExtent.width, resourceManager.swapChainExtent.height, 1, msaaSamples, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage, depthImageMemory);
+    depthImageView = resourceManager.createImageView(depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
     //I want to keep the transition explicit even though it isn't nesseary
-    transitionImageLayout(depthImage, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED
+    resourceManager.transitionImageLayout(depthImage, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED
         , VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, 1);
 
 }
 //Pipeline specific, move to pipeline
     //Create framebuffers for drawing images
 void Pipeline::createFramebuffers() {
-    swapChainFramebuffers.resize(swapChainImageViews.size());
+    resourceManager.swapChainFramebuffers.resize(resourceManager.swapChainImageViews.size());
     //Iterate through images view and frame frame buffers from them
-    for (size_t i = 0; i < swapChainImageViews.size(); i++) {
+    for (size_t i = 0; i < resourceManager.swapChainImageViews.size(); i++) {
         std::array<VkImageView, 3> attachments = {
             colorImageView,
             depthImageView,
-            swapChainImageViews[i]
+            resourceManager.swapChainImageViews[i]
         };
         VkFramebufferCreateInfo framebufferInfo{};
         framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
         framebufferInfo.renderPass = renderPass;
         framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
         framebufferInfo.pAttachments = attachments.data();
-        framebufferInfo.width = swapChainExtent.width;
-        framebufferInfo.height = swapChainExtent.height;
+        framebufferInfo.width = resourceManager.swapChainExtent.width;
+        framebufferInfo.height = resourceManager.swapChainExtent.height;
         framebufferInfo.layers = 1;
 
-        if (vkCreateFramebuffer(device, &framebufferInfo, nullptr, &swapChainFramebuffers[i]) != VK_SUCCESS) {
+        if (vkCreateFramebuffer(resourceManager.device, &framebufferInfo, nullptr, &resourceManager.swapChainFramebuffers[i]) != VK_SUCCESS) {
             throw std::runtime_error("failed to create framebuffer!");
         }
     }
 }
 //Move to Pipeline, maybe even as a static function?
 void Pipeline::createDefaultGraphicsPipeline() {
+    isDefaultPipeline = true;
+    if (resourceManager.pipelineList.size() < 1) {
+        VkPipeline defaultPipe;
+        resourceManager.pipelineList.push_back(defaultPipe);
+    }
     auto vertShaderCode = readFile("shaders/vert.spv");
     auto fragShaderCode = readFile("shaders/frag.spv");
 
@@ -378,7 +383,7 @@ void Pipeline::createDefaultGraphicsPipeline() {
     //pipelineLayoutInfo.pushConstantRangeCount = 0; // Optional
     //pipelineLayoutInfo.pPushConstantRanges = nullptr; // Optional
 
-    if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
+    if (vkCreatePipelineLayout(resourceManager.device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create pipeline layout!");
     }
     VkGraphicsPipelineCreateInfo pipelineInfo{};
@@ -401,11 +406,11 @@ void Pipeline::createDefaultGraphicsPipeline() {
     //Can create a new graphics pipeline from an existing pipeline
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
     //pipelineInfo.basePipelineIndex = -1; // Optional
-    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
+    if (vkCreateGraphicsPipelines(resourceManager.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &resourceManager.pipelineList[0]) != VK_SUCCESS) {
         throw std::runtime_error("failed to create graphics pipeline!");
     }
-    vkDestroyShaderModule(device, fragShaderModule, nullptr);
-    vkDestroyShaderModule(device, vertShaderModule, nullptr);
+    vkDestroyShaderModule(resourceManager.device, fragShaderModule, nullptr);
+    vkDestroyShaderModule(resourceManager.device, vertShaderModule, nullptr);
 }
 //Move to Pipeline
 //Module to handle shader programs compiled into the vulkan byte code
@@ -415,13 +420,13 @@ VkShaderModule Pipeline::createShaderModule(const std::vector<char>& code) {
     createInfo.codeSize = code.size();
     createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data()); //The bytecode pointer is a uint32 and not a char, hence the cast
     VkShaderModule shaderModule;
-    if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
+    if (vkCreateShaderModule(resourceManager.device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
         throw std::runtime_error("failed to create shader module!");
     }
     return shaderModule; //A thin wrapper around the byte code. Compliation + linking occurs at graphics pipeline time
 }
 //Only makes sense in main pipeline - Move this there
-void Pipeline::recordMainPipelineCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
+void Pipeline::recordDrawCallCommandBuffer(VkCommandBuffer commandBuffer,Mesh m, uint32_t imageIndex) {
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = 0; // Optional Controls how command buffer will be used
@@ -437,9 +442,9 @@ void Pipeline::recordMainPipelineCommandBuffer(VkCommandBuffer commandBuffer, ui
     VkRenderPassBeginInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     renderPassInfo.renderPass = renderPass;
-    renderPassInfo.framebuffer = swapChainFramebuffers[imageIndex];
+    renderPassInfo.framebuffer = resourceManager.swapChainFramebuffers[imageIndex];
     renderPassInfo.renderArea.offset = { 0, 0 };
-    renderPassInfo.renderArea.extent = swapChainExtent;
+    renderPassInfo.renderArea.extent = resourceManager.swapChainExtent;
     //Clear the depth buffer
     std::array<VkClearValue, 2> clearValues{};
     clearValues[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };
@@ -449,33 +454,94 @@ void Pipeline::recordMainPipelineCommandBuffer(VkCommandBuffer commandBuffer, ui
     renderPassInfo.pClearValues = clearValues.data();
     vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
     //Bind the commandBuffer to the pipeline
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, resourceManager.pipelineList[0]);
 
     //Setup the viewport and scissors state
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
-    viewport.width = static_cast<float>(swapChainExtent.width);
-    viewport.height = static_cast<float>(swapChainExtent.height);
+    viewport.width = static_cast<float>(resourceManager.swapChainExtent.width);
+    viewport.height = static_cast<float>(resourceManager.swapChainExtent.height);
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
     vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 
     VkRect2D scissor{};
     scissor.offset = { 0, 0 };
-    scissor.extent = swapChainExtent;
+    scissor.extent = resourceManager.swapChainExtent;
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
     //Assign the vertex buffer to the command buffer
-    VkBuffer vertexBuffers[] = { vertexBuffer };
+    VkBuffer vertexBuffers[] = { m.vertexBuffer };
     VkDeviceSize offsets[] = { 0 };
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-    vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+    vkCmdBindIndexBuffer(commandBuffer, m.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
     //Update descriptor sets
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[resourceManager.currentFrame], 0, nullptr);
     //The actual draw call!
-    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(m.indices.size()), 1, 0, 0, 0);
     vkCmdEndRenderPass(commandBuffer);
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
         throw std::runtime_error("failed to record command buffer!");
     }
+}
+
+//Move to pipleine and rename to updateMainUniformBuffers
+void Pipeline::updateMainUniformBuffers(uint32_t currentFrame) {
+    if (!isDefaultPipeline) return;
+    //Using chrono to keep track of time independent of framerate
+    static auto startTime = std::chrono::high_resolution_clock::now();
+
+    auto currentTime = std::chrono::high_resolution_clock::now();
+    float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+    UniformBufferObject ubo{};
+    //We create an indentity matrix and rotate based on the time
+    ubo.model = glm::mat4(0.25f);
+    ubo.model[3][3] = 1.0f;
+    ubo.model[3][2] = -1.0f;
+    ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.model = glm::rotate(ubo.model, time * glm::radians(10.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    //Create a camera matrix at pos 2,2,2 look at 0 0 0, with up being Z
+    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    //Create a perspective based projection matrix for our camera
+    ubo.proj = glm::perspective(glm::radians(45.0f), resourceManager.swapChainExtent.width / (float)resourceManager.swapChainExtent.height, 0.1f, 10.0f);
+    ubo.proj[1][1] *= -1; //Y-coord for clip coords is inverted. This fixes that (GLM designed for openGL)
+    //ubo.colorAdd = glm::vec4(abs(cos(time)), abs(sin(time)), abs(tan(time)), 1);
+    memcpy(uniformBuffersMapped[currentFrame], &ubo, sizeof(ubo));
+}
+
+//Figure out how many samples we can do with our device safely
+   //takes in both color buffer and depth buffers into account
+VkSampleCountFlagBits Pipeline::getMaxUsableSampleCount() {
+    VkPhysicalDeviceProperties physicalDeviceProperties;
+    vkGetPhysicalDeviceProperties(resourceManager.physicalDevice, &physicalDeviceProperties);
+
+    VkSampleCountFlags counts = physicalDeviceProperties.limits.framebufferColorSampleCounts & physicalDeviceProperties.limits.framebufferDepthSampleCounts;
+    if (counts & VK_SAMPLE_COUNT_64_BIT) { return VK_SAMPLE_COUNT_64_BIT; }
+    if (counts & VK_SAMPLE_COUNT_32_BIT) { return VK_SAMPLE_COUNT_32_BIT; }
+    if (counts & VK_SAMPLE_COUNT_16_BIT) { return VK_SAMPLE_COUNT_16_BIT; }
+    if (counts & VK_SAMPLE_COUNT_8_BIT) { return VK_SAMPLE_COUNT_8_BIT; }
+    if (counts & VK_SAMPLE_COUNT_4_BIT) { return VK_SAMPLE_COUNT_4_BIT; }
+    if (counts & VK_SAMPLE_COUNT_2_BIT) { return VK_SAMPLE_COUNT_2_BIT; }
+
+    return VK_SAMPLE_COUNT_1_BIT;
+}
+void Pipeline::free() {
+    //Former Swapchain function cleanup
+//free color buffer
+    vkDestroyImageView(resourceManager.device, colorImageView, nullptr);
+    vkDestroyImage(resourceManager.device, colorImage, nullptr);
+    vkFreeMemory(resourceManager.device, colorImageMemory, nullptr);
+    //Free depth buffer
+    vkDestroyImageView(resourceManager.device, depthImageView, nullptr);
+    vkDestroyImage(resourceManager.device, depthImage, nullptr);
+    vkFreeMemory(resourceManager.device, depthImageMemory, nullptr);
+
+    //End of Swap Chain resource Cleanup
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        vkDestroyBuffer(resourceManager.device, uniformBuffers[i], nullptr);
+        vkFreeMemory(resourceManager.device, uniformBuffersMemory[i], nullptr);
+    }
+    if (!isDefaultPipeline) vkDestroyDescriptorSetLayout(resourceManager.device, descriptorSetLayout, nullptr);
+    vkDestroyDescriptorPool(resourceManager.device, descriptorPool, nullptr);
 }

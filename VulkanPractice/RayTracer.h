@@ -110,6 +110,14 @@ public:
 
 		return buffer;
 	}
+	static VkMemoryAllocateFlagsInfo getDefaultAllocationFlags() {
+		VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo;
+		memoryAllocateFlagsInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
+			memoryAllocateFlagsInfo.pNext = NULL,
+			memoryAllocateFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT,
+			memoryAllocateFlagsInfo.deviceMask = 0;
+		return memoryAllocateFlagsInfo;
+	}
 
 	void rayTrace(VkCommandBuffer& cmdBuf, std::vector<void*>& uniBufferMMap, glm::vec4 clearColor);
 

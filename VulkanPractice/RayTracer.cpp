@@ -1,15 +1,6 @@
 #include "RayTracer.h"
 
-//Using the following link as a referencce: https://github.com/WilliamLewww/vulkan_ray_tracing_minimal_abstraction/blob/master/ray_pipeline/src/main.cpp
-
-	VkMemoryAllocateFlagsInfo RayTracer::getDefaultAllocationFlags() {
-		VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo;
-			memoryAllocateFlagsInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
-			memoryAllocateFlagsInfo.pNext = NULL,
-			memoryAllocateFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT,
-			memoryAllocateFlagsInfo.deviceMask = 0;
-		return memoryAllocateFlagsInfo;
-	}
+//Using the following link as a referencce: https://github.com/WilliamLewww/vulkan_ray_tracing_minimal_abstraction/blob/master/ray_pipeline/src/main.cpp	
 	//GO THROUGH EVERYTHING AND MAKE SURE SCRATCH BUFFERS ARE FREED!!!!
 	void RayTracer::setupRayTracer(VkBuffer& vertexBuffer, VkBuffer& indexBuffer, uint32_t nOfVerts
 	, VkBuffer& materialBuffer, VkBuffer& materialIndexBuffer) {
