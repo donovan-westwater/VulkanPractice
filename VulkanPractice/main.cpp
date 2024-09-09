@@ -24,12 +24,6 @@ private:
     const uint32_t WIDTH = 800;
     const uint32_t HEIGHT = 600;
     
-    
-#ifdef NDEBUG
-    const bool enableValidationLayers = false;
-#else
-    const bool enableValidationLayers = true;
-#endif
     RayTracer rayTracer;
     bool framebufferResized = false;
 
@@ -183,41 +177,7 @@ private:
         //These are manditory for all graphics pipelines
         createInstance();
         setupDebugMessenger();
-        createSurface();
-        pickPhysicalDevice();
-        createLogicalDevice();
-        createSwapChain();
-        createImageViews();
-        createRenderPass();
-        createDescriptorSetLayout();
-        //This is where you would start to make pipelines for different shaders 
-        createGraphicsPipeline();
-        //create command pool for command buffers
-        createCommandPool();
-        //Create color buffer
-        createColorResources();
-        //Create depth buffer
-        createDepthResources();
-        //Create framebuffers to draw the actual images with
-        createFramebuffers();
-        //TEXTURE LOADING WAS HERE
-        //Load in the model
-        loadModel();
-        //Create vertex buffer for vertex shader
-        createVertexBuffer();
-        //Create index buffer for vertex shader
-        createIndexBuffer();
-        // Create material Buffer
-        createMaterialBuffer();
-        createMaterialIndexBuffer();
-        //create ubo buffer
-        createUniformBuffers();
-        createDescriptorPool();
-        createDescriptorSets();
-        createCommandBuffers();
-        //Raytracing pipeline section
-
-        createSyncObjects(); //create objects for syncing cpu with gpu
+        resourceManager.initVulkan();
     }
 
     

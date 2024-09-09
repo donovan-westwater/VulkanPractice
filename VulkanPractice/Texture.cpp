@@ -175,3 +175,9 @@ void Texture::generateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWi
         1, &barrier);
     endSingleTimeCommands(commandBuffer);
 }
+void Texture::free() {
+    vkDestroySampler(resourceManager.device, textureSampler, nullptr);
+    vkDestroyImageView(resourceManager.device, textureImageView, nullptr);
+    vkDestroyImage(resourceManager.device, textureImage, nullptr);
+    vkFreeMemory(resourceManager.device, textureImageMemory, nullptr);
+}

@@ -73,7 +73,11 @@ public:
     "VK_LAYER_KHRONOS_validation",
     "VK_LAYER_LUNARG_monitor"
     }; //Provides a list of required validation layers for the system
-
+#ifdef NDEBUG
+    const bool enableValidationLayers = false;
+#else
+    const bool enableValidationLayers = true;
+#endif
     bool useRayTracing = false;
 	//Game life resources
     UniversalResourcePool universalResourcePool;
@@ -104,7 +108,9 @@ public:
     std::vector<LightSource> lightList;
 	//Might move materials to be managed here rather than managed by mesh
 
-    void InitUniversalResourcePool();
+    void initUniversalResourcePool();
+
+    void initVulkan();
 
     void createImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
 
