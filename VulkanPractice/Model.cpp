@@ -3,16 +3,15 @@
 //Load Model should go here!
 
     //This is more like a resource function. Move it to a resource manager when that is made
-void Model::loadModel() {
+void Model::loadModel(std::string modelPath, std::string materialPath,std::string texturePath) {
     tinyobj::attrib_t attrib; //Contains positions normals texture coords
     std::vector<tinyobj::shape_t> shapes; //seperate objects and faces
     std::vector<tinyobj::material_t> localMaterials;
     std::string warn, err;
-    Model model;
     Mesh modelMesh;
-    model.referenceMesh = &modelMesh;
-    model.referencePipeline = &resourceManager.pipelineList[0];
-    if (!tinyobj::LoadObj(&attrib, &shapes, &localMaterials, &warn, &err, MODEL_PATH.c_str(), MATERIALS_PATH.c_str())) {
+    referenceMesh = &modelMesh;
+    referencePipeline = &resourceManager.pipelineList[0];
+    if (!tinyobj::LoadObj(&attrib, &shapes, &localMaterials, &warn, &err, modelPath.c_str(), materialPath.c_str())) {
         throw std::runtime_error(warn + err);
     }
     std::unordered_map<Vertex, uint32_t> uniqueVertices{};
@@ -81,9 +80,22 @@ void Model::loadModel() {
         if (clampedShininess > 1.0) clampedShininess = 1.0;
         m.specular.a = clampedShininess;
         m.emission = float3ToVec4(localMaterials[x].emission);
+        referenceMaterial = &m;
+        referenceMaterialIndex = modelMesh.materials.size();
         modelMesh.materials.push_back(m);
     }
 
+    referenceMeshIndex = resourceManager.meshList.size();
     resourceManager.meshList.push_back(modelMesh);
-    resourceManager.modelList.push_back(model);
+    resourceManager.modelList.push_back(this);
+    //Load Texture
+    Texture texture;
+    texture.loadTexture(texturePath, resourceManager.device, resourceManager.physicalDevice);
+    referenceTexture = &texture;
+    resourceManager.textureList.push_back(texture);
+    //Create Buffers
+    modelMesh.createVertexBuffer();
+    modelMesh.createIndexBuffer();
+    modelMesh.createMaterialBuffer();
+    modelMesh.createMaterialIndexBuffer();
 }

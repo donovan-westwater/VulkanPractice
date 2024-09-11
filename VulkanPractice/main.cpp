@@ -107,7 +107,7 @@ private:
 
         std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
 
-        if (enableValidationLayers) {
+        if (resourceManager.enableValidationLayers) {
             extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
         }
 
@@ -127,7 +127,7 @@ private:
     //stays in main
     //Fills in the instance struct with relevant infomation
     void createInstance() {
-        if (enableValidationLayers && !checkValidationLayerSupport()) {
+        if (resourceManager.enableValidationLayers && !checkValidationLayerSupport()) {
             throw std::runtime_error("validation layers requested, but not available!");
         }
         //Optional infomation struct that is helpful to fill out
@@ -155,7 +155,7 @@ private:
         //Create debug messenger for the instance creation spefically as the other debug system will be created after / destoried
         //before the device instance is created or destoried
         VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
-        if (enableValidationLayers) {
+        if (resourceManager.enableValidationLayers) {
             createInfo.enabledLayerCount = static_cast<uint32_t>(resourceManager.validationLayers.size());
             createInfo.ppEnabledLayerNames = resourceManager.validationLayers.data();
 
@@ -208,7 +208,7 @@ private:
     }
     //stay in main
     void setupDebugMessenger() {
-        if (!enableValidationLayers) return;
+        if (!resourceManager.enableValidationLayers) return;
         VkDebugUtilsMessengerCreateInfoEXT createInfo;
         populateDebugMessengerCreateInfo(createInfo);
 
@@ -329,6 +329,9 @@ private:
         }
         rayTracer.cleanup();
         resourceManager.resourceCleanUp();
+        if (resourceManager.enableValidationLayers) {
+            DestroyDebugUtilsMessengerEXT(resourceManager.instance, resourceManager.debugMessenger, nullptr);
+        }
     }
 };
 

@@ -7,6 +7,7 @@
 class Texture {
 public :
     //Texture Resources
+    std::string path;
     uint32_t mipLevels; //mipsampling levels. Used for LOD 
     VkImage textureImage; //image to hold the texture
     VkImageView textureImageView; //Images are accessed indirectly through image views, so the texture will need one

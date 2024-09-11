@@ -114,7 +114,6 @@ void Mesh::createMaterialBuffer() {
 }
 
 void Mesh::free() {
-    texture.free();
     vkDestroyBuffer(resourceManager.device, indexBuffer, nullptr);
     vkFreeMemory(resourceManager.device, indexBufferMemory, nullptr);
 

@@ -103,6 +103,7 @@ public:
     std::vector<Pipeline> pipelineList; //Index 0 is the default rasterization pipeline!
     uint32_t currentFrame;
     //Object life resources
+    std::vector<Texture> textureList;
 	std::vector<Mesh> meshList;
 	std::vector<Model> modelList;
     std::vector<LightSource> lightList;

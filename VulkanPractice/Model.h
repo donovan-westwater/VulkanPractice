@@ -4,7 +4,6 @@
 #include "common.h"
 #include "Pipeline.h"
 #include "Mesh.h"
-
 //Make a manager class?
 class Model
 {
@@ -15,9 +14,9 @@ public:
 	Material* referenceMaterial;
 	uint32_t referenceMaterialIndex;
 	Pipeline* referencePipeline;
+	Texture* referenceTexture;
 
-
-	void loadModel();
+	void loadModel(std::string modelPath, std::string materialPath, std::string texturePath);
 
 };
 //Make a manager class?
