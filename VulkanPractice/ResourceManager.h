@@ -1,32 +1,7 @@
 #pragma once
 #ifndef RESOURCE_MANAGER_H
 #define RESOURCE_MANAGER_H
-
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-#include <vulkan/vulkan.h>
-#include <vulkan/vulkan.hpp>
-
-
-#define GLM_ENABLE_EXPERIMENTAL
-#include <glm/gtx/hash.hpp>
-
-#include <iostream>
-#include <stdexcept>
-#include <cstdlib>
-#include <vector>
-#include <optional>
-#include <set>
-#include <algorithm>
-#include <fstream>
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-
-#include <chrono>
-#include <array>
-#include <unordered_map>
+#include "common.h"
 #include "Pipeline.h"
 #include "Mesh.h"
 #include "Model.h"
@@ -132,6 +107,10 @@ public:
 
     void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 
+    static bool hasStencilComponent(VkFormat format) {
+        return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
+    }
+
     VkFormat findDepthFormat();
 
     VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
@@ -172,4 +151,6 @@ public:
 
     void resourceCleanUp();
 };
+
+static ResourceManager resourceManager;
 #endif

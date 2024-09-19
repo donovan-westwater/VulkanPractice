@@ -1,10 +1,33 @@
 #pragma once
 #ifndef COMMON_H
 #define COMMON_H
-//All of the includes we wanted are already handled by the ResourceHeader
-#include "ResourceManager.h"
 
-static ResourceManager resourceManager;
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
+#include <vulkan/vulkan.h>
+#include <vulkan/vulkan.hpp>
+
+
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/hash.hpp>
+
+#include <iostream>
+#include <stdexcept>
+#include <cstdlib>
+#include <vector>
+#include <optional>
+#include <set>
+#include <algorithm>
+#include <fstream>
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
+#include <chrono>
+#include <array>
+#include <unordered_map>
+//All of the includes we wanted are already handled by the ResourceHeader
 const int MAX_FRAMES_IN_FLIGHT = 2; //The amount of frames that can be processed concurrently
 const std::string MODEL_PATH = "Models/CornellBox-Original.obj";//"Models/CrappyCornellBox_TriVersion.obj";//"Models/Guilmon.obj";
 const std::string TEXTURE_PATH = "Textures/TestTex.png";

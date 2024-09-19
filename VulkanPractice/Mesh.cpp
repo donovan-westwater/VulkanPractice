@@ -1,3 +1,5 @@
+#include "common.h"
+#include "ResourceManager.h"
 #include "Mesh.h"
 
 void Mesh::createIndexBuffer() {

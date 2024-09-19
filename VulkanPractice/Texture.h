@@ -4,6 +4,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #include "common.h"
+#include "ResourceManager.h"
 class Texture {
 public :
     //Texture Resources

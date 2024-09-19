@@ -1,3 +1,5 @@
+#include "common.h"
+#include "ResourceManager.h"
 #include "Texture.h"
 
 // Load in an image using a texture

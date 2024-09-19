@@ -167,6 +167,7 @@
     <ClCompile Include="Pipeline.cpp" />
     <ClCompile Include="RayTracer.cpp" />
     <ClCompile Include="ResourceManager.cpp" />
+    <ClCompile Include="TestMain-CompilerDebugging.cpp" />
     <ClCompile Include="Texture.cpp" />
   </ItemGroup>
   <ItemGroup>

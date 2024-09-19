@@ -2,6 +2,7 @@
 #ifndef MESH_H
 #define MESH_H
 #include "common.h"
+#include "ResourceManager.h"
 #include "Texture.h"
 //Move into its own header and make a class for manager
 class Mesh {

@@ -2,6 +2,7 @@
 #ifndef CAMERA_H
 #define CAMERA_H
 #include "common.h"
+#include "ResourceManager.h"
 class Camera {
 public:
 	glm::mat4x4 view;

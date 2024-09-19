@@ -1,5 +1,9 @@
-#include "Model.h"
 #include <tiny_obj_loader.h>
+#include "common.h"
+#include "ResourceManager.h"
+#include "Pipeline.h"
+#include "Mesh.h"
+#include "Model.h"
 //Load Model should go here!
 
     //This is more like a resource function. Move it to a resource manager when that is made
@@ -87,7 +91,7 @@ void Model::loadModel(std::string modelPath, std::string materialPath,std::strin
 
     referenceMeshIndex = resourceManager.meshList.size();
     resourceManager.meshList.push_back(modelMesh);
-    resourceManager.modelList.push_back(this);
+    resourceManager.modelList.push_back(*this);
     //Load Texture
     Texture texture;
     texture.loadTexture(texturePath, resourceManager.device, resourceManager.physicalDevice);

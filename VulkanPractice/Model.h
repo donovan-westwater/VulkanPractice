@@ -2,6 +2,7 @@
 #ifndef MODEL_H
 #define MODEL_H
 #include "common.h"
+#include "ResourceManager.h"
 #include "Pipeline.h"
 #include "Mesh.h"
 //Make a manager class?

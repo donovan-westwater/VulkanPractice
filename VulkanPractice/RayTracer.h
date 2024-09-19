@@ -2,6 +2,7 @@
 #ifndef RAYTRACER_H
 #define RAYTRACER_H
 #include "common.h"
+#include "ResourceManager.h"
 class RayTracer {
 	const int MAX_FRAMES_IN_FLIGHT = 2; //The amount of frames that can be processed concurrently
 	std::vector<VkRayTracingShaderGroupCreateInfoKHR> raytracingShaderGroups;
@@ -89,7 +90,7 @@ public:
 
 	PFN_vkCmdTraceRaysKHR pvkCmdTraceRaysKHR;
 
-	VkMemoryAllocateFlagsInfo getDefaultAllocationFlags();
+	//VkMemoryAllocateFlagsInfo getDefaultAllocationFlags();
 
 	void createRayTracerImageAndImageView();
 

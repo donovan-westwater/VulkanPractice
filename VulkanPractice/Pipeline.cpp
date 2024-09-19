@@ -1,4 +1,7 @@
+#include "common.h"
+#include "ResourceManager.h"
 #include "Pipeline.h"
+#include "Texture.h"
 
 //Create the descriptor sets
 void Pipeline::createMainDescriptorSets() {
@@ -247,8 +250,7 @@ void Pipeline::createFramebuffers() {
 void Pipeline::createDefaultGraphicsPipeline() {
     isDefaultPipeline = true;
     if (resourceManager.pipelineList.size() < 1) {
-        VkPipeline defaultPipe;
-        resourceManager.pipelineList.push_back(defaultPipe);
+        resourceManager.pipelineList.push_back(*this);
     }
     auto vertShaderCode = readFile("shaders/vert.spv");
     auto fragShaderCode = readFile("shaders/frag.spv");
@@ -406,7 +408,7 @@ void Pipeline::createDefaultGraphicsPipeline() {
     //Can create a new graphics pipeline from an existing pipeline
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
     //pipelineInfo.basePipelineIndex = -1; // Optional
-    if (vkCreateGraphicsPipelines(resourceManager.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &resourceManager.pipelineList[0]) != VK_SUCCESS) {
+    if (vkCreateGraphicsPipelines(resourceManager.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &resourceManager.pipelineList[0].pipeline) != VK_SUCCESS) {
         throw std::runtime_error("failed to create graphics pipeline!");
     }
     vkDestroyShaderModule(resourceManager.device, fragShaderModule, nullptr);
@@ -454,7 +456,7 @@ void Pipeline::recordDrawCallCommandBuffer(VkCommandBuffer commandBuffer,Mesh m,
     renderPassInfo.pClearValues = clearValues.data();
     vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
     //Bind the commandBuffer to the pipeline
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, resourceManager.pipelineList[0]);
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, resourceManager.pipelineList[0].pipeline);
 
     //Setup the viewport and scissors state
     VkViewport viewport{};
