@@ -1,8 +1,6 @@
 #pragma once
 #ifndef TEXTURE_H
 #define TEXTURE_H
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
 #include "common.h"
 #include "ResourceManager.h"
 class Texture {

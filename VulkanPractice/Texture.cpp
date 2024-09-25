@@ -1,3 +1,5 @@
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 #include "common.h"
 #include "ResourceManager.h"
 #include "Texture.h"
