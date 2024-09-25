@@ -24,7 +24,7 @@ public:
     std::shared_ptr<std::vector<VkSemaphore>> shared_imageAvailableSemaphores;
     std::shared_ptr<std::vector<VkSemaphore>> shared_finishedSemaphores;
     std::shared_ptr<VkDescriptorSetLayout> shared_defaultDescSetLayout;
-    std::shared_ptr<VkDescriptorSetLayout> shared_defaultDescSetList;
+    std::shared_ptr<std::vector<VkDescriptorSet>> shared_defaultDescSetList;
     std::shared_ptr<VkQueue> shared_presentQueue;
     std::shared_ptr<uint32_t> shared_currentFrame;
 };
@@ -78,6 +78,7 @@ public:
     std::vector<Pipeline> pipelineList; //Index 0 is the default rasterization pipeline!
     uint32_t currentFrame;
     //Object life resources
+    const uint32_t maxModelCount = 10;
     std::vector<Texture> textureList;
 	std::vector<Mesh> meshList;
 	std::vector<Model> modelList;
