@@ -480,7 +480,7 @@ void Pipeline::recordDrawCallCommandBuffer(VkCommandBuffer commandBuffer,Mesh m,
     VkDeviceSize offsets[] = { 0 };
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
     vkCmdBindIndexBuffer(commandBuffer, m.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    //Update descriptor sets
+    //Update descriptor sets -- This hasnt been updated. It will not bind the correct desc. FIX LATER!
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[ResourceManager::manager->currentFrame], 0, nullptr);
     //The actual draw call!
     vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(m.indices.size()), 1, 0, 0, 0);
