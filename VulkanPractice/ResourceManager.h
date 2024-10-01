@@ -55,6 +55,7 @@ public:
 #endif
     bool useRayTracing = false;
 	//Game life resources
+    inline static ResourceManager *manager;
     UniversalResourcePool universalResourcePool;
     GLFWwindow* window; //Reference to the window we draw for vulkan
     VkInstance instance; //An instance is the connection between the app and the vulkan lib
@@ -156,6 +157,4 @@ public:
 
     void resourceCleanUp();
 };
-
-static ResourceManager resourceManager;
 #endif

@@ -25,7 +25,7 @@ void Texture::createTextureImage(std::string texturePath, VkDevice& device) {
     //Create temporary staging buffer for loading texturs
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
-    resourceManager.createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory,
+    ResourceManager::manager->createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory,
         false);
     //Transfer image to staging buffer
     void* data;
@@ -33,14 +33,14 @@ void Texture::createTextureImage(std::string texturePath, VkDevice& device) {
     memcpy(data, pixels, static_cast<size_t>(imageSize));
     vkUnmapMemory(device, stagingBufferMemory);
     stbi_image_free(pixels);
-    resourceManager.createImage(texWidth, texHeight, mipLevels, VK_SAMPLE_COUNT_1_BIT, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL
+    ResourceManager::manager->createImage(texWidth, texHeight, mipLevels, VK_SAMPLE_COUNT_1_BIT, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL
         , VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
         , textureImage, textureImageMemory);
     //Transfer image to to layout
-    resourceManager.transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB
+    ResourceManager::manager->transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB
         , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels);
     //execute buffer to image copy operation
-    resourceManager.copyBufferToImage(stagingBuffer, textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+    ResourceManager::manager->copyBufferToImage(stagingBuffer, textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
     //Change the layout so that we only read from the image
     //transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,mipLevels);
     vkDestroyBuffer(device, stagingBuffer, nullptr);
@@ -51,7 +51,7 @@ void Texture::createTextureImage(std::string texturePath, VkDevice& device) {
 
 void Texture::createImageTextureView(VkDevice& device) {
     if (path.empty()) return;
-    textureImageView = resourceManager.createImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, mipLevels);
+    textureImageView = ResourceManager::manager->createImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, mipLevels);
 }
 
 //Creates a sampler for the shader
@@ -102,11 +102,11 @@ void Texture::generateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWi
 
     // Check if image format supports linear blitting
     VkFormatProperties formatProperties;
-    vkGetPhysicalDeviceFormatProperties(resourceManager.physicalDevice, imageFormat, &formatProperties);
+    vkGetPhysicalDeviceFormatProperties(ResourceManager::manager->physicalDevice, imageFormat, &formatProperties);
     if (!(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
         throw std::runtime_error("texture image format does not support linear blitting!");
     }
-    VkCommandBuffer commandBuffer = resourceManager.beginSingleTimeCommands();
+    VkCommandBuffer commandBuffer = ResourceManager::manager->beginSingleTimeCommands();
 
     VkImageMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -179,12 +179,12 @@ void Texture::generateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWi
         0, nullptr,
         0, nullptr,
         1, &barrier);
-    resourceManager.endSingleTimeCommands(commandBuffer);
+    ResourceManager::manager->endSingleTimeCommands(commandBuffer);
 }
 void Texture::free() {
     if (path.empty()) return;
-    vkDestroySampler(resourceManager.device, textureSampler, nullptr);
-    vkDestroyImageView(resourceManager.device, textureImageView, nullptr);
-    vkDestroyImage(resourceManager.device, textureImage, nullptr);
-    vkFreeMemory(resourceManager.device, textureImageMemory, nullptr);
+    vkDestroySampler(ResourceManager::manager->device, textureSampler, nullptr);
+    vkDestroyImageView(ResourceManager::manager->device, textureImageView, nullptr);
+    vkDestroyImage(ResourceManager::manager->device, textureImage, nullptr);
+    vkFreeMemory(ResourceManager::manager->device, textureImageMemory, nullptr);
 }

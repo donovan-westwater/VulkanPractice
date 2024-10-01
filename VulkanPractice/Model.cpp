@@ -15,7 +15,7 @@ void Model::loadModel(std::string modelPath, std::string materialPath,std::strin
     std::string warn, err;
     Mesh modelMesh;
     referenceMesh = &modelMesh;
-    referencePipeline = &resourceManager.pipelineList[0];
+    referencePipeline = &ResourceManager::manager->pipelineList[0];
     if (!tinyobj::LoadObj(&attrib, &shapes, &localMaterials, &warn, &err, modelPath.c_str(), materialPath.c_str())) {
         throw std::runtime_error(warn + err);
     }
@@ -90,14 +90,14 @@ void Model::loadModel(std::string modelPath, std::string materialPath,std::strin
         modelMesh.materials.push_back(m);
     }
 
-    referenceMeshIndex = resourceManager.meshList.size();
-    resourceManager.meshList.push_back(modelMesh);
-    resourceManager.modelList.push_back(*this);
+    referenceMeshIndex = ResourceManager::manager->meshList.size();
+    ResourceManager::manager->meshList.push_back(modelMesh);
+    ResourceManager::manager->modelList.push_back(*this);
     //Load Texture
     Texture texture;
-    texture.loadTexture(texturePath, resourceManager.device, resourceManager.physicalDevice);
+    texture.loadTexture(texturePath, ResourceManager::manager->device, ResourceManager::manager->physicalDevice);
     referenceTexture = &texture;
-    resourceManager.textureList.push_back(texture);
+    ResourceManager::manager->textureList.push_back(texture);
     //Create Buffers
     modelMesh.createVertexBuffer();
     modelMesh.createIndexBuffer();

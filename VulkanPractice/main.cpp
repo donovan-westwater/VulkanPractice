@@ -9,6 +9,8 @@
 class GameApplication {
 public:
     void run() {
+        //Create Resource manager
+        ResourceManager::manager = new ResourceManager();
         initWindow();
         initVulkan();
         //Setup RayTracer
@@ -17,6 +19,8 @@ public:
         //rayTracer.setupRayTracer(vertexBuffer, indexBuffer, vertices.size(),materialBuffer,materialIndexBuffer);
         mainLoop();
         cleanup();
+        //Delete manager when we are done
+        delete ResourceManager::manager;
     }
 
 private:
@@ -60,10 +64,10 @@ private:
     void initWindow() {
         glfwInit();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); //Disable openGL API
-        resourceManager.window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
-        glfwSetWindowUserPointer(resourceManager.window, this);
+        ResourceManager::manager->window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
+        glfwSetWindowUserPointer(ResourceManager::manager->window, this);
         //Create a callback for window resizing
-        glfwSetFramebufferSizeCallback(resourceManager.window, framebufferResizeCallback);
+        glfwSetFramebufferSizeCallback(ResourceManager::manager->window, framebufferResizeCallback);
     }
     //stays in main
     //Call back for when we want to resize the widow. Static GLFW doesn't know what to do with a member function version
@@ -82,7 +86,7 @@ private:
         std::vector<VkLayerProperties> availableLayers(layerCount);
         vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
         //Iterate through the validation layers and check if they exist
-        for (const char* layerName : resourceManager.validationLayers) {
+        for (const char* layerName : ResourceManager::manager->validationLayers) {
             bool layerFound = false;
 
             for (const auto& layerProperties : availableLayers) {
@@ -106,7 +110,7 @@ private:
 
         std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
 
-        if (resourceManager.enableValidationLayers) {
+        if (ResourceManager::manager->enableValidationLayers) {
             extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
         }
 
@@ -126,7 +130,7 @@ private:
     //stays in main
     //Fills in the instance struct with relevant infomation
     void createInstance() {
-        if (resourceManager.enableValidationLayers && !checkValidationLayerSupport()) {
+        if (ResourceManager::manager->enableValidationLayers && !checkValidationLayerSupport()) {
             throw std::runtime_error("validation layers requested, but not available!");
         }
         //Optional infomation struct that is helpful to fill out
@@ -154,9 +158,9 @@ private:
         //Create debug messenger for the instance creation spefically as the other debug system will be created after / destoried
         //before the device instance is created or destoried
         VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
-        if (resourceManager.enableValidationLayers) {
-            createInfo.enabledLayerCount = static_cast<uint32_t>(resourceManager.validationLayers.size());
-            createInfo.ppEnabledLayerNames = resourceManager.validationLayers.data();
+        if (ResourceManager::manager->enableValidationLayers) {
+            createInfo.enabledLayerCount = static_cast<uint32_t>(ResourceManager::manager->validationLayers.size());
+            createInfo.ppEnabledLayerNames = ResourceManager::manager->validationLayers.data();
 
             populateDebugMessengerCreateInfo(debugCreateInfo);
             createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
@@ -167,7 +171,7 @@ private:
             createInfo.pNext = nullptr;
         }
         
-        VkResult result = vkCreateInstance(&createInfo, nullptr, &resourceManager.instance);
+        VkResult result = vkCreateInstance(&createInfo, nullptr, &ResourceManager::manager->instance);
         if (result != VK_SUCCESS) {
             throw std::runtime_error("failed to create instance!");
         }
@@ -176,7 +180,7 @@ private:
         //These are manditory for all graphics pipelines
         createInstance();
         setupDebugMessenger();
-        resourceManager.initVulkan();
+        ResourceManager::manager->initVulkan();
     }
 
     
@@ -207,18 +211,18 @@ private:
     }
     //stay in main
     void setupDebugMessenger() {
-        if (!resourceManager.enableValidationLayers) return;
+        if (!ResourceManager::manager->enableValidationLayers) return;
         VkDebugUtilsMessengerCreateInfoEXT createInfo;
         populateDebugMessengerCreateInfo(createInfo);
 
-        if (CreateDebugUtilsMessengerEXT(resourceManager.instance, &createInfo, nullptr, &resourceManager.debugMessenger) != VK_SUCCESS) {
+        if (CreateDebugUtilsMessengerEXT(ResourceManager::manager->instance, &createInfo, nullptr, &ResourceManager::manager->debugMessenger) != VK_SUCCESS) {
             throw std::runtime_error("failed to set up debug messenger!");
         }
     }
     //Timer for animating triangle in quick and dirty way
     //float timer = 0;
     void mainLoop() {
-        while (!glfwWindowShouldClose(resourceManager.window)) {
+        while (!glfwWindowShouldClose(ResourceManager::manager->window)) {
             glfwPollEvents();
             //This is a quick and dirty way to animate the triangle. I don't think it is remotely ideal for a bunch of reasons
             /*
@@ -229,16 +233,16 @@ private:
             memcpy(data, vertices.data(), (size_t)(sizeof(vertices[0]) * vertices.size()));
             vkUnmapMemory(device, vertexBufferMemory);
             */
-            if (resourceManager.useRayTracing) {
-                rayTracer.rayTrace(resourceManager.commandBuffers[resourceManager.currentFrame], resourceManager.pipelineList[0].uniformBuffersMapped ,glm::vec4(0, 0, 0, 1));
-                resourceManager.currentFrame = (resourceManager.currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+            if (ResourceManager::manager->useRayTracing) {
+                rayTracer.rayTrace(ResourceManager::manager->commandBuffers[ResourceManager::manager->currentFrame], ResourceManager::manager->pipelineList[0].uniformBuffersMapped ,glm::vec4(0, 0, 0, 1));
+                ResourceManager::manager->currentFrame = (ResourceManager::manager->currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
             }
             else drawRasterizationFrame();
             //timer += 0.01f;
         }
         //Wait for drawing and presnetation operations to stop
         //Stops cleanup from trying to free up semaphores while to program is still running
-        vkDeviceWaitIdle(resourceManager.device);
+        vkDeviceWaitIdle(ResourceManager::manager->device);
     }
     //Draw the present the frame set by the command buffer, broad plan as follows:
     //Acquire an image from the swap chain
@@ -247,13 +251,13 @@ private:
     //All executed asynchronously
     void drawRasterizationFrame() {
         //Wait for frame to be finished drawing
-        vkWaitForFences(resourceManager.device, 1, &resourceManager.inFlightFences[resourceManager.currentFrame], VK_TRUE, UINT64_MAX);
+        vkWaitForFences(ResourceManager::manager->device, 1, &ResourceManager::manager->inFlightFences[ResourceManager::manager->currentFrame], VK_TRUE, UINT64_MAX);
         uint32_t imageIndex;
         //Make sure the chain is fresh so we know we can use it. This allows us to delay a fense reset and stop a deadlock
-        VkResult result = vkAcquireNextImageKHR(resourceManager.device, resourceManager.swapChain, UINT64_MAX, resourceManager.imageAvailableSemaphores[resourceManager.currentFrame], VK_NULL_HANDLE, &imageIndex);
+        VkResult result = vkAcquireNextImageKHR(ResourceManager::manager->device, ResourceManager::manager->swapChain, UINT64_MAX, ResourceManager::manager->imageAvailableSemaphores[ResourceManager::manager->currentFrame], VK_NULL_HANDLE, &imageIndex);
 
         if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-            resourceManager.recreateSwapChain();
+            ResourceManager::manager->recreateSwapChain();
             return;
         }
         else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
@@ -261,15 +265,15 @@ private:
         }
 
         //Reset signaling so since we have retrieved the frame now
-        vkResetFences(resourceManager.device, 1, &resourceManager.inFlightFences[resourceManager.currentFrame]);
+        vkResetFences(ResourceManager::manager->device, 1, &ResourceManager::manager->inFlightFences[ResourceManager::manager->currentFrame]);
         //Acquire the image we waited on
         //vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
-        resourceManager.pipelineList[0].updateMainUniformBuffers(resourceManager.currentFrame);
-        vkResetCommandBuffer(resourceManager.commandBuffers[resourceManager.currentFrame], 0);
+        ResourceManager::manager->pipelineList[0].updateMainUniformBuffers(ResourceManager::manager->currentFrame);
+        vkResetCommandBuffer(ResourceManager::manager->commandBuffers[ResourceManager::manager->currentFrame], 0);
         //record the draw calls onto the command buffer for rendering.
-        for (int i = 0; i < resourceManager.modelList.size(); i++) {
-            Model* m = &resourceManager.modelList[i];
-            m->referencePipeline->recordDrawCallCommandBuffer(resourceManager.commandBuffers[resourceManager.currentFrame],
+        for (int i = 0; i < ResourceManager::manager->modelList.size(); i++) {
+            Model* m = &ResourceManager::manager->modelList[i];
+            m->referencePipeline->recordDrawCallCommandBuffer(ResourceManager::manager->commandBuffers[ResourceManager::manager->currentFrame],
                 *m->referenceMesh,imageIndex); //Record the draw calls we want
         }
         
@@ -277,19 +281,19 @@ private:
         VkSubmitInfo submitInfo{};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
         //Specify which semaphores to wait on before execution beings and in which stages of the pipeline to wait
-        VkSemaphore waitSemaphores[] = { resourceManager.imageAvailableSemaphores[resourceManager.currentFrame] };
+        VkSemaphore waitSemaphores[] = { ResourceManager::manager->imageAvailableSemaphores[ResourceManager::manager->currentFrame] };
         VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
         submitInfo.waitSemaphoreCount = 1;
         submitInfo.pWaitSemaphores = waitSemaphores;
         submitInfo.pWaitDstStageMask = waitStages;
         //Specify which command buffer to submit
         submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &resourceManager.commandBuffers[resourceManager.currentFrame];
+        submitInfo.pCommandBuffers = &ResourceManager::manager->commandBuffers[ResourceManager::manager->currentFrame];
         //Specify which semaphores to signal once the command buffers finished execution
-        VkSemaphore signalSemaphores[] = { resourceManager.renderFinishedSemaphores[resourceManager.currentFrame] };
+        VkSemaphore signalSemaphores[] = { ResourceManager::manager->renderFinishedSemaphores[ResourceManager::manager->currentFrame] };
         submitInfo.signalSemaphoreCount = 1;
         submitInfo.pSignalSemaphores = signalSemaphores;
-        if (vkQueueSubmit(resourceManager.graphicsQueue, 1, &submitInfo, resourceManager.inFlightFences[resourceManager.currentFrame]) != VK_SUCCESS) {
+        if (vkQueueSubmit(ResourceManager::manager->graphicsQueue, 1, &submitInfo, ResourceManager::manager->inFlightFences[ResourceManager::manager->currentFrame]) != VK_SUCCESS) {
             throw std::runtime_error("failed to submit draw command buffer!");
         }
         //Specify which semaphores to wait on
@@ -300,21 +304,21 @@ private:
         presentInfo.pWaitSemaphores = signalSemaphores;
 
         //specify the swap chain to present images to and the index for each chain
-        VkSwapchainKHR swapChains[] = { resourceManager.swapChain };
+        VkSwapchainKHR swapChains[] = { ResourceManager::manager->swapChain };
         presentInfo.swapchainCount = 1;
         presentInfo.pSwapchains = swapChains;
         presentInfo.pImageIndices = &imageIndex;
         //Presents the triangle we submitted to the queue
-        result = vkQueuePresentKHR(resourceManager.presentQueue, &presentInfo);
+        result = vkQueuePresentKHR(ResourceManager::manager->presentQueue, &presentInfo);
         //If the swapchain is out dated, then we need to recreate it!
         if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized) {
             framebufferResized = false;
-            resourceManager.recreateSwapChain();
+            ResourceManager::manager->recreateSwapChain();
         }
         else if (result != VK_SUCCESS) {
             throw std::runtime_error("failed to present swap chain image!");
         }
-        resourceManager.currentFrame = (resourceManager.currentFrame + 1) % MAX_FRAMES_IN_FLIGHT; //Make sure we know which of the in flight frames we are updating
+        ResourceManager::manager->currentFrame = (ResourceManager::manager->currentFrame + 1) % MAX_FRAMES_IN_FLIGHT; //Make sure we know which of the in flight frames we are updating
     }
     
     //Cleaan up everything EXPLICITLY CREATED by us!
@@ -323,13 +327,15 @@ private:
     void cleanup() {
         for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
             //Unmapping memory
-            vkUnmapMemory(resourceManager.device, resourceManager.pipelineList[0].uniformBuffersMemory[i]);
+            vkUnmapMemory(ResourceManager::manager->device
+                , ResourceManager::manager->pipelineList[0].uniformBuffersMemory[i]);
 
         }
         rayTracer.cleanup();
-        resourceManager.resourceCleanUp();
-        if (resourceManager.enableValidationLayers) {
-            DestroyDebugUtilsMessengerEXT(resourceManager.instance, resourceManager.debugMessenger, nullptr);
+        ResourceManager::manager->resourceCleanUp();
+        if (ResourceManager::manager->enableValidationLayers) {
+            DestroyDebugUtilsMessengerEXT(ResourceManager::manager->instance
+                , ResourceManager::manager->debugMessenger, nullptr);
         }
     }
 };
