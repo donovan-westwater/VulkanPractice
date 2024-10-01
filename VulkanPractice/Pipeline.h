@@ -42,7 +42,6 @@ public:
 	void createMainUniformBuffers();
 	void updateMainUniformBuffers(uint32_t currentFrame);
 	void recordDrawCallCommandBuffer(VkCommandBuffer commandBuffer,Mesh m, uint32_t imageIndex);
-	VkSampleCountFlagBits getMaxUsableSampleCount();
 	//Add deleter
 	void free();
 };

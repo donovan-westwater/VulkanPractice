@@ -77,6 +77,8 @@ public:
     std::vector <VkFence> inFlightFences; //Used to for order execution on the cpu to sync with gpu
     std::vector<Pipeline> pipelineList; //Index 0 is the default rasterization pipeline!
     uint32_t currentFrame;
+    //Graphics Settings for default pipeline
+    VkSampleCountFlagBits msaaSamples;
     //Object life resources
     const uint32_t maxModelCount = 10;
     std::vector<Texture> textureList;
@@ -135,6 +137,8 @@ public:
     void createLogicalDevice();
 
     void pickPhysicalDevice();
+
+    VkSampleCountFlagBits getMaxUsableSampleCount();
 
     bool isDeviceSuitable(VkPhysicalDevice device);
 
