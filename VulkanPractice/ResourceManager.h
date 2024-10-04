@@ -56,6 +56,7 @@ public:
     bool useRayTracing = false;
 	//Game life resources
     inline static ResourceManager *manager;
+    PFN_vkSetDebugUtilsObjectNameEXT pvkSetDebugUtilsObjectNameEXT;
     UniversalResourcePool universalResourcePool;
     GLFWwindow* window; //Reference to the window we draw for vulkan
     VkInstance instance; //An instance is the connection between the app and the vulkan lib
@@ -156,5 +157,23 @@ public:
     VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
 
     void resourceCleanUp();
+
+    //Debug Code
+#ifndef NDEBUG
+    inline static void setDebugObjectName(VkDevice device, VkObjectType objType, uint64_t objHandle, std::string name) {
+        if (ResourceManager::manager == nullptr) return;
+        VkDebugUtilsObjectNameInfoEXT objName;
+        objName.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+        objName.pNext = NULL;
+        objName.pObjectName = name.c_str();
+        objName.objectType = objType;
+        objName.objectHandle = objHandle;
+        VkResult result = ResourceManager::manager->pvkSetDebugUtilsObjectNameEXT(device, &objName);
+        if (result != VK_SUCCESS) {
+            throw std::runtime_error("failed to set debug name for object");
+        }
+    }
+#endif 
+
 };
 #endif

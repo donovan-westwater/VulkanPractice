@@ -8,7 +8,7 @@
 			throw std::runtime_error("main Logical Device is null or expired\n");
 		}
 #ifndef NDEBUG
-		pvkSetDebugUtilsObjectNameEXT =
+		ResourceManager::manager->pvkSetDebugUtilsObjectNameEXT =
 			(PFN_vkSetDebugUtilsObjectNameEXT)vkGetDeviceProcAddr(
 				*mainLogicalDevice.lock(), "vkSetDebugUtilsObjectNameEXT");
 #endif
@@ -146,7 +146,7 @@
 				throw std::runtime_error("failed to create buffer for bASS");
 			}
 #ifndef NDEBUG
-			setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(bottomLevelAccelerationStructureBuffer)
+			ResourceManager::setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(bottomLevelAccelerationStructureBuffer)
 				, "Bottom Level Accelertation Structure Buffer");
 #endif
 		//Look to see if our graphics card and our blAS has a local bit for our buffer
@@ -173,7 +173,7 @@
 			throw std::runtime_error("Couldnt bind memory to buffer!");
 		}
 #ifndef NDEBUG
-		setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
+		ResourceManager::setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
 			, reinterpret_cast<uint64_t>(bottomLevelAccelerationStructureDeviceMemory)
 			, "Bottom Level Acceleration Structure Device Memory");
 #endif
@@ -212,7 +212,7 @@
 			throw std::runtime_error("Buffer for building blAS cannot be made!");
 		}
 #ifndef NDEBUG
-		setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(bottomLevelAccelerationStructureScratchBufferHandle)
+		ResourceManager::setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(bottomLevelAccelerationStructureScratchBufferHandle)
 			, "Bottom Level Accelertation Structure Scratch Buffer");
 #endif
 		VkMemoryRequirements bottomLevelAccelerationStructureScratchMemoryReq;
@@ -235,7 +235,7 @@
 			throw std::runtime_error("Cannot bind scratch memory!");
 		}
 #ifndef NDEBUG
-		setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
+		ResourceManager::setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
 			, reinterpret_cast<uint64_t>(bottomLevelAccelerationStructureDeviceScratchMemoryHandle)
 			, "Bottom Level Acceleration Structure Device Scratch Memory");
 #endif
@@ -371,7 +371,7 @@
 			throw std::runtime_error("failed to create Shader Binding Table buffer!");
 		}
 #ifndef NDEBUG
-		setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(shaderBindingTableBuffer)
+		ResourceManager::setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(shaderBindingTableBuffer)
 			, "Shader Binding Table Buffer");
 #endif
 		//Query the memory requirements to make sure we have enough space to allocate for the vertex buffer
@@ -400,7 +400,7 @@
 			throw std::runtime_error("Failed to allocate memory to sbt buffer");
 		}
 #ifndef NDEBUG
-		setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
+		ResourceManager::setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
 			, reinterpret_cast<uint64_t>(shaderBindingTableDeviceMemory)
 			, "Shader Binding Table Memory");
 #endif
@@ -517,7 +517,7 @@
 		//Bind the image to the allocated memory
 		vkBindImageMemory(logicalDevice, rayTracerImage, rayTracerImageDeviceMemory, 0);
 #ifndef NDEBUG
-		setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
+		ResourceManager::setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
 			, reinterpret_cast<uint64_t>(rayTracerImageDeviceMemory)
 			, "Ray Trace Image Memory");
 #endif
@@ -804,7 +804,7 @@
 			throw std::runtime_error("Buffer for building Bottom Level Acc. Struct. instance cannot be made!");
 		}
 #ifndef NDEBUG
-		setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(bottomLevelGeometryInstanceBuffer)
+		ResourceManager::setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(bottomLevelGeometryInstanceBuffer)
 			, "Bottom Level Geo. Instance Buffer");
 #endif
 		//Get memory requirements for instance
@@ -829,7 +829,7 @@
 			throw std::runtime_error("Can't bind memory for device");
 		}
 #ifndef NDEBUG
-		setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
+		ResourceManager::setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
 			, reinterpret_cast<uint64_t>(bottomLevelGeometryInstanceDeviceMemoryHandle)
 			, "Bottom Level Geometery Instance Device Memory");
 #endif
@@ -909,7 +909,7 @@
 			throw std::runtime_error("Buffer for topLevelAccelerationStructure cannot be made!");
 		}
 #ifndef NDEBUG
-		setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(topLevelAccelerationStructureBuffer)
+		ResourceManager::setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(topLevelAccelerationStructureBuffer)
 			, "Top Level Accelertation Structure Buffer");
 #endif
 		//Check to see what memory our graphics card has for the buffer
@@ -936,7 +936,7 @@
 			throw std::runtime_error("Failed to bind the memory to the buffer from the device");
 		}
 #ifndef NDEBUG
-		setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
+		ResourceManager::setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
 			, reinterpret_cast<uint64_t>(topLevelAccelerationStructureDeviceMemoryHandle)
 			, "Top Level Acceleration Structure Device Memory");
 #endif
@@ -984,7 +984,7 @@
 			throw std::runtime_error("Scratch memory buffer couldnt be built");
 		}
 #ifndef NDEBUG
-		setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER
+		ResourceManager::setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER
 			, reinterpret_cast<uint64_t>(topLevelAccelerationStructureScratchBuffer)
 			, "Top Level Accelertation Structure Scratch Buffer");
 #endif
@@ -1011,7 +1011,7 @@
 			throw std::runtime_error("Couldn't bind memeory for hte scratch buffer");
 		}
 #ifndef NDEBUG
-		setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
+		ResourceManager::setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
 			, reinterpret_cast<uint64_t>(topLevelAccelerationStructureDeviceScratchMemoryHandle)
 			, "Top Level Acceleration Structure Scratch Device Memory");
 #endif

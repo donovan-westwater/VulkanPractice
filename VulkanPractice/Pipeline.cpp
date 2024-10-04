@@ -83,7 +83,7 @@ void Pipeline::createMainUniformBuffers() {
         ResourceManager::manager->createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i]
             , true);
 #ifndef NDEBUG
-        setDebugObjectName(ResourceManager::manager->device, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(uniformBuffers[i]), "Uniform Buffer Object " + i);
+        ResourceManager::setDebugObjectName(ResourceManager::manager->device, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(uniformBuffers[i]), "Uniform Buffer Object " + i);
 #endif
         //We dont want to remap memory all the time since mem mapping is costly
         //Having the buffers mapped this way means we can update whenever we want!

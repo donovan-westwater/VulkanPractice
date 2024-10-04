@@ -216,24 +216,6 @@ inline static glm::vec4 float3ToVec4(float a[3]) {
     out.z = a[2];
     return out;
 }
-//Debug Code
-#ifndef NDEBUG
-
-static PFN_vkSetDebugUtilsObjectNameEXT pvkSetDebugUtilsObjectNameEXT;
-
-inline static void setDebugObjectName(VkDevice device,VkObjectType objType,uint64_t objHandle,std::string name) {
-    VkDebugUtilsObjectNameInfoEXT objName;
-    objName.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
-    objName.pNext = NULL;
-    objName.pObjectName = name.c_str();
-    objName.objectType = objType;
-    objName.objectHandle = objHandle;
-    VkResult result = pvkSetDebugUtilsObjectNameEXT(device, &objName);
-    if (result != VK_SUCCESS) {
-        throw std::runtime_error("failed to set debug name for object");
-    }
-}
-#endif 
 
 //move to common
 static std::vector<char> readFile(const std::string& filename) {

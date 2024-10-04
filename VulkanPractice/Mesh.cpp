@@ -19,8 +19,8 @@ void Mesh::createIndexBuffer() {
     ResourceManager::manager->createBuffer(bufferSize, rayTracingFlags | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory
         , true);
 #ifndef NDEBUG
-    setDebugObjectName(ResourceManager::manager->device, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(indexBuffer), "Index Buffer");
-    setDebugObjectName(ResourceManager::manager->device, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY, reinterpret_cast<uint64_t>(indexBufferMemory), "Index Buffer Memory");
+    ResourceManager::setDebugObjectName(ResourceManager::manager->device, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(indexBuffer), "Index Buffer");
+    ResourceManager::setDebugObjectName(ResourceManager::manager->device, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY, reinterpret_cast<uint64_t>(indexBufferMemory), "Index Buffer Memory");
 #endif
     ResourceManager::manager->copyBuffer(stagingBuffer, indexBuffer, bufferSize);
 
@@ -47,8 +47,8 @@ void Mesh::createVertexBuffer() {
     ResourceManager::manager->createBuffer(bufferSize, rayTracingFlags | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer, vertexBufferMemory
         , true);
 #ifndef NDEBUG
-    setDebugObjectName(ResourceManager::manager->device, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(vertexBuffer), "Vertex Buffer");
-    setDebugObjectName(ResourceManager::manager->device, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY, reinterpret_cast<uint64_t>(vertexBufferMemory), "Vertex Buffer Memory");
+    ResourceManager::setDebugObjectName(ResourceManager::manager->device, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(vertexBuffer), "Vertex Buffer");
+    ResourceManager::setDebugObjectName(ResourceManager::manager->device, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY, reinterpret_cast<uint64_t>(vertexBufferMemory), "Vertex Buffer Memory");
 #endif
     //Copy data from staging buffer to vertex buffer
     ResourceManager::manager->copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
@@ -76,8 +76,8 @@ void Mesh::createMaterialIndexBuffer() {
     ResourceManager::manager->createBuffer(bufferSize, rayTracingFlags | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, materialIndexBuffer, materialIndexBufferMemory
         , true);
 #ifndef NDEBUG
-    setDebugObjectName(ResourceManager::manager->device, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(materialIndexBuffer), "Material Index Buffer");
-    setDebugObjectName(ResourceManager::manager->device, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY, reinterpret_cast<uint64_t>(materialIndexBufferMemory), "Material Index Buffer Memory");
+    ResourceManager::setDebugObjectName(ResourceManager::manager->device, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(materialIndexBuffer), "Material Index Buffer");
+    ResourceManager::setDebugObjectName(ResourceManager::manager->device, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY, reinterpret_cast<uint64_t>(materialIndexBufferMemory), "Material Index Buffer Memory");
 #endif
     //Copy data from staging buffer to vertex buffer
     ResourceManager::manager->copyBuffer(stagingBuffer, materialIndexBuffer, bufferSize);
@@ -105,8 +105,8 @@ void Mesh::createMaterialBuffer() {
     ResourceManager::manager->createBuffer(bufferSize, rayTracingFlags | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, materialBuffer, materialBufferMemory
         , true);
 #ifndef NDEBUG
-    setDebugObjectName(ResourceManager::manager->device, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(materialBuffer), "Material Buffer");
-    setDebugObjectName(ResourceManager::manager->device, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY, reinterpret_cast<uint64_t>(materialBufferMemory), "Material Buffer Memory");
+    ResourceManager::setDebugObjectName(ResourceManager::manager->device, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(materialBuffer), "Material Buffer");
+    ResourceManager::setDebugObjectName(ResourceManager::manager->device, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY, reinterpret_cast<uint64_t>(materialBufferMemory), "Material Buffer Memory");
 #endif
     //Copy data from staging buffer to vertex buffer
     ResourceManager::manager->copyBuffer(stagingBuffer, materialBuffer, bufferSize);
