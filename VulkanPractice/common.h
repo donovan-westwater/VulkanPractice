@@ -30,9 +30,10 @@
 //All of the includes we wanted are already handled by the ResourceHeader
 const int MAX_FRAMES_IN_FLIGHT = 2; //The amount of frames that can be processed concurrently
 const std::string MODEL_PATH = "Models/CornellBox-Original.obj";//"Models/CrappyCornellBox_TriVersion.obj";//"Models/Guilmon.obj";
-const std::string TEXTURE_PATH = "Textures/TestTex.png";
+const std::string TEXTURES_PATH = "Textures/";//"Textures/TestTex.png";
 const std::string MATERIALS_PATH = "Materials/";//"Materials/CrappyCornellBox_TriVersion.mtl";
 
+//TO DO: Seperate Camerea from model!
 struct UniformBufferObject {
     glm::mat4 model;
     glm::mat4 view;

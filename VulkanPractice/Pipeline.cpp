@@ -81,7 +81,7 @@ void Pipeline::createMainUniformBuffers() {
     //Create buffers for the frames that are being worked on in parallel
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         ResourceManager::manager->createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i]
-            , true);
+            , ResourceManager::manager->useRayTracing);
 #ifndef NDEBUG
         ResourceManager::setDebugObjectName(ResourceManager::manager->device, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(uniformBuffers[i]), "Uniform Buffer Object " + i);
 #endif

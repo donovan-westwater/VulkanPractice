@@ -95,9 +95,12 @@ void Model::loadModel(std::string modelPath, std::string materialPath,std::strin
     ResourceManager::manager->modelList.push_back(*this);
     //Load Texture
     Texture texture;
-    texture.loadTexture(texturePath, ResourceManager::manager->device, ResourceManager::manager->physicalDevice);
-    referenceTexture = &texture;
-    ResourceManager::manager->textureList.push_back(texture);
+    bool hasLoaded = false;
+    hasLoaded = texture.loadTexture(texturePath, ResourceManager::manager->device, ResourceManager::manager->physicalDevice);
+    if(hasLoaded){
+        referenceTexture = &texture;
+        ResourceManager::manager->textureList.push_back(texture);
+    }
     //Create Buffers
     modelMesh.createVertexBuffer();
     modelMesh.createIndexBuffer();

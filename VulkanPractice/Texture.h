@@ -17,7 +17,7 @@ public :
     void createTextureImage(std::string texturePath,VkDevice &device);
     void createImageTextureView(VkDevice& device);
     void createTextureSampler(VkDevice& device, VkPhysicalDevice& physicalDevice);
-    void loadTexture(std::string texturePath, VkDevice& device, VkPhysicalDevice& physicalDevice);
+    bool loadTexture(std::string texturePath, VkDevice& device, VkPhysicalDevice& physicalDevice);
     void generateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
     //Delete function here
     void free();

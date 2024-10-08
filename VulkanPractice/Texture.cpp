@@ -86,13 +86,15 @@ void Texture::createTextureSampler(VkDevice& device,VkPhysicalDevice &physicalDe
     }
 }
 
-void Texture::loadTexture(std::string texturePath, VkDevice& device, VkPhysicalDevice& physicalDevice) {
-    if (texturePath.empty()) return;
+bool Texture::loadTexture(std::string texturePath, VkDevice& device, VkPhysicalDevice& physicalDevice) {
+    if (texturePath.empty()) return false;
+    if (!std::ifstream(texturePath).good()) return false;
     path = texturePath;
     //Create teture image to load textures with
     createTextureImage(texturePath,device);
     createImageTextureView(device);
     createTextureSampler(device,physicalDevice);
+    return true;
 }
 
 
