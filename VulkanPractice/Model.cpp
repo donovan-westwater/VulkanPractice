@@ -13,8 +13,11 @@ void Model::loadModel(std::string modelPath, std::string materialPath,std::strin
     std::vector<tinyobj::shape_t> shapes; //seperate objects and faces
     std::vector<tinyobj::material_t> localMaterials;
     std::string warn, err;
-    Mesh modelMesh;
-    referenceMesh = &modelMesh;
+    Mesh initMesh;
+    ResourceManager::manager->meshList.push_back(initMesh);
+    int endIndex = ResourceManager::manager->meshList.size()-1;
+    Mesh* modelMesh = &ResourceManager::manager->meshList[endIndex];
+    referenceMesh = modelMesh;
     referencePipeline = &ResourceManager::manager->pipelineList[0];
     if (!tinyobj::LoadObj(&attrib, &shapes, &localMaterials, &warn, &err, modelPath.c_str(), materialPath.c_str())) {
         throw std::runtime_error(warn + err);
@@ -22,7 +25,7 @@ void Model::loadModel(std::string modelPath, std::string materialPath,std::strin
     std::unordered_map<Vertex, uint32_t> uniqueVertices{};
     //Going to combine all the faces into to one model
     for (const auto& shape : shapes) {
-        modelMesh.primativeCount += shape.mesh.num_face_vertices.size();
+        modelMesh->primativeCount += shape.mesh.num_face_vertices.size();
         for (const auto& index : shape.mesh.indices) {
             Vertex vertex{};
 
@@ -53,17 +56,17 @@ void Model::loadModel(std::string modelPath, std::string materialPath,std::strin
 
             //Load in the indcies and vertices
             if (uniqueVertices.count(vertex) == 0) {
-                uniqueVertices[vertex] = static_cast<uint32_t>(modelMesh.vertices.size());
-                modelMesh.vertices.push_back(vertex);
+                uniqueVertices[vertex] = static_cast<uint32_t>(modelMesh->vertices.size());
+                modelMesh->vertices.push_back(vertex);
             }
-            modelMesh.indices.push_back(uniqueVertices[vertex]);
+            modelMesh->indices.push_back(uniqueVertices[vertex]);
 
             //vertices.push_back(vertex);
             //indices.push_back(indices.size());
 
         }
         for (int matIndex : shape.mesh.material_ids) {
-            modelMesh.materialIndices.push_back(matIndex);
+            modelMesh->materialIndices.push_back(matIndex);
         }
     }
     //Copy material infomation into vector
@@ -86,24 +89,29 @@ void Model::loadModel(std::string modelPath, std::string materialPath,std::strin
         m.specular.a = clampedShininess;
         m.emission = float3ToVec4(localMaterials[x].emission);
         referenceMaterial = &m;
-        referenceMaterialIndex = modelMesh.materials.size();
-        modelMesh.materials.push_back(m);
+        referenceMaterialIndex = modelMesh->materials.size();
+        modelMesh->materials.push_back(m);
     }
 
     referenceMeshIndex = ResourceManager::manager->meshList.size();
-    ResourceManager::manager->meshList.push_back(modelMesh);
-    ResourceManager::manager->modelList.push_back(*this);
+    modelMesh->vertexCount = modelMesh->vertices.size();
+    modelMesh->indexCount = modelMesh->indices.size();
     //Load Texture
     Texture texture;
     bool hasLoaded = false;
     hasLoaded = texture.loadTexture(texturePath, ResourceManager::manager->device, ResourceManager::manager->physicalDevice);
     if(hasLoaded){
-        referenceTexture = &texture;
         ResourceManager::manager->textureList.push_back(texture);
+        int textEndIndex = ResourceManager::manager->textureList.size() - 1;
+        referenceTexture = &ResourceManager::manager->textureList[textEndIndex];
     }
     //Create Buffers
-    modelMesh.createVertexBuffer();
-    modelMesh.createIndexBuffer();
-    modelMesh.createMaterialBuffer();
-    modelMesh.createMaterialIndexBuffer();
+    modelMesh->createVertexBuffer();
+    modelMesh->createIndexBuffer();
+    //Create material buffers if materials exist
+    if (modelMesh->materials.size() > 0) {
+        modelMesh->createMaterialBuffer();
+        modelMesh->createMaterialIndexBuffer();
+    }
+
 }
