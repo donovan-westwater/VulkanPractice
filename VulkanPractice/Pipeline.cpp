@@ -27,8 +27,9 @@ void Pipeline::createMainDescriptorSets() {
 
         VkDescriptorImageInfo imageInfo{};
         imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        imageInfo.imageView = ResourceManager::manager->textureList[i/2].textureImageView;
-        imageInfo.sampler = ResourceManager::manager->textureList[i/2].textureSampler;
+        int texIndex = i / 2;
+        imageInfo.imageView = ResourceManager::manager->textureList[texIndex].textureImageView;
+        imageInfo.sampler = ResourceManager::manager->textureList[texIndex].textureSampler;
 
         std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
 
@@ -431,8 +432,9 @@ VkShaderModule Pipeline::createShaderModule(const std::vector<char>& code) {
     return shaderModule; //A thin wrapper around the byte code. Compliation + linking occurs at graphics pipeline time
 }
 //Only makes sense in main pipeline - Move this there
-void Pipeline::recordDrawCallCommandBuffer(VkCommandBuffer commandBuffer,Mesh m, uint32_t imageIndex) {
+void Pipeline::recordDrawCallCommandBuffer(VkCommandBuffer commandBuffer,Model model, uint32_t imageIndex) {
     VkCommandBufferBeginInfo beginInfo{};
+    Mesh m = ResourceManager::manager->meshList[model.referenceMeshIndex];
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = 0; // Optional Controls how command buffer will be used
     beginInfo.pInheritanceInfo = nullptr; // Optional
@@ -481,7 +483,7 @@ void Pipeline::recordDrawCallCommandBuffer(VkCommandBuffer commandBuffer,Mesh m,
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
     vkCmdBindIndexBuffer(commandBuffer, m.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
     //Update descriptor sets -- This hasnt been updated. It will not bind the correct desc. FIX LATER!
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[ResourceManager::manager->currentFrame], 0, nullptr);
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[ResourceManager::manager->currentFrame+model.referenceTextureIndex], 0, nullptr);
     //The actual draw call!
     vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(m.indices.size()), 1, 0, 0, 0);
     vkCmdEndRenderPass(commandBuffer);

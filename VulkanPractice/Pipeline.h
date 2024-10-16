@@ -3,7 +3,7 @@
 #define PIPELINE_H
 #include "common.h"
 #include "ResourceManager.h"
-#include "Mesh.h"
+#include "Model.h"
 //Should contain the resources we use for the specific pipeline
 //The ray tracing pipeline wont be put here since the ray tracer should handle its own pipeline!
 class Pipeline {
@@ -41,7 +41,7 @@ public:
 	void createFramebuffers();
 	void createMainUniformBuffers();
 	void updateMainUniformBuffers(uint32_t currentFrame);
-	void recordDrawCallCommandBuffer(VkCommandBuffer commandBuffer,Mesh m, uint32_t imageIndex);
+	void recordDrawCallCommandBuffer(VkCommandBuffer commandBuffer,Model m, uint32_t imageIndex);
 	//Add deleter
 	void free();
 };
