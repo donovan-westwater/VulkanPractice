@@ -273,8 +273,11 @@ private:
         //record the draw calls onto the command buffer for rendering.
         for (int i = 0; i < ResourceManager::manager->modelList.size(); i++) {
             Model* m = &ResourceManager::manager->modelList[i];
-            m->referencePipeline->recordDrawCallCommandBuffer(ResourceManager::manager->commandBuffers[ResourceManager::manager->currentFrame],
-                *m->referenceMesh,imageIndex); //Record the draw calls we want
+            Pipeline *refPipeline = &ResourceManager::manager->pipelineList[m->referencePipelineIndex];
+            Mesh* refMesh = &ResourceManager::manager->meshList[m->referenceMeshIndex];
+            //This is bugged right now! Crashes when reached
+            refPipeline->recordDrawCallCommandBuffer(ResourceManager::manager->commandBuffers[ResourceManager::manager->currentFrame],
+                *refMesh,imageIndex); //Record the draw calls we want
         }
         
         //submit the command buffer

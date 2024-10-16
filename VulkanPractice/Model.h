@@ -10,12 +10,9 @@ class Model
 {
 public:
 	glm::mat4x4 modelMatrix;
-	Mesh* referenceMesh;
 	uint32_t referenceMeshIndex;
-	Material* referenceMaterial;
-	uint32_t referenceMaterialIndex;
-	Pipeline* referencePipeline;
-	Texture* referenceTexture;
+	uint32_t referencePipelineIndex;
+	uint32_t referenceTextureIndex;
 
 	void loadModel(std::string modelPath, std::string materialPath, std::string texturePath);
 

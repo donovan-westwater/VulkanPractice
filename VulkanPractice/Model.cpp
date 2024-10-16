@@ -13,12 +13,13 @@ void Model::loadModel(std::string modelPath, std::string materialPath,std::strin
     std::vector<tinyobj::shape_t> shapes; //seperate objects and faces
     std::vector<tinyobj::material_t> localMaterials;
     std::string warn, err;
+    modelMatrix = glm::identity<glm::mat4x4>();
     Mesh initMesh;
     ResourceManager::manager->meshList.push_back(initMesh);
     int endIndex = ResourceManager::manager->meshList.size()-1;
     Mesh* modelMesh = &ResourceManager::manager->meshList[endIndex];
-    referenceMesh = modelMesh;
-    referencePipeline = &ResourceManager::manager->pipelineList[0];
+    referenceMeshIndex = endIndex;
+    referencePipelineIndex = 0;
     if (!tinyobj::LoadObj(&attrib, &shapes, &localMaterials, &warn, &err, modelPath.c_str(), materialPath.c_str())) {
         throw std::runtime_error(warn + err);
     }
@@ -88,12 +89,10 @@ void Model::loadModel(std::string modelPath, std::string materialPath,std::strin
         if (clampedShininess > 1.0) clampedShininess = 1.0;
         m.specular.a = clampedShininess;
         m.emission = float3ToVec4(localMaterials[x].emission);
-        referenceMaterial = &m;
-        referenceMaterialIndex = modelMesh->materials.size();
         modelMesh->materials.push_back(m);
     }
 
-    referenceMeshIndex = ResourceManager::manager->meshList.size();
+    referenceMeshIndex = ResourceManager::manager->meshList.size()-1;
     modelMesh->vertexCount = modelMesh->vertices.size();
     modelMesh->indexCount = modelMesh->indices.size();
     //Load Texture
@@ -103,7 +102,7 @@ void Model::loadModel(std::string modelPath, std::string materialPath,std::strin
     if(hasLoaded){
         ResourceManager::manager->textureList.push_back(texture);
         int textEndIndex = ResourceManager::manager->textureList.size() - 1;
-        referenceTexture = &ResourceManager::manager->textureList[textEndIndex];
+        referenceTextureIndex = textEndIndex;
     }
     //Create Buffers
     modelMesh->createVertexBuffer();

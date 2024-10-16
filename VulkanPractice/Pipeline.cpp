@@ -459,7 +459,7 @@ void Pipeline::recordDrawCallCommandBuffer(VkCommandBuffer commandBuffer,Mesh m,
     renderPassInfo.pClearValues = clearValues.data();
     vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
     //Bind the commandBuffer to the pipeline
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, ResourceManager::manager->pipelineList[0].pipeline);
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
     //Setup the viewport and scissors state
     VkViewport viewport{};
