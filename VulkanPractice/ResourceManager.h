@@ -63,6 +63,7 @@ public:
     VkDebugUtilsMessengerEXT debugMessenger; //Debug messenger must be made for debug callbacks to be used
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE; //Manages API for the physical hardware
     VkDevice device; //Logical device to interface with the physical device
+    VkRenderPass renderPass; //The render pass used to render images
     VkQueue graphicsQueue; //The queue for submitting graphics commands
     VkQueue presentQueue; //The queue for submitting windows surface commands
     VkSurfaceKHR surface; //Handles apis between vulkan and the window system to present results to screen
@@ -92,6 +93,12 @@ public:
     void initUniversalResourcePool();
 
     void initVulkan();
+
+    void createMainRenderPass();
+
+    void beginMainRenderPass(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+
+    void endMainRenderPass(VkCommandBuffer commandBuffer);
 
     void createImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
 

@@ -270,6 +270,7 @@ private:
         //vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
         ResourceManager::manager->pipelineList[0].updateMainUniformBuffers(ResourceManager::manager->currentFrame);
         vkResetCommandBuffer(ResourceManager::manager->commandBuffers[ResourceManager::manager->currentFrame], 0);
+        ResourceManager::manager->beginMainRenderPass(ResourceManager::manager->commandBuffers[ResourceManager::manager->currentFrame], imageIndex);
         //record the draw calls onto the command buffer for rendering.
         for (int i = 0; i < ResourceManager::manager->modelList.size(); i++) {
             Model* m = &ResourceManager::manager->modelList[i];
@@ -277,7 +278,8 @@ private:
             refPipeline->recordDrawCallCommandBuffer(ResourceManager::manager->commandBuffers[ResourceManager::manager->currentFrame],
                 *m,imageIndex); //Record the draw calls we want
         }
-        
+        ResourceManager::manager->endMainRenderPass(ResourceManager::manager->commandBuffers[ResourceManager::manager->currentFrame]);
+
         //submit the command buffer
         VkSubmitInfo submitInfo{};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;

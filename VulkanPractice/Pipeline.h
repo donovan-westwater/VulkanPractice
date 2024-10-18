@@ -13,7 +13,6 @@ public:
 	VkDescriptorSetLayout descriptorSetLayout;
 	std::vector<VkDescriptorSet> descriptorSets;
 	VkDescriptorPool descriptorPool;
-	VkRenderPass renderPass; //The render pass used to render images
 	//Depth and Image resources in case the pipeline wants them
 	VkImage depthImage; //Image for depth buffer
 	VkDeviceMemory depthImageMemory; //Memory allocated for depth buffer
@@ -26,14 +25,11 @@ public:
 	std::vector<VkDeviceMemory> uniformBuffersMemory;//handle to allocated buffer memory
 	std::vector<void*> uniformBuffersMapped; //Buffer for staging
 	//Default pipeline settings
-	//Anti-Aliasing Resources. Leave in main layer for now
-	VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;//How many times are we sampling for rasterization? reduces jagged edges
 	bool isDefaultPipeline = false;
 	//Besides the MainGraphics pipeline function, the rest should be private
 	void createMainDescriptorSets();
 	void createMainDescriptorPool();
 	void createMainDescriptorSetLayout();
-	void createMainRenderPass();
 	void createColorResources();
 	void createDepthResources();
 	VkShaderModule createShaderModule(const std::vector<char>& code);

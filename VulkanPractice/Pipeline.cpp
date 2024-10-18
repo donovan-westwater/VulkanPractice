@@ -123,102 +123,20 @@ void Pipeline::createMainDescriptorSetLayout() {
 
 }
 
-//Creates a render pass object which tells Vulkan about framebuffer attachemnts, color and depth buffers
-    //How many samples to use for each of the them, and how their contents should be handled throughout rendering process
-void Pipeline::createMainRenderPass() {
-    VkAttachmentDescription colorAttachment{};
-    colorAttachment.format = ResourceManager::manager->swapChainImageFormat; //should match format of swapchain
-    colorAttachment.samples = msaaSamples; //multisampling
-    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR; //Should clear before renderig
-    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE; //should store after rendering
-    //Stenicl ops: We dont care about stencils right now since we aren't using it
-    colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    //This bit is important for texturing
-    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED; //dont care about inital layout
-    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL; //Images to be presented in the swap chain
-    //Create a second description for color becuase we need to go over the image again to resolve the multiple samples
-    VkAttachmentDescription colorAttachmentResolve{};
-    colorAttachmentResolve.format = ResourceManager::manager->swapChainImageFormat;
-    colorAttachmentResolve.samples = VK_SAMPLE_COUNT_1_BIT;
-    colorAttachmentResolve.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    colorAttachmentResolve.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    colorAttachmentResolve.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    colorAttachmentResolve.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    colorAttachmentResolve.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    colorAttachmentResolve.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    //Subpasses and attachment references
-    //Useful to have passes that sequential stack on eachother for post processing
-    //sticking to a single pass
-    VkAttachmentReference colorAttachmentRef{};
-    colorAttachmentRef.attachment = 0; //which attachment to reference by index
-    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL; //species which layout we would like to have during a subpass that uses this reference
-    //Create second attachment for the resolution description
-    VkAttachmentReference colorAttachmentResolveRef{};
-    colorAttachmentResolveRef.attachment = 2;
-    colorAttachmentResolveRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-
-    //Depth Testing
-    VkAttachmentDescription depthAttachment{};
-    depthAttachment.format = ResourceManager::manager->findDepthFormat();
-    depthAttachment.samples = msaaSamples;
-    depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-    VkAttachmentReference depthAttachmentRef{};
-    depthAttachmentRef.attachment = 1;
-    depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-    VkSubpassDescription subpass{};
-    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = &colorAttachmentRef;
-    subpass.pDepthStencilAttachment = &depthAttachmentRef;
-    subpass.pResolveAttachments = &colorAttachmentResolveRef;
-
-    //Finally the render pass itself
-    std::array<VkAttachmentDescription, 3> attachments = { colorAttachment, depthAttachment,colorAttachmentResolve };
-    VkRenderPassCreateInfo renderPassInfo{};
-    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-    renderPassInfo.pAttachments = attachments.data();
-    renderPassInfo.subpassCount = 1;
-    renderPassInfo.pSubpasses = &subpass;
-    //Create a subpass dependency to prevent a transation from occuring before the image is qcquired at the start
-    //Specify indices of hte dependency and the dependent subpass
-    VkSubpassDependency dependency{};
-    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-    dependency.dstSubpass = 0;
-    //Specify which operations to wait on
-    //Prevents transition from happening unitl its necessary and allowed
-    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-    renderPassInfo.dependencyCount = 1;
-    renderPassInfo.pDependencies = &dependency;
-
-    if (vkCreateRenderPass(ResourceManager::manager->device, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create render pass!");
-    }
-
-}
 //Move to pipeline?
 //Create the resources for the color buffer used for multisampling
 void Pipeline::createColorResources() {
     VkFormat colorFormat = ResourceManager::manager->swapChainImageFormat;
 
-    ResourceManager::manager->createImage(ResourceManager::manager->swapChainExtent.width, ResourceManager::manager->swapChainExtent.height, 1, msaaSamples, colorFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, colorImage, colorImageMemory);
+    ResourceManager::manager->createImage(ResourceManager::manager->swapChainExtent.width, ResourceManager::manager->swapChainExtent.height, 1, ResourceManager::manager->msaaSamples, colorFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, colorImage, colorImageMemory);
     colorImageView = ResourceManager::manager->createImageView(colorImage, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1);
 }
 //Move to pipeline?
 //create the resources for depth testing
 void Pipeline::createDepthResources() {
     VkFormat depthFormat = ResourceManager::manager->findDepthFormat();
-    ResourceManager::manager->createImage(ResourceManager::manager->swapChainExtent.width, ResourceManager::manager->swapChainExtent.height, 1, msaaSamples, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage, depthImageMemory);
+    ResourceManager::manager->createImage(ResourceManager::manager->swapChainExtent.width, ResourceManager::manager->swapChainExtent.height, 1, ResourceManager::manager->msaaSamples, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage, depthImageMemory);
     depthImageView = ResourceManager::manager->createImageView(depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
     //I want to keep the transition explicit even though it isn't nesseary
     ResourceManager::manager->transitionImageLayout(depthImage, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED
@@ -238,7 +156,7 @@ void Pipeline::createFramebuffers() {
         };
         VkFramebufferCreateInfo framebufferInfo{};
         framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        framebufferInfo.renderPass = renderPass;
+        framebufferInfo.renderPass = ResourceManager::manager->renderPass;
         framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
         framebufferInfo.pAttachments = attachments.data();
         framebufferInfo.width = ResourceManager::manager->swapChainExtent.width;
@@ -343,7 +261,7 @@ void Pipeline::createDefaultGraphicsPipeline() {
     VkPipelineMultisampleStateCreateInfo multisampling{};
     multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisampling.sampleShadingEnable = VK_FALSE;
-    multisampling.rasterizationSamples = msaaSamples;
+    multisampling.rasterizationSamples = ResourceManager::manager->msaaSamples;
     multisampling.minSampleShading = 1.0f; // Optional
     multisampling.pSampleMask = nullptr; // Optional
     multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
@@ -406,7 +324,7 @@ void Pipeline::createDefaultGraphicsPipeline() {
     pipelineInfo.pColorBlendState = &colorBlending;
     pipelineInfo.pDynamicState = &dynamicState;
     pipelineInfo.layout = pipelineLayout;
-    pipelineInfo.renderPass = renderPass;
+    pipelineInfo.renderPass = ResourceManager::manager->renderPass;
     pipelineInfo.pDepthStencilState = &depthStencil;
     pipelineInfo.subpass = 0; //index of the subpass
     //Can create a new graphics pipeline from an existing pipeline
@@ -433,33 +351,8 @@ VkShaderModule Pipeline::createShaderModule(const std::vector<char>& code) {
 }
 //Only makes sense in main pipeline - Move this there
 void Pipeline::recordDrawCallCommandBuffer(VkCommandBuffer commandBuffer,Model model, uint32_t imageIndex) {
-    VkCommandBufferBeginInfo beginInfo{};
     Mesh m = ResourceManager::manager->meshList[model.referenceMeshIndex];
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = 0; // Optional Controls how command buffer will be used
-    beginInfo.pInheritanceInfo = nullptr; // Optional
-
-    if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
-        throw std::runtime_error("failed to begin recording command buffer!");
-    }
-    //start the render pass which is the start of the drawing process
-    //First binds attachments to render pass
-    //Then defines render area size
-    //Then defines the clear values
-    VkRenderPassBeginInfo renderPassInfo{};
-    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassInfo.renderPass = renderPass;
-    renderPassInfo.framebuffer = ResourceManager::manager->swapChainFramebuffers[imageIndex];
-    renderPassInfo.renderArea.offset = { 0, 0 };
-    renderPassInfo.renderArea.extent = ResourceManager::manager->swapChainExtent;
-    //Clear the depth buffer
-    std::array<VkClearValue, 2> clearValues{};
-    clearValues[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };
-    clearValues[1].depthStencil = { 1.0f, 0 };
-
-    renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-    renderPassInfo.pClearValues = clearValues.data();
-    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    
     //Bind the commandBuffer to the pipeline
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
@@ -487,10 +380,6 @@ void Pipeline::recordDrawCallCommandBuffer(VkCommandBuffer commandBuffer,Model m
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[setIndex], 0, nullptr);
     //The actual draw call!
     vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(m.indices.size()), 1, 0, 0, 0);
-    vkCmdEndRenderPass(commandBuffer);
-    if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
-        throw std::runtime_error("failed to record command buffer!");
-    }
 }
 
 //Move to pipleine and rename to updateMainUniformBuffers
