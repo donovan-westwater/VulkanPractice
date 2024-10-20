@@ -123,9 +123,8 @@ void Model::setScale(glm::vec3 scale) {
     glm::vec3 translation;
     glm::vec3 skew;
     glm::vec4 perspective;
-    glm::decompose(modelMatrix, scale, rotation, translation, skew, perspective);
+    glm::decompose(modelMatrix, oldScale, rotation, translation, skew, perspective);
     oldScale = scale;
-    modelMatrix = glm::mat4x4(1.0);
     glm::mat4 translateMat = glm::translate(glm::mat4(1.0), translation);
     glm::mat4 rotateMat = glm::mat4_cast(rotation);
     glm::mat4 scaleMat = glm::scale(glm::mat4(1.0), oldScale);
@@ -146,7 +145,6 @@ void Model::setRotation(glm::vec3 eulerAngles) {
     glm::vec4 perspective;
     glm::decompose(modelMatrix, scale, rotation, translation, skew,perspective);
     rotation = glm::quat(eulerAngles);
-    modelMatrix = glm::mat4x4(1.0);
     glm::mat4 translateMat = glm::translate(glm::mat4(1.0), translation);
     glm::mat4 rotateMat = glm::mat4_cast(rotation);
     glm::mat4 scaleMat = glm::scale(glm::mat4(1.0), scale);
