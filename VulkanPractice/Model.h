@@ -15,7 +15,10 @@ public:
 	uint32_t referenceTextureIndex;
 
 	void loadModel(std::string modelPath, std::string materialPath, std::string texturePath);
-
+	void testUpdate();
+	void setScale(glm::vec3 scale);
+	void setPosition(glm::vec3 pos);
+	void setRotation(glm::vec3 eulerAngles);
 };
 //Make a manager class?
 

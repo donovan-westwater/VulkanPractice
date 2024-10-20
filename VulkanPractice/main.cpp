@@ -222,6 +222,8 @@ private:
     //Timer for animating triangle in quick and dirty way
     //float timer = 0;
     void mainLoop() {
+        ResourceManager::manager->lastElapsedTime = std::clock();
+        ResourceManager::manager->deltaTime = ResourceManager::manager->lastElapsedTime;
         while (!glfwWindowShouldClose(ResourceManager::manager->window)) {
             glfwPollEvents();
             //This is a quick and dirty way to animate the triangle. I don't think it is remotely ideal for a bunch of reasons
@@ -239,6 +241,10 @@ private:
             }
             else drawRasterizationFrame();
             //timer += 0.01f;
+            float newtime = clock();
+            float oldtime = ResourceManager::manager->lastElapsedTime;
+            ResourceManager::manager->deltaTime = newtime - oldtime;
+            ResourceManager::manager->lastElapsedTime = newtime;
         }
         //Wait for drawing and presnetation operations to stop
         //Stops cleanup from trying to free up semaphores while to program is still running
@@ -268,13 +274,15 @@ private:
         vkResetFences(ResourceManager::manager->device, 1, &ResourceManager::manager->inFlightFences[ResourceManager::manager->currentFrame]);
         //Acquire the image we waited on
         //vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
-        ResourceManager::manager->pipelineList[0].updateMainUniformBuffers(ResourceManager::manager->currentFrame);
+        ResourceManager::manager->mainCamera.updateCamera();
         vkResetCommandBuffer(ResourceManager::manager->commandBuffers[ResourceManager::manager->currentFrame], 0);
         ResourceManager::manager->beginMainRenderPass(ResourceManager::manager->commandBuffers[ResourceManager::manager->currentFrame], imageIndex);
         //record the draw calls onto the command buffer for rendering.
         for (int i = 0; i < ResourceManager::manager->modelList.size(); i++) {
             Model* m = &ResourceManager::manager->modelList[i];
             Pipeline *refPipeline = &ResourceManager::manager->pipelineList[m->referencePipelineIndex];
+            m->testUpdate();
+            refPipeline->updateMainUniformBuffers(ResourceManager::manager->currentFrame,m);
             refPipeline->recordDrawCallCommandBuffer(ResourceManager::manager->commandBuffers[ResourceManager::manager->currentFrame],
                 *m,imageIndex); //Record the draw calls we want
         }

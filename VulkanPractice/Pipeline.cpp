@@ -383,26 +383,13 @@ void Pipeline::recordDrawCallCommandBuffer(VkCommandBuffer commandBuffer,Model m
 }
 
 //Move to pipleine and rename to updateMainUniformBuffers
-void Pipeline::updateMainUniformBuffers(uint32_t currentFrame) {
+void Pipeline::updateMainUniformBuffers(uint32_t currentFrame,Model *m) {
     if (!isDefaultPipeline) return;
-    //Using chrono to keep track of time independent of framerate
-    static auto startTime = std::chrono::high_resolution_clock::now();
-
-    auto currentTime = std::chrono::high_resolution_clock::now();
-    float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
     UniformBufferObject ubo{};
     //We create an indentity matrix and rotate based on the time
-    ubo.model = glm::mat4(0.25f);
-    ubo.model[3][3] = 1.0f;
-    ubo.model[3][2] = -1.0f;
-    ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-    ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.model = glm::rotate(ubo.model, time * glm::radians(10.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-    //Create a camera matrix at pos 2,2,2 look at 0 0 0, with up being Z
-    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    //Create a perspective based projection matrix for our camera
-    ubo.proj = glm::perspective(glm::radians(45.0f), ResourceManager::manager->swapChainExtent.width / (float)ResourceManager::manager->swapChainExtent.height, 0.1f, 10.0f);
-    ubo.proj[1][1] *= -1; //Y-coord for clip coords is inverted. This fixes that (GLM designed for openGL)
+    ubo.model = m->modelMatrix;
+    ubo.view = ResourceManager::manager->mainCamera.view;
+    ubo.proj = ResourceManager::manager->mainCamera.proj;
     //ubo.colorAdd = glm::vec4(abs(cos(time)), abs(sin(time)), abs(tan(time)), 1);
     memcpy(uniformBuffersMapped[currentFrame], &ubo, sizeof(ubo));
 }

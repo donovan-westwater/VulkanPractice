@@ -36,7 +36,7 @@ public:
 	void createDefaultGraphicsPipeline();
 	void createFramebuffers();
 	void createMainUniformBuffers();
-	void updateMainUniformBuffers(uint32_t currentFrame);
+	void updateMainUniformBuffers(uint32_t currentFrame, Model *m);
 	void recordDrawCallCommandBuffer(VkCommandBuffer commandBuffer,Model m, uint32_t imageIndex);
 	//Add deleter
 	void free();

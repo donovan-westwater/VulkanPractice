@@ -5,6 +5,7 @@
 #include "Pipeline.h"
 #include "Mesh.h"
 #include "Model.h"
+#include "Camera.h"
 //Stores the shared pointers used by multiple pipelines
 class UniversalResourcePool {
 public:
@@ -89,7 +90,10 @@ public:
 	std::vector<Model> modelList;
     std::vector<LightSource> lightList;
 	//Might move materials to be managed here rather than managed by mesh
-
+    //Player related elements go here for now
+    Camera mainCamera;
+    float lastElapsedTime = 0;
+    float deltaTime = 0;
     void initUniversalResourcePool();
 
     void initVulkan();

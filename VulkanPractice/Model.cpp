@@ -5,6 +5,7 @@
 #include "Pipeline.h"
 #include "Mesh.h"
 #include "Model.h"
+#include <glm/gtx/matrix_decompose.hpp>
 //Load Model should go here!
 
     //This is more like a resource function. Move it to a resource manager when that is made
@@ -113,4 +114,48 @@ void Model::loadModel(std::string modelPath, std::string materialPath,std::strin
         modelMesh->createMaterialIndexBuffer();
     }
 
+}
+
+//Transforms
+void Model::setScale(glm::vec3 scale) {
+    glm::vec3 oldScale;
+    glm::quat rotation;
+    glm::vec3 translation;
+    glm::vec3 skew;
+    glm::vec4 perspective;
+    glm::decompose(modelMatrix, scale, rotation, translation, skew, perspective);
+    oldScale = scale;
+    modelMatrix = glm::mat4x4(1.0);
+    glm::mat4 translateMat = glm::translate(glm::mat4(1.0), translation);
+    glm::mat4 rotateMat = glm::mat4_cast(rotation);
+    glm::mat4 scaleMat = glm::scale(glm::mat4(1.0), oldScale);
+
+    modelMatrix = translateMat * rotateMat * scaleMat;
+}
+void Model::setPosition(glm::vec3 pos) {
+    modelMatrix[3][0] = pos.x;
+    modelMatrix[3][1] = pos.y;
+    modelMatrix[3][2] = pos.z;
+}
+//Sets rotation using eulerAngles (in Radians)
+void Model::setRotation(glm::vec3 eulerAngles) {
+    glm::vec3 scale;
+    glm::quat rotation;
+    glm::vec3 translation;
+    glm::vec3 skew;
+    glm::vec4 perspective;
+    glm::decompose(modelMatrix, scale, rotation, translation, skew,perspective);
+    rotation = glm::quat(eulerAngles);
+    modelMatrix = glm::mat4x4(1.0);
+    glm::mat4 translateMat = glm::translate(glm::mat4(1.0), translation);
+    glm::mat4 rotateMat = glm::mat4_cast(rotation);
+    glm::mat4 scaleMat = glm::scale(glm::mat4(1.0), scale);
+
+    modelMatrix  = translateMat * rotateMat * scaleMat;
+}
+void Model::testUpdate() {
+    float delta = ResourceManager::manager->deltaTime;
+   // modelMatrix = glm::rotate(modelMatrix, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+   // modelMatrix = glm::rotate(modelMatrix, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    modelMatrix = glm::rotate(modelMatrix, delta * glm::radians(10.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 }
