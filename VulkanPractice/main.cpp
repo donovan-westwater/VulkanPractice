@@ -243,7 +243,7 @@ private:
             //timer += 0.01f;
             float newtime = clock();
             float oldtime = ResourceManager::manager->lastElapsedTime;
-            ResourceManager::manager->deltaTime = newtime - oldtime;
+            ResourceManager::manager->deltaTime = (newtime - oldtime)/CLOCKS_PER_SEC;
             ResourceManager::manager->lastElapsedTime = newtime;
         }
         //Wait for drawing and presnetation operations to stop
