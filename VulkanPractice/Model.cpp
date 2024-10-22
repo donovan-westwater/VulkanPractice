@@ -21,7 +21,7 @@ void Model::loadModel(std::string modelPath, std::string materialPath,std::strin
     Mesh* modelMesh = &ResourceManager::manager->meshList[endIndex];
     referenceMeshIndex = endIndex;
     referencePipelineIndex = 0;
-    allocatedDescSetIndex = ResourceManager::manager->pipelineList[referencePipelineIndex].allocatedSets;
+    allocatedDescSetIndex = ResourceManager::manager->pipelineList[referencePipelineIndex].allocatedSets*2;
     ResourceManager::manager->pipelineList[referencePipelineIndex].allocatedSets++;
     if (!tinyobj::LoadObj(&attrib, &shapes, &localMaterials, &warn, &err, modelPath.c_str(), materialPath.c_str())) {
         throw std::runtime_error(warn + err);

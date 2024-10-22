@@ -21,8 +21,8 @@ void Pipeline::createMainDescriptorSets() {
 }
 void Pipeline::updateDescriptorSet(Model *model,uint32_t frameIndex) {
     if (model == nullptr) return;
-    uint32_t descIndex = model->allocatedDescSetIndex;
-    if (descIndex >= allocatedSets) return;
+    uint32_t descIndex = model->allocatedDescSetIndex+frameIndex;
+    if (descIndex >= allocatedSets*MAX_FRAMES_IN_FLIGHT) return;
     VkDescriptorBufferInfo bufferInfo{};
     bufferInfo.buffer = model->uniformBuffers[frameIndex % 2];
     bufferInfo.offset = 0;
@@ -377,7 +377,7 @@ void Pipeline::recordDrawCallCommandBuffer(VkCommandBuffer commandBuffer,Model m
     VkDeviceSize offsets[] = { 0 };
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
     vkCmdBindIndexBuffer(commandBuffer, m.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-    int setIndex = ResourceManager::manager->currentFrame + 2*model.referenceTextureIndex;
+    int setIndex = model.allocatedDescSetIndex+ResourceManager::manager->currentFrame;
     //Update descriptor sets -- This hasnt been updated. It will not bind the correct desc. FIX LATER!
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[setIndex], 0, nullptr);
     //The actual draw call!
