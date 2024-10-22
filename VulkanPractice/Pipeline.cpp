@@ -7,7 +7,7 @@
 void Pipeline::createMainDescriptorSets() {
     //Allocate data for the descriptor sets
     //We want a descriptor set for every texture
-    uint32_t descCount = MAX_FRAMES_IN_FLIGHT * ResourceManager::manager->textureList.size();
+    uint32_t descCount = MAX_FRAMES_IN_FLIGHT * ResourceManager::manager->maxModelCount;
     std::vector<VkDescriptorSetLayout> layouts(descCount, descriptorSetLayout);
     VkDescriptorSetAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -18,45 +18,46 @@ void Pipeline::createMainDescriptorSets() {
     if (vkAllocateDescriptorSets(ResourceManager::manager->device, &allocInfo, descriptorSets.data()) != VK_SUCCESS) {
         throw std::runtime_error("failed to allocate descriptor sets!");
     }
-    //Configure the sets and pass them to sets
-    for (size_t i = 0; i < descCount; i++) {
-        VkDescriptorBufferInfo bufferInfo{};
-        bufferInfo.buffer = uniformBuffers[i%2];
-        bufferInfo.offset = 0;
-        bufferInfo.range = sizeof(UniformBufferObject);
+}
+void Pipeline::updateDescriptorSet(Model *model,uint32_t frameIndex) {
+    if (model == nullptr) return;
+    uint32_t descIndex = model->allocatedDescSetIndex;
+    if (descIndex >= allocatedSets) return;
+    VkDescriptorBufferInfo bufferInfo{};
+    bufferInfo.buffer = model->uniformBuffers[frameIndex % 2];
+    bufferInfo.offset = 0;
+    bufferInfo.range = sizeof(UniformBufferObject);
 
-        VkDescriptorImageInfo imageInfo{};
-        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        int texIndex = i / 2;
-        imageInfo.imageView = ResourceManager::manager->textureList[texIndex].textureImageView;
-        imageInfo.sampler = ResourceManager::manager->textureList[texIndex].textureSampler;
+    VkDescriptorImageInfo imageInfo{};
+    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    int texIndex = model->referenceTextureIndex;
+    imageInfo.imageView = ResourceManager::manager->textureList[texIndex].textureImageView;
+    imageInfo.sampler = ResourceManager::manager->textureList[texIndex].textureSampler;
 
-        std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+    std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
 
-        descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[0].dstSet = descriptorSets[i];
-        descriptorWrites[0].dstBinding = 0;
-        descriptorWrites[0].dstArrayElement = 0;
-        descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        descriptorWrites[0].descriptorCount = 1;
-        descriptorWrites[0].pBufferInfo = &bufferInfo;
+    descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[0].dstSet = descriptorSets[descIndex];
+    descriptorWrites[0].dstBinding = 0;
+    descriptorWrites[0].dstArrayElement = 0;
+    descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descriptorWrites[0].descriptorCount = 1;
+    descriptorWrites[0].pBufferInfo = &bufferInfo;
 
-        descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[1].dstSet = descriptorSets[i];
-        descriptorWrites[1].dstBinding = 1;
-        descriptorWrites[1].dstArrayElement = 0;
-        descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        descriptorWrites[1].descriptorCount = 1;
-        descriptorWrites[1].pImageInfo = &imageInfo;
+    descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[1].dstSet = descriptorSets[descIndex];
+    descriptorWrites[1].dstBinding = 1;
+    descriptorWrites[1].dstArrayElement = 0;
+    descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorWrites[1].descriptorCount = 1;
+    descriptorWrites[1].pImageInfo = &imageInfo;
 
-        vkUpdateDescriptorSets(ResourceManager::manager->device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data()
-            , 0, nullptr);
-    }
-
+    vkUpdateDescriptorSets(ResourceManager::manager->device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data()
+        , 0, nullptr);
 }
 //Descriptor sets cant be created directly. They must be allocated like command buffers
 void Pipeline::createMainDescriptorPool() {
-    uint32_t descCount = MAX_FRAMES_IN_FLIGHT * ResourceManager::manager->textureList.size();
+    uint32_t descCount = MAX_FRAMES_IN_FLIGHT * ResourceManager::manager->maxModelCount;
     std::array<VkDescriptorPoolSize, 2> poolSizes{};
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
@@ -73,6 +74,7 @@ void Pipeline::createMainDescriptorPool() {
     }
 }
 //Create the uniform object buffers
+//TO-DO -> Move the uniformBuffers to the models instead and then memMap and memUnmap to copy data over
 void Pipeline::createMainUniformBuffers() {
     VkDeviceSize bufferSize = sizeof(UniformBufferObject);
 

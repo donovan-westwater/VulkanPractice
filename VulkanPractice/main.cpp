@@ -282,7 +282,8 @@ private:
             Model* m = &ResourceManager::manager->modelList[i];
             Pipeline *refPipeline = &ResourceManager::manager->pipelineList[m->referencePipelineIndex];
             m->testUpdate();
-            refPipeline->updateMainUniformBuffers(ResourceManager::manager->currentFrame,m);
+            m->updateUniformBuffers(ResourceManager::manager->currentFrame);
+            refPipeline->updateDescriptorSet(m, ResourceManager::manager->currentFrame);
             refPipeline->recordDrawCallCommandBuffer(ResourceManager::manager->commandBuffers[ResourceManager::manager->currentFrame],
                 *m,imageIndex); //Record the draw calls we want
         }

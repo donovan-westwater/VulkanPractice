@@ -59,10 +59,10 @@ void ResourceManager::initVulkan() {
     modelList.push_back(test2);
     modelList[1].loadModel("Models/Guilmon.obj", MATERIALS_PATH, TEXTURES_PATH+"guilmon.png");
     modelList[1].setScale(glm::vec3(.25f));
-    modelList[0].setPosition(glm::vec3(10, 0, 0));
+    modelList[1].setPosition(glm::vec3(1, 0, 0));
     //modelList[1].setRotation(glm::vec3(0, glm::radians(90.0f), 0));
     //create ubo buffer
-    pipelineList[0].createMainUniformBuffers();
+    //pipelineList[0].createMainUniformBuffers();
     pipelineList[0].createMainDescriptorPool();
     pipelineList[0].createMainDescriptorSets();
     createCommandBuffers();

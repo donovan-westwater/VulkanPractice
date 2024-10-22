@@ -13,6 +13,7 @@ public:
 	VkDescriptorSetLayout descriptorSetLayout;
 	std::vector<VkDescriptorSet> descriptorSets;
 	VkDescriptorPool descriptorPool;
+	int allocatedSets = 0;
 	//Depth and Image resources in case the pipeline wants them
 	VkImage depthImage; //Image for depth buffer
 	VkDeviceMemory depthImageMemory; //Memory allocated for depth buffer
@@ -28,6 +29,7 @@ public:
 	bool isDefaultPipeline = false;
 	//Besides the MainGraphics pipeline function, the rest should be private
 	void createMainDescriptorSets();
+	void updateDescriptorSet(Model* model, uint32_t frameIndex);
 	void createMainDescriptorPool();
 	void createMainDescriptorSetLayout();
 	void createColorResources();

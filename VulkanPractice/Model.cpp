@@ -21,6 +21,8 @@ void Model::loadModel(std::string modelPath, std::string materialPath,std::strin
     Mesh* modelMesh = &ResourceManager::manager->meshList[endIndex];
     referenceMeshIndex = endIndex;
     referencePipelineIndex = 0;
+    allocatedDescSetIndex = ResourceManager::manager->pipelineList[referencePipelineIndex].allocatedSets;
+    ResourceManager::manager->pipelineList[referencePipelineIndex].allocatedSets++;
     if (!tinyobj::LoadObj(&attrib, &shapes, &localMaterials, &warn, &err, modelPath.c_str(), materialPath.c_str())) {
         throw std::runtime_error(warn + err);
     }
@@ -113,9 +115,35 @@ void Model::loadModel(std::string modelPath, std::string materialPath,std::strin
         modelMesh->createMaterialBuffer();
         modelMesh->createMaterialIndexBuffer();
     }
-
+    createUniformBuffers();
 }
+void Model::createUniformBuffers() {
+    VkDeviceSize bufferSize = sizeof(UniformBufferObject);
 
+    uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+    uniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
+    //Create buffers for the frames that are being worked on in parallel
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        ResourceManager::manager->createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i]
+            , ResourceManager::manager->useRayTracing);
+#ifndef NDEBUG
+        ResourceManager::setDebugObjectName(ResourceManager::manager->device, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(uniformBuffers[i]), "Model Uniform Buffer Object " + i);
+#endif
+    }
+}
+void Model::updateUniformBuffers(uint32_t frameNum) {
+    void* data;
+    VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+    UniformBufferObject ubo{};
+    //We create an indentity matrix and rotate based on the time
+    ubo.model = modelMatrix;
+    ubo.view = ResourceManager::manager->mainCamera.view;
+    ubo.proj = ResourceManager::manager->mainCamera.proj;
+    vkMapMemory(ResourceManager::manager->device, uniformBuffersMemory[frameNum], 0
+        , bufferSize, 0, &data);
+    memcpy(data, &ubo, sizeof(ubo));
+    vkUnmapMemory(ResourceManager::manager->device, uniformBuffersMemory[frameNum]);
+}
 //Transforms
 void Model::setScale(glm::vec3 scale) {
     glm::vec3 oldScale;

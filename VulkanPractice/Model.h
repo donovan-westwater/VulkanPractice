@@ -13,8 +13,14 @@ public:
 	uint32_t referenceMeshIndex;
 	uint32_t referencePipelineIndex;
 	uint32_t referenceTextureIndex;
+	uint32_t allocatedDescSetIndex;
+	//UBO section
+	std::vector<VkBuffer> uniformBuffers; //ubo buffer
+	std::vector<VkDeviceMemory> uniformBuffersMemory;//handle to allocated buffer memory
 
 	void loadModel(std::string modelPath, std::string materialPath, std::string texturePath);
+	void createUniformBuffers();
+	void updateUniformBuffers(uint32_t frameNum);
 	void testUpdate();
 	void setScale(glm::vec3 scale);
 	void setPosition(glm::vec3 pos);
