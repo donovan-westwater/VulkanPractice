@@ -167,6 +167,7 @@
     <ClCompile Include="Model.cpp" />
     <ClCompile Include="Pipeline.cpp" />
     <ClCompile Include="RayTracer.cpp" />
+    <ClCompile Include="RayTracingPipeline.cpp" />
     <ClCompile Include="ResourceManager.cpp" />
     <ClCompile Include="TestMain-CompilerDebugging.cpp" />
     <ClCompile Include="Texture.cpp" />
@@ -186,6 +187,7 @@
     <ClInclude Include="Model.h" />
     <ClInclude Include="Pipeline.h" />
     <ClInclude Include="RayTracer.h" />
+    <ClInclude Include="RayTracingPipeline.h" />
     <ClInclude Include="ResourceManager.h" />
     <ClInclude Include="Texture.h" />
   </ItemGroup>

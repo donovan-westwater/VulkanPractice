@@ -3,46 +3,24 @@
 #define RAYTRACER_H
 #include "common.h"
 #include "ResourceManager.h"
+#include "RayTracingPipeline.h"
 class RayTracer {
 	const int MAX_FRAMES_IN_FLIGHT = 2; //The amount of frames that can be processed concurrently
-	std::vector<VkRayTracingShaderGroupCreateInfoKHR> raytracingShaderGroups;
-	VkPipeline raytracingPipeline;
-	VkPipelineLayout rayPipelineLayout;
-	struct PushConstantRay
-	{
-		glm::vec4 clearColor;
-		glm::vec3 lightPos;
-		float lightIntensity;
-		int lightType;
-	};
-	PushConstantRay pushConstantRay;
-	VkBuffer bottomLevelAccelerationStructureBuffer;
+	RayTracingPipeline *refRayTracingPipeline; //Pointer to a pipeline in the resource manager
+	//VkPipeline raytracingPipeline; //Should be placed into the pipeline system?
+	//VkPipelineLayout rayPipelineLayout; //SEE ABOVE
+	std::vector <VkBuffer> bottomLevelAccelerationStructureBufferList; //should be Vector contiang buffer for each model 
 	VkBuffer topLevelAccelerationStructureBuffer;
 	VkDeviceMemory topLevelAccelerationStructureDeviceMemory;
-	VkDeviceMemory bottomLevelAccelerationStructureDeviceMemory;
-	VkAccelerationStructureKHR topLevelAccelerationStructure;
-	VkAccelerationStructureKHR bottomLevelAccelerationStructure;
-	VkDescriptorSetLayout descriptorSetLayout; //holds values to setup the descriptor sets
-	std::vector<VkDescriptorSet> descriptorSets; //The actual descr sets
-	VkDescriptorPool descriptorPool;
-	VkBuffer shaderBindingTableBuffer;
-	VkDeviceMemory shaderBindingTableDeviceMemory;
-	VkStridedDeviceAddressRegionKHR rayGenerationRegion;
-	VkStridedDeviceAddressRegionKHR rayMissRegion;
-	VkStridedDeviceAddressRegionKHR rayHitRegion;
-	VkStridedDeviceAddressRegionKHR rayCallRegion;
-	VkPhysicalDeviceRayTracingPipelinePropertiesKHR rayTracingProperties;
+	std::vector <VkDeviceMemory> bottomLevelAccelerationStructureDeviceMemoryList; //Should becontaing device memory for each model
+	VkAccelerationStructureKHR topLevelAccelerationStructure; //This is the entry point for ray tracing. SHould represent a scene!
+	std::vector<VkAccelerationStructureKHR> bottomLevelAccelerationStructureList; //Should be a vector contining the struct for each model
 	//Functions
-	VkShaderModule createShaderModule(const std::vector<char>& code);
 	QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
 	uint32_t findSimultaniousGraphicsAndPresentIndex(VkPhysicalDevice phyDevice);
 	uint32_t findBufferMemoryTypeIndex(VkDevice logicalDevice, VkPhysicalDevice physicalDevice
 		, VkBuffer buffer, VkMemoryPropertyFlagBits flagBits);
 	void createTopLevelAccelerationStructure();
-	void createRayTracerDescriptorSets(VkBuffer& vertexBuffer, VkBuffer& indexBuffer, VkBuffer& materialBuffer, VkBuffer& materialIndexBuffer);
-	void createRayTracerDescriptorPool();
-	void createRayTracerDescriptorSetLayout();
-	void createShaderBindingTable();
 	void modelToBottomLevelAccelerationStructure(VkBuffer& vertexBuffer, VkBuffer& indexBuffer, uint32_t nOfVerts);
 	void initRayTracing();
 
@@ -52,6 +30,7 @@ public:
 	std::weak_ptr<uint32_t> currentFrameRef;
 	uint32_t widthRef;
 	uint32_t heightRef;
+	VkPhysicalDeviceRayTracingPipelinePropertiesKHR rayTracingProperties;
 	std::weak_ptr<LightSource> mainLightSource;
 	std::weak_ptr<VkDevice> mainLogicalDevice; //Logical device chosen by main
 	std::weak_ptr<VkPhysicalDevice> mainPhysicalDevice; //physical device chosen by main
@@ -70,6 +49,14 @@ public:
 	std::weak_ptr<std::vector<VkSemaphore>> rayTracerImageAvailableSemaphores;
 	std::weak_ptr<std::vector<VkSemaphore>> rayTracerFinishedSemaphores;
 	std::weak_ptr<VkQueue> rayTracerPresentQueue;
+	struct PushConstantRay
+	{
+		glm::vec4 clearColor;
+		glm::vec3 lightPos;
+		float lightIntensity;
+		int lightType;
+	};
+	PushConstantRay pushConstantRay;
 	//Code taken from https://github.com/WilliamLewww/vulkan_ray_tracing_minimal_abstraction/blob/master/ray_pipeline/src/main.cpp
 	//Around the lines around #380
 	PFN_vkGetBufferDeviceAddressKHR pvkGetBufferDeviceAddressKHR;
@@ -122,9 +109,9 @@ public:
 
 	void rayTrace(VkCommandBuffer& cmdBuf, std::vector<void*>& uniBufferMMap, glm::vec4 clearColor);
 
-	void createRayTracingPipeline();
+	VkAccelerationStructureKHR* getTopLevelAccelerationStructure();
 
-	void updateRayTracerDescriptorSets();
+	VkAccelerationStructureKHR* getBottomLevelAccelerationStructure(int index);
 
 	void setupRayTracer(VkBuffer& vertexBuffer, VkBuffer& indexBuffer, uint32_t nOfVerts,VkBuffer& materialBuffer, VkBuffer& materialIndexBuffer);
 
