@@ -4,18 +4,18 @@
 
 void RayTracingPipeline::createRayTracerDescriptorSetLayout() {
 	//Creating the layout
-	if (refRayTracer->mainLogicalDevice.expired()) {
+	if (refRayTracer->mainLogicalDevice == nullptr) {
 		throw std::runtime_error("Main Logical Device is expired / null!\n");
 	}
-	if (refRayTracer->mainPhysicalDevice.expired()) {
+	if (refRayTracer->mainPhysicalDevice == nullptr) {
 		throw std::runtime_error("Main Physical Device is expired / null!\n");
 	}
-	if (refRayTracer->mainSwapChainFormat.expired()) {
+	if (refRayTracer->mainSwapChainFormat == nullptr) {
 		throw std::runtime_error("Main SwapChain Format is expired / null!\n");
 	}
-	VkDevice logicalDevice = *refRayTracer->mainLogicalDevice.lock();
-	VkPhysicalDevice physicalDevice = *refRayTracer->mainPhysicalDevice.lock();
-	VkFormat swapChainFormat = *refRayTracer->mainSwapChainFormat.lock();
+	VkDevice logicalDevice = *refRayTracer->mainLogicalDevice;
+	VkPhysicalDevice physicalDevice = *refRayTracer->mainPhysicalDevice;
+	VkFormat swapChainFormat = *refRayTracer->mainSwapChainFormat;
 	//topLevelAccelerationStructure binding
 	VkDescriptorSetLayoutBinding accStructureBinding;
 	accStructureBinding.binding = 0;
@@ -74,10 +74,10 @@ void RayTracingPipeline::createRayTracerDescriptorSetLayout() {
 	}
 }
 void RayTracingPipeline::createRayTracerDescriptorPool() {
-	if (refRayTracer->mainLogicalDevice.expired()) {
+	if (refRayTracer->mainLogicalDevice == nullptr) {
 		throw std::runtime_error("Main Logical Device is expired / null!\n");
 	}
-	VkDevice logicalDevice = *refRayTracer->mainLogicalDevice.lock();
+	VkDevice logicalDevice = *refRayTracer->mainLogicalDevice;
 	std::array<VkDescriptorPoolSize, 2> poolSizes{};
 	poolSizes[0].type = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
 	poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
@@ -94,14 +94,13 @@ void RayTracingPipeline::createRayTracerDescriptorPool() {
 	}
 }
 //Create Descriptor Sets for a single model
-void RayTracingPipeline::createRayTracerDescriptorSets(VkBuffer& vertexBuffer, VkBuffer& indexBuffer,
-	VkBuffer& materialBuffer, VkBuffer& materialIndexBuffer) {
+void RayTracingPipeline::createRayTracerDescriptorSets() {
 	//Allocate data for the descriptor sets
 	//Creating the layout
-	if (refRayTracer->mainLogicalDevice.expired()) {
+	if (refRayTracer->mainLogicalDevice == nullptr) {
 		throw std::runtime_error("Main Logical Device is expired / null!\n");
 	}
-	VkDevice logicalDevice = *refRayTracer->mainLogicalDevice.lock();
+	VkDevice logicalDevice = *refRayTracer->mainLogicalDevice;
 	std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
 	VkDescriptorSetAllocateInfo allocInfo{};
 	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;

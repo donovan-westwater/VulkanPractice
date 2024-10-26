@@ -16,7 +16,7 @@ class RayTracingPipeline : public Pipeline {
 	VkStridedDeviceAddressRegionKHR rayCallRegion;
 public:
 	RayTracer* refRayTracer;
-	void createRayTracerDescriptorSets(VkBuffer& vertexBuffer, VkBuffer& indexBuffer, VkBuffer& materialBuffer, VkBuffer& materialIndexBuffer);
+	void createRayTracerDescriptorSets();
 	void createRayTracerDescriptorPool();
 	void createRayTracerDescriptorSetLayout();
 	void createShaderBindingTable();

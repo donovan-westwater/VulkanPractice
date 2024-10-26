@@ -11,6 +11,8 @@ public:
     void run() {
         //Create Resource manager
         ResourceManager::manager = new ResourceManager();
+        ResourceManager::manager->width = WIDTH;
+        ResourceManager::manager->height = HEIGHT;
         initWindow();
         initVulkan();
         //Setup RayTracer
@@ -181,6 +183,7 @@ private:
         createInstance();
         setupDebugMessenger();
         ResourceManager::manager->initVulkan();
+        ResourceManager::manager->initUniversalResourcePool();
     }
 
     

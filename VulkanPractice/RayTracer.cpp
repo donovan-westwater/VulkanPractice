@@ -2,18 +2,45 @@
 
 //Using the following link as a referencce: https://github.com/WilliamLewww/vulkan_ray_tracing_minimal_abstraction/blob/master/ray_pipeline/src/main.cpp	
 	//GO THROUGH EVERYTHING AND MAKE SURE SCRATCH BUFFERS ARE FREED!!!!
-	void RayTracer::setupRayTracer(VkBuffer& vertexBuffer, VkBuffer& indexBuffer, uint32_t nOfVerts
-	, VkBuffer& materialBuffer, VkBuffer& materialIndexBuffer) {
-		if (mainLogicalDevice.expired()) { 
+void RayTracer::CreateLightAndPassVarsToRayTracer() {
+	LightSource light;
+	light.dir = glm::normalize(glm::vec3(0, -1, 1));
+	light.intensity = 1.0;
+	light.pos = glm::vec3(0, 2, 2);
+	light.type = 0;
+	ResourceManager::manager->lightList.push_back(light);
+	mainCommandPool = &ResourceManager::manager->commandPool;
+	mainDescSetLayout = &ResourceManager::manager->pipelineList[0].descriptorSetLayout;
+	mainDescSets = &ResourceManager::manager->pipelineList[0].descriptorSets;
+	mainGraphicsQueue = &ResourceManager::manager->graphicsQueue;
+	mainLogicalDevice = &ResourceManager::manager->device;
+	mainPhysicalDevice = &ResourceManager::manager->physicalDevice;
+	mainSurface = &ResourceManager::manager->surface;
+	mainLightSource = &ResourceManager::manager->lightList[0];
+	heightRef = ResourceManager::manager->height;
+	widthRef = ResourceManager::manager->width;
+	currentFrameRef = &ResourceManager::manager->currentFrame;
+	mainSwapChainFormat = &ResourceManager::manager->swapChainImageFormat;
+	rayTracerImageAvailableSemaphores = &ResourceManager::manager->imageAvailableSemaphores;
+	rayTracerFinishedSemaphores = &ResourceManager::manager->renderFinishedSemaphores;
+	rayTracerFences = &ResourceManager::manager->inFlightFences;
+	rayTracerPresentQueue = &ResourceManager::manager->presentQueue;
+	rayTracerSwapchain = &ResourceManager::manager->swapChain;
+	rayTracerSwapchainImages = &ResourceManager::manager->swapChainImages;
+}
+	void RayTracer::setupRayTracer() {
+		if (mainLogicalDevice == nullptr) { 
 			throw std::runtime_error("main Logical Device is null or expired\n");
 		}
 #ifndef NDEBUG
 		ResourceManager::manager->pvkSetDebugUtilsObjectNameEXT =
 			(PFN_vkSetDebugUtilsObjectNameEXT)vkGetDeviceProcAddr(
-				*mainLogicalDevice.lock(), "vkSetDebugUtilsObjectNameEXT");
+				*mainLogicalDevice, "vkSetDebugUtilsObjectNameEXT");
 #endif
 		initRayTracing();
-		modelToBottomLevelAccelerationStructure(vertexBuffer, indexBuffer, nOfVerts);
+		for (Mesh mesh : ResourceManager::manager->meshList) {
+			modelToBottomLevelAccelerationStructure(mesh);
+		}
 		createTopLevelAccelerationStructure();
 		createRayTracerImageAndImageView();
 		//We might need to let the ray tracer handle the ray tracing pipelines instead of resource manager
@@ -24,22 +51,22 @@
 		refRayTracingPipeline = (RayTracingPipeline *) &ResourceManager::manager->pipelineList[endIndex];
 		refRayTracingPipeline->createRayTracerDescriptorSetLayout();
 		refRayTracingPipeline->createRayTracerDescriptorPool();
-		refRayTracingPipeline->createRayTracerDescriptorSets(vertexBuffer,indexBuffer,materialBuffer,materialIndexBuffer);
+		refRayTracingPipeline->createRayTracerDescriptorSets();
 		refRayTracingPipeline->createRayTracingPipeline();
 		refRayTracingPipeline->createShaderBindingTable();
 	}
 	//Check to see if our GPU supports raytracing
 	void RayTracer::initRayTracing()
 	{
-		if (mainLogicalDevice.expired()) {
+		if (mainLogicalDevice == nullptr) {
 			throw std::runtime_error("main Logical Device is null or expired\n");
 		}
-		if (mainPhysicalDevice.expired()) {
+		if (mainPhysicalDevice == nullptr) {
 			throw std::runtime_error("main Physical Device is null or expired\n");
 		}
 		//Setup function pointers for ray trace functions
-		VkDevice logicDevice = *mainLogicalDevice.lock();
-		VkPhysicalDevice physicalDevice = *mainPhysicalDevice.lock();
+		VkDevice logicDevice = *mainLogicalDevice;
+		VkPhysicalDevice physicalDevice = *mainPhysicalDevice;
 		pvkGetBufferDeviceAddressKHR =
 			reinterpret_cast<PFN_vkGetBufferDeviceAddressKHR>(vkGetDeviceProcAddr(
 				logicDevice, "vkGetBufferDeviceAddressKHR"));
@@ -74,22 +101,22 @@
 		prop2.pNext = &rayTracingProperties;
 		vkGetPhysicalDeviceProperties2(physicalDevice, &prop2);
 	}//BUG: I think the BLAS scratch buffers are setup wrong. there is a bottomLevelAccelerationStructureBuffer and buffer handle. Investigate
-	void RayTracer::modelToBottomLevelAccelerationStructure(VkBuffer &vertexBuffer, VkBuffer&indexBuffer, uint32_t nOfVerts) {
-		if (mainLogicalDevice.expired()) {
+	void RayTracer::modelToBottomLevelAccelerationStructure(Mesh& mesh) {
+		if (mainLogicalDevice == nullptr) {
 			throw std::runtime_error("Main Logical Device is null or expired\n");
 		}
-		if (mainPhysicalDevice.expired()) {
+		if (mainPhysicalDevice == nullptr) {
 			throw std::runtime_error("Main Physical Device is null or expired\n");
 		}
-		VkDevice logicalDevice = *mainLogicalDevice.lock();
-		VkPhysicalDevice physicalDevice = *mainPhysicalDevice.lock();
+		VkDevice logicalDevice = *mainLogicalDevice;
+		VkPhysicalDevice physicalDevice = *mainPhysicalDevice;
 		VkBufferDeviceAddressInfo vInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
 		vInfo.pNext = NULL;
-		vInfo.buffer = vertexBuffer;
+		vInfo.buffer = mesh.vertexBuffer;
 		VkDeviceAddress vertexAddress = pvkGetBufferDeviceAddressKHR(logicalDevice, &vInfo);
-		vInfo.buffer = indexBuffer;
+		vInfo.buffer = mesh.indexBuffer;
 		VkDeviceAddress indexAddress = pvkGetBufferDeviceAddressKHR(logicalDevice, &vInfo);
-		uint32_t umaxPrimativeCount = static_cast<uint32_t>(maxPrimativeCount);
+		uint32_t umaxPrimativeCount = static_cast<uint32_t>(mesh.primativeCount);
 
 		VkAccelerationStructureGeometryTrianglesDataKHR triangles{ VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR };
 		//Vertex buffer description
@@ -99,7 +126,7 @@
 		//Index buffer description
 		triangles.indexData.deviceAddress = indexAddress;
 		triangles.indexType = VK_INDEX_TYPE_UINT32;
-		triangles.maxVertex = nOfVerts;
+		triangles.maxVertex = mesh.vertexCount;
 		triangles.pNext = NULL;
 		triangles.transformData.deviceAddress = 0;
 
@@ -147,10 +174,11 @@
 			bottomLevelAccelerationStructureBufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 			bottomLevelAccelerationStructureBufferCreateInfo.queueFamilyIndexCount = 1;
 			bottomLevelAccelerationStructureBufferCreateInfo.pQueueFamilyIndices = queueFamilyIndices;
-			//VkBuffer accelerationBufferHandle = VK_NULL_HANDLE;
+			VkBuffer bottomLevelAccelerationStructureBuffer = VK_NULL_HANDLE;
 			if (vkCreateBuffer(logicalDevice, &bottomLevelAccelerationStructureBufferCreateInfo, nullptr, &bottomLevelAccelerationStructureBuffer) != VK_SUCCESS) {
 				throw std::runtime_error("failed to create buffer for bASS");
 			}
+			bottomLevelAccelerationStructureBufferList.push_back(bottomLevelAccelerationStructureBuffer);
 #ifndef NDEBUG
 			ResourceManager::setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(bottomLevelAccelerationStructureBuffer)
 				, "Bottom Level Accelertation Structure Buffer");
@@ -170,10 +198,12 @@
 		bottomLevelAccelerationStructureMemoryAllocateInfo.pNext = NULL;//&defaultFlagsBLAS;
 		bottomLevelAccelerationStructureMemoryAllocateInfo.allocationSize = bottomLevelAccelerationStructureMemoryRequirements.size;
 		bottomLevelAccelerationStructureMemoryAllocateInfo.memoryTypeIndex = bottomLevelAccelerationStructureMemoryTypeIndex;
-		bottomLevelAccelerationStructureDeviceMemory = VK_NULL_HANDLE;
+		
+		VkDeviceMemory bottomLevelAccelerationStructureDeviceMemory = VK_NULL_HANDLE;
 		if (vkAllocateMemory(logicalDevice, &bottomLevelAccelerationStructureMemoryAllocateInfo, nullptr, &bottomLevelAccelerationStructureDeviceMemory) != VK_SUCCESS) {
 			throw std::runtime_error("Couldnt allocate memory for buffer!");
 		}
+		bottomLevelAccelerationStructureDeviceMemoryList.push_back(bottomLevelAccelerationStructureDeviceMemory);
 		//Bind the allocated memory
 		if (vkBindBufferMemory(logicalDevice, bottomLevelAccelerationStructureBuffer,bottomLevelAccelerationStructureDeviceMemory,0) != VK_SUCCESS) {
 			throw std::runtime_error("Couldnt bind memory to buffer!");
@@ -192,10 +222,11 @@
 		bottomLevelAccelerationStructureInfo.size = bottomLevelAccelerationBuildSizesInfo.accelerationStructureSize;
 		bottomLevelAccelerationStructureInfo.deviceAddress = 0;
 		bottomLevelAccelerationStructureInfo.pNext = NULL;
-
+		VkAccelerationStructureKHR bottomLevelAccelerationStructure;
 		if (pvkCreateAccelerationStructureKHR(logicalDevice, &bottomLevelAccelerationStructureInfo, nullptr, &bottomLevelAccelerationStructure) != VK_SUCCESS) {
 			throw std::runtime_error("Couldnt create bottom acceleration structure");
 		}
+		bottomLevelAccelerationStructureList.push_back(bottomLevelAccelerationStructure);
 		//Building Bottom level acceleartion structure
 		VkAccelerationStructureDeviceAddressInfoKHR bottomLevelAccelerationStructureDeviceAddressInfo;
 		bottomLevelAccelerationStructureDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
@@ -257,7 +288,7 @@
 		bottomLevelAccelerationBuildGeometryInfoKHR.scratchData.deviceAddress = blASScratchBuffeDeviceAddress;
 		//BuildRangeInfo: the indices within the vertex arrays to source input geometry for the BLAS.
 		VkAccelerationStructureBuildRangeInfoKHR blASBuildRangeInfo;
-		blASBuildRangeInfo.primitiveCount = maxPrimativeCount;
+		blASBuildRangeInfo.primitiveCount = mesh.primativeCount;
 		blASBuildRangeInfo.primitiveOffset = 0;
 		blASBuildRangeInfo.transformOffset = 0;
 		blASBuildRangeInfo.firstVertex = 0;
@@ -267,14 +298,14 @@
 			&blASBuildRangeInfo;
 		//Create the command buffers to submit the build command for the geometry
 		//Allocate memory for command buffer
-		if (mainCommandPool.expired()) {
+		if (mainCommandPool == nullptr) {
 			throw std::runtime_error("Command Pool Expired / Null! Aborting BLAS creation!\n");
 		}
-		if(mainGraphicsQueue.expired()) {
+		if(mainGraphicsQueue == nullptr) {
 			throw std::runtime_error("Graphics Queue Expired / Null! Aborting BLAS creation!\n");
 		}
-		VkCommandPool commandPool = *mainCommandPool.lock();
-		VkQueue graphicsQueue = *mainGraphicsQueue.lock();
+		VkCommandPool commandPool = *mainCommandPool;
+		VkQueue graphicsQueue = *mainGraphicsQueue;
 		VkCommandBufferAllocateInfo commandBufferAllocationInfo{};
 		commandBufferAllocationInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 		commandBufferAllocationInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -326,18 +357,18 @@
 	}
 	
 	void RayTracer::createRayTracerImageAndImageView() {
-		if (mainLogicalDevice.expired()) {
+		if (mainLogicalDevice == nullptr) {
 			throw std::runtime_error("Main Logical Device is expired / null!\n");
 		}
-		if (mainPhysicalDevice.expired()) {
+		if (mainPhysicalDevice == nullptr) {
 			throw std::runtime_error("Main Physical Device is expired / null!\n");
 		}
-		if (mainSwapChainFormat.expired()) {
+		if (mainSwapChainFormat == nullptr) {
 			throw std::runtime_error("Main SwapChain Format is expired / null!\n");
 		}
-		VkDevice logicalDevice = *mainLogicalDevice.lock();
-		VkPhysicalDevice physicalDevice = *mainPhysicalDevice.lock();
-		VkFormat swapChainFormat = *mainSwapChainFormat.lock();
+		VkDevice logicalDevice = *mainLogicalDevice;
+		VkPhysicalDevice physicalDevice = *mainPhysicalDevice;
+		VkFormat swapChainFormat = *mainSwapChainFormat;
 		uint32_t queueFamilyIndex = findSimultaniousGraphicsAndPresentIndex(physicalDevice);
 		//Settings for the image
 		VkImageCreateInfo imageInfo{};
@@ -419,14 +450,16 @@
 	}
 	
 	void RayTracer::createTopLevelAccelerationStructure() {
-		if (mainLogicalDevice.expired()) {
+		if (mainLogicalDevice == nullptr) {
 			throw std::runtime_error("Main Logical Device is expired / null!\n");
 		}
-		if (mainPhysicalDevice.expired()) {
+		if (mainPhysicalDevice == nullptr) {
 			throw std::runtime_error("Main Physical Device is expired / null!\n");
 		}
-		VkDevice logicalDevice = *mainLogicalDevice.lock();
-		VkPhysicalDevice physicalDevice = *mainPhysicalDevice.lock();
+		VkDevice logicalDevice = *mainLogicalDevice;
+		VkPhysicalDevice physicalDevice = *mainPhysicalDevice;
+		//Iterate over models to assign instance data for the BLAS the model is using
+
 		//Get the address to pass to the bl instance
 		VkAccelerationStructureDeviceAddressInfoKHR bottomLevelAccelerationStructureDeviceAddressInfo;
 		bottomLevelAccelerationStructureDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;

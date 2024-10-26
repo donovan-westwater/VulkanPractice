@@ -2,30 +2,6 @@
 #include "ResourceManager.h"
 #include "RayTracer.h"
 
-void ResourceManager::initUniversalResourcePool() {
-    VulkanSmartDeleter vkSmartDeleter;
-    vkSmartDeleter.logicalDevice = &device;
-    vkSmartDeleter.instance = &instance;
-    //Shared Pool Setup
-    
-    universalResourcePool.shared_defaultDescSetLayout = std::shared_ptr<VkDescriptorSetLayout>(&pipelineList[0].descriptorSetLayout, vkSmartDeleter);
-    universalResourcePool.shared_defaultDescSetList = std::shared_ptr<std::vector<VkDescriptorSet>>(&(pipelineList[0].descriptorSets), vkSmartDeleter);
-    universalResourcePool.shared_commandPool = std::shared_ptr <VkCommandPool>(&commandPool, vkSmartDeleter);
-    universalResourcePool.shared_lightSource = std::shared_ptr<LightSource>(&lightList[0], vkSmartDeleter);
-    universalResourcePool.shared_physicalDevice = std::shared_ptr<VkPhysicalDevice>(&physicalDevice, vkSmartDeleter);
-    universalResourcePool.shared_logicalDevice = std::shared_ptr<VkDevice>(&device, vkSmartDeleter);
-    universalResourcePool.shared_surface = std::shared_ptr<VkSurfaceKHR>(&surface, vkSmartDeleter);
-    universalResourcePool.shared_graphicsQueue = std::shared_ptr<VkQueue>(&graphicsQueue, vkSmartDeleter);
-    universalResourcePool.shared_presentQueue = std::shared_ptr<VkQueue>(&presentQueue, vkSmartDeleter);
-    universalResourcePool.shared_swapchain = std::shared_ptr<VkSwapchainKHR>(&swapChain, vkSmartDeleter);
-    universalResourcePool.shared_swapChainFormat = std::shared_ptr<VkFormat>(&swapChainImageFormat, vkSmartDeleter);
-    universalResourcePool.shared_swapchainImages = std::shared_ptr<std::vector<VkImage>>(&swapChainImages, vkSmartDeleter);
-    universalResourcePool.shared_fences = std::shared_ptr<std::vector<VkFence>>(&inFlightFences, vkSmartDeleter);
-    universalResourcePool.shared_finishedSemaphores = std::shared_ptr<std::vector<VkSemaphore>>(&renderFinishedSemaphores, vkSmartDeleter);
-    universalResourcePool.shared_imageAvailableSemaphores = std::shared_ptr<std::vector<VkSemaphore>>(&imageAvailableSemaphores, vkSmartDeleter);
-    universalResourcePool.shared_currentFrame = std::shared_ptr<uint32_t>(&currentFrame, vkSmartDeleter);
-}
-
 void ResourceManager::initVulkan() {
     //Graphics Initalization Section
     createSurface();

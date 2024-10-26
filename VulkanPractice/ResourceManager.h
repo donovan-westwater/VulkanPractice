@@ -6,29 +6,6 @@
 #include "Mesh.h"
 #include "Model.h"
 #include "Camera.h"
-//Stores the shared pointers used by multiple pipelines
-class UniversalResourcePool {
-public:
-    //Shared Resource Pointers
-    //Resources with the most dependcies by declared first
-    std::shared_ptr<VkSurfaceKHR> shared_surface;
-    std::shared_ptr<VkDevice> shared_logicalDevice;
-    std::shared_ptr<VkPhysicalDevice> shared_physicalDevice;
-    std::shared_ptr<Pipeline> shared_mainPipeline;
-    std::shared_ptr<LightSource> shared_lightSource;
-    std::shared_ptr<VkCommandPool> shared_commandPool;
-    std::shared_ptr<VkQueue> shared_graphicsQueue;
-    std::shared_ptr<VkFormat> shared_swapChainFormat;
-    std::shared_ptr<std::vector<VkFence>> shared_fences;
-    std::shared_ptr<VkSwapchainKHR> shared_swapchain;
-    std::shared_ptr<std::vector<VkImage>> shared_swapchainImages;
-    std::shared_ptr<std::vector<VkSemaphore>> shared_imageAvailableSemaphores;
-    std::shared_ptr<std::vector<VkSemaphore>> shared_finishedSemaphores;
-    std::shared_ptr<VkDescriptorSetLayout> shared_defaultDescSetLayout;
-    std::shared_ptr<std::vector<VkDescriptorSet>> shared_defaultDescSetList;
-    std::shared_ptr<VkQueue> shared_presentQueue;
-    std::shared_ptr<uint32_t> shared_currentFrame;
-};
 struct SwapChainSupportDetails {
     VkSurfaceCapabilitiesKHR capabilities; //What basic surface capabilities does the swap chain have?
     std::vector<VkSurfaceFormatKHR>formats; //What surface formats do we have?
@@ -58,7 +35,6 @@ public:
 	//Game life resources
     inline static ResourceManager *manager;
     PFN_vkSetDebugUtilsObjectNameEXT pvkSetDebugUtilsObjectNameEXT;
-    UniversalResourcePool universalResourcePool;
     GLFWwindow* window; //Reference to the window we draw for vulkan
     VkInstance instance; //An instance is the connection between the app and the vulkan lib
     VkDebugUtilsMessengerEXT debugMessenger; //Debug messenger must be made for debug callbacks to be used
@@ -94,7 +70,8 @@ public:
     Camera mainCamera;
     float lastElapsedTime = 0;
     float deltaTime = 0;
-    void initUniversalResourcePool();
+    uint32_t height;
+    uint32_t width;
 
     void initVulkan();
 

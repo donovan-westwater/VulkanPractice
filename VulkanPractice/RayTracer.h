@@ -8,12 +8,12 @@ class RayTracer {
 	const int MAX_FRAMES_IN_FLIGHT = 2; //The amount of frames that can be processed concurrently
 	RayTracingPipeline *refRayTracingPipeline; //Pointer to a pipeline in the resource manager
 	//VkPipeline raytracingPipeline; //Should be placed into the pipeline system?
-	//VkPipelineLayout rayPipelineLayout; //SEE ABOVE
-	std::vector <VkBuffer> bottomLevelAccelerationStructureBufferList; //should be Vector contiang buffer for each model 
+	//VkPipelineLayout rayPipelineLayout; //SEE ABOVE 
 	VkBuffer topLevelAccelerationStructureBuffer;
 	VkDeviceMemory topLevelAccelerationStructureDeviceMemory;
-	std::vector <VkDeviceMemory> bottomLevelAccelerationStructureDeviceMemoryList; //Should becontaing device memory for each model
 	VkAccelerationStructureKHR topLevelAccelerationStructure; //This is the entry point for ray tracing. SHould represent a scene!
+	std::vector <VkBuffer> bottomLevelAccelerationStructureBufferList; //should be Vector contiang buffer for each model
+	std::vector <VkDeviceMemory> bottomLevelAccelerationStructureDeviceMemoryList; //Should becontaing device memory for each model
 	std::vector<VkAccelerationStructureKHR> bottomLevelAccelerationStructureList; //Should be a vector contining the struct for each model
 	//Functions
 	QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
@@ -21,34 +21,33 @@ class RayTracer {
 	uint32_t findBufferMemoryTypeIndex(VkDevice logicalDevice, VkPhysicalDevice physicalDevice
 		, VkBuffer buffer, VkMemoryPropertyFlagBits flagBits);
 	void createTopLevelAccelerationStructure();
-	void modelToBottomLevelAccelerationStructure(VkBuffer& vertexBuffer, VkBuffer& indexBuffer, uint32_t nOfVerts);
+	void modelToBottomLevelAccelerationStructure(Mesh& mesh);
 	void initRayTracing();
 
 public:
 	bool isEnabled = true;
-	int maxPrimativeCount = 0;
-	std::weak_ptr<uint32_t> currentFrameRef;
+	uint32_t* currentFrameRef;
 	uint32_t widthRef;
 	uint32_t heightRef;
 	VkPhysicalDeviceRayTracingPipelinePropertiesKHR rayTracingProperties;
-	std::weak_ptr<LightSource> mainLightSource;
-	std::weak_ptr<VkDevice> mainLogicalDevice; //Logical device chosen by main
-	std::weak_ptr<VkPhysicalDevice> mainPhysicalDevice; //physical device chosen by main
-	std::weak_ptr<VkSurfaceKHR> mainSurface; //Surface allocated by main
-	std::weak_ptr<VkCommandPool> mainCommandPool; //Should point back to the main pool from the main pipeline
-	std::weak_ptr<VkQueue> mainGraphicsQueue; //Submission queue for the main pool
-	std::weak_ptr<VkFormat> mainSwapChainFormat;
+	LightSource* mainLightSource;
+	VkDevice* mainLogicalDevice; //Logical device chosen by main
+	VkPhysicalDevice* mainPhysicalDevice; //physical device chosen by main
+	VkSurfaceKHR* mainSurface; //Surface allocated by main
+	VkCommandPool* mainCommandPool; //Should point back to the main pool from the main pipeline
+	VkQueue* mainGraphicsQueue; //Submission queue for the main pool
+	VkFormat* mainSwapChainFormat;
 	VkImage rayTracerImage; //Main Image used for ray tracing
 	VkDeviceMemory rayTracerImageDeviceMemory; //Allocates memory for rt image
 	VkImageView rayTracerImageView; //Image view to access rtImage
-	std::weak_ptr<VkDescriptorSetLayout> mainDescSetLayout; //The desc set layout of the rasterization pipeline
-	std::weak_ptr<std::vector<VkDescriptorSet>> mainDescSets;
-	std::weak_ptr<std::vector<VkFence>> rayTracerFences;
-	std::weak_ptr<VkSwapchainKHR> rayTracerSwapchain;
-	std::weak_ptr<std::vector<VkImage>> rayTracerSwapchainImages;
-	std::weak_ptr<std::vector<VkSemaphore>> rayTracerImageAvailableSemaphores;
-	std::weak_ptr<std::vector<VkSemaphore>> rayTracerFinishedSemaphores;
-	std::weak_ptr<VkQueue> rayTracerPresentQueue;
+	VkDescriptorSetLayout* mainDescSetLayout; //The desc set layout of the rasterization pipeline
+	std::vector<VkDescriptorSet>* mainDescSets;
+	std::vector<VkFence>* rayTracerFences;
+	VkSwapchainKHR* rayTracerSwapchain;
+	std::vector<VkImage>* rayTracerSwapchainImages;
+	std::vector<VkSemaphore>* rayTracerImageAvailableSemaphores;
+	std::vector<VkSemaphore>* rayTracerFinishedSemaphores;
+	VkQueue* rayTracerPresentQueue;
 	struct PushConstantRay
 	{
 		glm::vec4 clearColor;
@@ -113,8 +112,9 @@ public:
 
 	VkAccelerationStructureKHR* getBottomLevelAccelerationStructure(int index);
 
-	void setupRayTracer(VkBuffer& vertexBuffer, VkBuffer& indexBuffer, uint32_t nOfVerts,VkBuffer& materialBuffer, VkBuffer& materialIndexBuffer);
+	void setupRayTracer();
 
+	void CreateLightAndPassVarsToRayTracer();
 };
 
 #endif
