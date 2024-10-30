@@ -102,12 +102,16 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		vkGetPhysicalDeviceProperties2(physicalDevice, &prop2);
 	}//BUG: I think the BLAS scratch buffers are setup wrong. there is a bottomLevelAccelerationStructureBuffer and buffer handle. Investigate
 	void RayTracer::modelToBottomLevelAccelerationStructure(Mesh& mesh) {
+
 		if (mainLogicalDevice == nullptr) {
 			throw std::runtime_error("Main Logical Device is null or expired\n");
 		}
 		if (mainPhysicalDevice == nullptr) {
 			throw std::runtime_error("Main Physical Device is null or expired\n");
 		}
+		RayTracerMeshInfo meshInfo;
+		meshInfo.referenceMeshIndex = mesh.resourceListIndex;
+		mesh.referenceRayTracerMeshInfoIndex = bottomLevelMeshInfoList.size() + 1;
 		VkDevice logicalDevice = *mainLogicalDevice;
 		VkPhysicalDevice physicalDevice = *mainPhysicalDevice;
 		VkBufferDeviceAddressInfo vInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
@@ -174,24 +178,22 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 			bottomLevelAccelerationStructureBufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 			bottomLevelAccelerationStructureBufferCreateInfo.queueFamilyIndexCount = 1;
 			bottomLevelAccelerationStructureBufferCreateInfo.pQueueFamilyIndices = queueFamilyIndices;
-			VkBuffer bottomLevelAccelerationStructureBuffer = VK_NULL_HANDLE;
-			if (vkCreateBuffer(logicalDevice, &bottomLevelAccelerationStructureBufferCreateInfo, nullptr, &bottomLevelAccelerationStructureBuffer) != VK_SUCCESS) {
+			if (vkCreateBuffer(logicalDevice, &bottomLevelAccelerationStructureBufferCreateInfo, nullptr, &meshInfo.bottomLevelAccelerationStructureBuffer) != VK_SUCCESS) {
 				throw std::runtime_error("failed to create buffer for bASS");
 			}
-			bottomLevelAccelerationStructureBufferList.push_back(bottomLevelAccelerationStructureBuffer);
 #ifndef NDEBUG
-			ResourceManager::setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(bottomLevelAccelerationStructureBuffer)
+			ResourceManager::setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(meshInfo.bottomLevelAccelerationStructureBuffer)
 				, "Bottom Level Accelertation Structure Buffer");
 #endif
 		//Look to see if our graphics card and our blAS has a local bit for our buffer
 		uint32_t bottomLevelAccelerationStructureMemoryTypeIndex 
-			= findBufferMemoryTypeIndex(logicalDevice,physicalDevice,bottomLevelAccelerationStructureBuffer
+			= findBufferMemoryTypeIndex(logicalDevice,physicalDevice, meshInfo.bottomLevelAccelerationStructureBuffer
 				,VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
 		VkMemoryAllocateFlagsInfo defaultFlagsBLAS = getDefaultAllocationFlags();
 		VkMemoryRequirements bottomLevelAccelerationStructureMemoryRequirements;
 		vkGetBufferMemoryRequirements(logicalDevice, 
-			bottomLevelAccelerationStructureBuffer, &bottomLevelAccelerationStructureMemoryRequirements);
+			meshInfo.bottomLevelAccelerationStructureBuffer, &bottomLevelAccelerationStructureMemoryRequirements);
 		//We are now allocating memory to the blAS
 		VkMemoryAllocateInfo bottomLevelAccelerationStructureMemoryAllocateInfo;
 		bottomLevelAccelerationStructureMemoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -199,34 +201,33 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		bottomLevelAccelerationStructureMemoryAllocateInfo.allocationSize = bottomLevelAccelerationStructureMemoryRequirements.size;
 		bottomLevelAccelerationStructureMemoryAllocateInfo.memoryTypeIndex = bottomLevelAccelerationStructureMemoryTypeIndex;
 		
-		VkDeviceMemory bottomLevelAccelerationStructureDeviceMemory = VK_NULL_HANDLE;
-		if (vkAllocateMemory(logicalDevice, &bottomLevelAccelerationStructureMemoryAllocateInfo, nullptr, &bottomLevelAccelerationStructureDeviceMemory) != VK_SUCCESS) {
+		if (vkAllocateMemory(logicalDevice, &bottomLevelAccelerationStructureMemoryAllocateInfo, nullptr, &meshInfo.bottomLevelAccelerationStructureDeviceMemory) != VK_SUCCESS) {
 			throw std::runtime_error("Couldnt allocate memory for buffer!");
 		}
-		bottomLevelAccelerationStructureDeviceMemoryList.push_back(bottomLevelAccelerationStructureDeviceMemory);
+	
 		//Bind the allocated memory
-		if (vkBindBufferMemory(logicalDevice, bottomLevelAccelerationStructureBuffer,bottomLevelAccelerationStructureDeviceMemory,0) != VK_SUCCESS) {
+		if (vkBindBufferMemory(logicalDevice, meshInfo.bottomLevelAccelerationStructureBuffer, meshInfo.bottomLevelAccelerationStructureDeviceMemory,0) != VK_SUCCESS) {
 			throw std::runtime_error("Couldnt bind memory to buffer!");
 		}
 #ifndef NDEBUG
 		ResourceManager::setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
-			, reinterpret_cast<uint64_t>(bottomLevelAccelerationStructureDeviceMemory)
+			, reinterpret_cast<uint64_t>(meshInfo.bottomLevelAccelerationStructureDeviceMemory)
 			, "Bottom Level Acceleration Structure Device Memory");
 #endif
 		//Create acc structure
 		VkAccelerationStructureCreateInfoKHR bottomLevelAccelerationStructureInfo{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
 		bottomLevelAccelerationStructureInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
 		bottomLevelAccelerationStructureInfo.createFlags = 0;
-		bottomLevelAccelerationStructureInfo.buffer = bottomLevelAccelerationStructureBuffer;
+		bottomLevelAccelerationStructureInfo.buffer = meshInfo.bottomLevelAccelerationStructureBuffer;
 		bottomLevelAccelerationStructureInfo.offset = 0;
 		bottomLevelAccelerationStructureInfo.size = bottomLevelAccelerationBuildSizesInfo.accelerationStructureSize;
 		bottomLevelAccelerationStructureInfo.deviceAddress = 0;
 		bottomLevelAccelerationStructureInfo.pNext = NULL;
 		VkAccelerationStructureKHR bottomLevelAccelerationStructure;
-		if (pvkCreateAccelerationStructureKHR(logicalDevice, &bottomLevelAccelerationStructureInfo, nullptr, &bottomLevelAccelerationStructure) != VK_SUCCESS) {
+		if (pvkCreateAccelerationStructureKHR(logicalDevice, &bottomLevelAccelerationStructureInfo, nullptr, &meshInfo.bottomLevelAccelerationStructure) != VK_SUCCESS) {
 			throw std::runtime_error("Couldnt create bottom acceleration structure");
 		}
-		bottomLevelAccelerationStructureList.push_back(bottomLevelAccelerationStructure);
+
 		//Building Bottom level acceleartion structure
 		VkAccelerationStructureDeviceAddressInfoKHR bottomLevelAccelerationStructureDeviceAddressInfo;
 		bottomLevelAccelerationStructureDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
@@ -354,6 +355,7 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		vkDestroyBuffer(logicalDevice, bottomLevelAccelerationStructureScratchBufferHandle,NULL);
 		vkFreeMemory(logicalDevice, bottomLevelAccelerationStructureDeviceScratchMemoryHandle, NULL);
 		vkFreeCommandBuffers(logicalDevice, commandPool, 1, &commandBuffer);
+		bottomLevelMeshInfoList.push_back(meshInfo);
 	}
 	
 	void RayTracer::createRayTracerImageAndImageView() {
@@ -448,7 +450,23 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 			throw std::runtime_error("failed to create ray tracing image view!");
 		}
 	}
-	
+	//Convert all the models into model info instances that we can pass to the top level acceleration struct for building
+	void RayTracer::InitalizeMeshInstances() {
+		for (Model& model : ResourceManager::manager->modelList) {
+			RayTracerModelInfo modelInfo;
+			Mesh& refMesh = ResourceManager::manager->meshList[model.referenceMeshIndex];
+			modelInfo.referenceModelIndex = model.resourceListIndex;
+			//Get the address to pass to the bl instance
+			VkAccelerationStructureDeviceAddressInfoKHR bottomLevelAccelerationStructureDeviceAddressInfo;
+			bottomLevelAccelerationStructureDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
+			bottomLevelAccelerationStructureDeviceAddressInfo.accelerationStructure = bottomLevelMeshInfoList[refMesh.referenceRayTracerMeshInfoIndex].bottomLevelAccelerationStructure;
+			bottomLevelAccelerationStructureDeviceAddressInfo.pNext = NULL;
+
+			modelInfo.modelBottomLevelInstanceAddress = pvkGetAccelerationStructureDeviceAddressKHR(*mainLogicalDevice, &bottomLevelAccelerationStructureDeviceAddressInfo);
+			//Look at createTopLevelAccelerationStructure to finish the rest of this.
+			
+		}
+	}
 	void RayTracer::createTopLevelAccelerationStructure() {
 		if (mainLogicalDevice == nullptr) {
 			throw std::runtime_error("Main Logical Device is expired / null!\n");

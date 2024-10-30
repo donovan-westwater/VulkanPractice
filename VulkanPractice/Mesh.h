@@ -22,6 +22,9 @@ public:
 	VkBuffer materialIndexBuffer; //Index buffer to prevent bloat in material buffer
 	VkDeviceMemory materialIndexBufferMemory; //handle to deal with memory allocated with the material index buffer
 	int primativeCount = 0;
+	uint32_t resourceListIndex; //Where is this mesh inside the resourece manager?
+	//Add BLAS info ?
+	uint32_t referenceRayTracerMeshInfoIndex;
 
 	//Functions section
 	void createIndexBuffer();

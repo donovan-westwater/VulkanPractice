@@ -4,6 +4,22 @@
 #include "common.h"
 #include "ResourceManager.h"
 #include "RayTracingPipeline.h"
+//BLAS Info assioated with the mesh
+struct RayTracerMeshInfo {
+	VkBuffer bottomLevelAccelerationStructureBuffer; //contiang buffer for each model
+	VkDeviceMemory bottomLevelAccelerationStructureDeviceMemory; //containg device memory for each model
+	VkAccelerationStructureKHR bottomLevelAccelerationStructure; //contining the struct for each model
+	VkDeviceAddress bottomLevelAccelerationStructureAddress; //Where is the memory stored?
+	uint32_t referenceMeshIndex; //Index to the mesh in the resource manager this is using
+};
+//Instance info assioated with models
+struct RayTracerModelInfo {
+	VkBuffer modelBottomLevelInstanceBuffer;
+	VkAccelerationStructureInstanceKHR modelBottomLevelInstance;
+	VkDeviceMemory modelBottomLevelInstanceMemory;
+	VkDeviceAddress modelBottomLevelInstanceAddress;
+	uint32_t referenceModelIndex; //Index to the model in the resource manager this is using
+};
 class RayTracer {
 	const int MAX_FRAMES_IN_FLIGHT = 2; //The amount of frames that can be processed concurrently
 	RayTracingPipeline *refRayTracingPipeline; //Pointer to a pipeline in the resource manager
@@ -12,15 +28,19 @@ class RayTracer {
 	VkBuffer topLevelAccelerationStructureBuffer;
 	VkDeviceMemory topLevelAccelerationStructureDeviceMemory;
 	VkAccelerationStructureKHR topLevelAccelerationStructure; //This is the entry point for ray tracing. SHould represent a scene!
-	std::vector <VkBuffer> bottomLevelAccelerationStructureBufferList; //should be Vector contiang buffer for each model
-	std::vector <VkDeviceMemory> bottomLevelAccelerationStructureDeviceMemoryList; //Should becontaing device memory for each model
-	std::vector<VkAccelerationStructureKHR> bottomLevelAccelerationStructureList; //Should be a vector contining the struct for each model
+	//Trying out having RayTracer manager ray tracer resources and we just sync them up with the resource manager
+	std::vector <RayTracerMeshInfo> bottomLevelMeshInfoList; //BLAS Info stored here
+	std::vector <RayTracerModelInfo> bottomLevelModelInfoList; //INstance info for top level acc
+	//std::vector <VkBuffer> bottomLevelAccelerationStructureBufferList; //should be Vector contiang buffer for each model
+	//std::vector <VkDeviceMemory> bottomLevelAccelerationStructureDeviceMemoryList; //Should becontaing device memory for each model
+	//std::vector<VkAccelerationStructureKHR> bottomLevelAccelerationStructureList; //Should be a vector contining the struct for each model
 	//Functions
 	QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
 	uint32_t findSimultaniousGraphicsAndPresentIndex(VkPhysicalDevice phyDevice);
 	uint32_t findBufferMemoryTypeIndex(VkDevice logicalDevice, VkPhysicalDevice physicalDevice
 		, VkBuffer buffer, VkMemoryPropertyFlagBits flagBits);
 	void createTopLevelAccelerationStructure();
+	void InitalizeMeshInstances();
 	void modelToBottomLevelAccelerationStructure(Mesh& mesh);
 	void initRayTracing();
 

@@ -14,9 +14,12 @@ public:
 	uint32_t referencePipelineIndex;
 	uint32_t referenceTextureIndex;
 	uint32_t allocatedDescSetIndex;
+	uint32_t resourceListIndex; //Where is this mesh inside the resourece manager?
+	uint32_t referenceRayTracerModelInfoIndex;
 	//UBO section
 	std::vector<VkBuffer> uniformBuffers; //ubo buffer
 	std::vector<VkDeviceMemory> uniformBuffersMemory;//handle to allocated buffer memory
+	//Add RayTracing Instance info for top level acceleration struct here
 
 	void loadModel(std::string modelPath, std::string materialPath, std::string texturePath);
 	void createUniformBuffers();
