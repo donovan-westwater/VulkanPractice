@@ -451,21 +451,75 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		}
 	}
 	//Convert all the models into model info instances that we can pass to the top level acceleration struct for building
+	//Make a refresh version by destorying buffer first and clearing instance list
 	void RayTracer::InitalizeMeshInstances() {
 		for (Model& model : ResourceManager::manager->modelList) {
-			RayTracerModelInfo modelInfo;
+			VkAccelerationStructureInstanceKHR instance;
 			Mesh& refMesh = ResourceManager::manager->meshList[model.referenceMeshIndex];
-			modelInfo.referenceModelIndex = model.resourceListIndex;
+			bottomLevelModelInstanceInfo.referenceModelIndices.push_back(model.resourceListIndex);
+			VkAccelerationStructureKHR refBottomLevelAccelerationStructure = bottomLevelMeshInfoList[refMesh.referenceRayTracerMeshInfoIndex].bottomLevelAccelerationStructure;
 			//Get the address to pass to the bl instance
 			VkAccelerationStructureDeviceAddressInfoKHR bottomLevelAccelerationStructureDeviceAddressInfo;
 			bottomLevelAccelerationStructureDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
-			bottomLevelAccelerationStructureDeviceAddressInfo.accelerationStructure = bottomLevelMeshInfoList[refMesh.referenceRayTracerMeshInfoIndex].bottomLevelAccelerationStructure;
+			bottomLevelAccelerationStructureDeviceAddressInfo.accelerationStructure = refBottomLevelAccelerationStructure;
 			bottomLevelAccelerationStructureDeviceAddressInfo.pNext = NULL;
 
-			modelInfo.modelBottomLevelInstanceAddress = pvkGetAccelerationStructureDeviceAddressKHR(*mainLogicalDevice, &bottomLevelAccelerationStructureDeviceAddressInfo);
+			bottomLevelModelInstanceInfo.modelBottomLevelInstanceAddress = pvkGetAccelerationStructureDeviceAddressKHR(*mainLogicalDevice, &bottomLevelAccelerationStructureDeviceAddressInfo);
 			//Look at createTopLevelAccelerationStructure to finish the rest of this.
-			
+			//Setup transform matrix
+			for (int i = 0; i < 3; i++) {
+				for (int j = 0; j < 4; j++) {
+					instance.transform.matrix[i][j] = model.modelMatrix[j][i];
+				}
+			}
+			instance.instanceShaderBindingTableRecordOffset = 0;
+			instance.accelerationStructureReference = bottomLevelModelInstanceInfo.modelBottomLevelInstanceAddress;
+			instance.instanceCustomIndex = 0;
+			instance.mask = 0xFF;
+			instance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
+			bottomLevelModelInstanceInfo.modelBottomLevelInstances.push_back(instance);
 		}
+		//Create buffer for instance
+		int modelListSize = ResourceManager::manager->modelList.size();
+		VkBufferUsageFlags usageFlags = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
+			VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+		//Check to see what memory our graphics card has for the buffer
+		VkMemoryPropertyFlags bottomLevelGeometryInstanceMemoryTypeIndex = findBufferMemoryTypeIndex(*mainLogicalDevice, *mainPhysicalDevice,
+		bottomLevelModelInstanceInfo.modelBottomLevelInstanceBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+		//Create buffer for all of the instances of the for the models
+		ResourceManager::manager->createBuffer(sizeof(VkAccelerationStructureInstanceKHR
+				) * modelListSize, usageFlags,bottomLevelGeometryInstanceMemoryTypeIndex,
+				bottomLevelModelInstanceInfo.modelBottomLevelInstanceBuffer,
+				bottomLevelModelInstanceInfo.modelBottomLevelInstanceMemory,
+				true);
+#ifndef NDEBUG
+		ResourceManager::setDebugObjectName(ResourceManager::manager->device,
+			VkObjectType::VK_OBJECT_TYPE_BUFFER,
+			reinterpret_cast<uint64_t>(bottomLevelModelInstanceInfo.modelBottomLevelInstanceBuffer)
+			, "Bottom Level Instance Buffer");
+#endif
+#ifndef NDEBUG
+		ResourceManager::setDebugObjectName(ResourceManager::manager->device, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
+			, reinterpret_cast<uint64_t>(bottomLevelModelInstanceInfo.modelBottomLevelInstanceMemory)
+			, "Bottom Level Instance Device Memory");
+#endif
+		//COPY OVER INFO
+		void* hostbottomLevelGeometryInstanceMemoryBuffer;
+		VkResult result =
+			vkMapMemory(ResourceManager::manager->device
+				, bottomLevelModelInstanceInfo.modelBottomLevelInstanceMemory,
+				0, sizeof(VkAccelerationStructureInstanceKHR)*modelListSize, 0,
+				&hostbottomLevelGeometryInstanceMemoryBuffer);
+		if (result != VK_SUCCESS) {
+			throw std::runtime_error("Can't map memory");
+		}
+
+		memcpy(hostbottomLevelGeometryInstanceMemoryBuffer,
+			bottomLevelModelInstanceInfo.modelBottomLevelInstances.data(),
+			sizeof(VkAccelerationStructureInstanceKHR)*modelListSize);
+
+		vkUnmapMemory(ResourceManager::manager->device
+			, bottomLevelModelInstanceInfo.modelBottomLevelInstanceMemory);
 	}
 	void RayTracer::createTopLevelAccelerationStructure() {
 		if (mainLogicalDevice == nullptr) {
@@ -476,104 +530,18 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		}
 		VkDevice logicalDevice = *mainLogicalDevice;
 		VkPhysicalDevice physicalDevice = *mainPhysicalDevice;
-		//Iterate over models to assign instance data for the BLAS the model is using
-
-		//Get the address to pass to the bl instance
-		VkAccelerationStructureDeviceAddressInfoKHR bottomLevelAccelerationStructureDeviceAddressInfo;
-		bottomLevelAccelerationStructureDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
-		bottomLevelAccelerationStructureDeviceAddressInfo.accelerationStructure = bottomLevelAccelerationStructure;
-		bottomLevelAccelerationStructureDeviceAddressInfo.pNext = NULL;
-		VkDeviceAddress bottomLevelAccelerationStructureAddress;
-		bottomLevelAccelerationStructureAddress = pvkGetAccelerationStructureDeviceAddressKHR(logicalDevice, &bottomLevelAccelerationStructureDeviceAddressInfo);
-		VkAccelerationStructureInstanceKHR bottomLevelAccelerationStructureInstance;
-		//Initialize an indenity matrix
-		for (int i = 0; i < 3; i++) {
-			for (int j = 0; j < 4; j++) {
-				bottomLevelAccelerationStructureInstance.transform.matrix[i][j] = 0.0;
-				if (i == j) bottomLevelAccelerationStructureInstance.transform.matrix[i][j] = 1.0;
-			}
-		}
-		bottomLevelAccelerationStructureInstance.instanceShaderBindingTableRecordOffset = 0;
-		bottomLevelAccelerationStructureInstance.accelerationStructureReference = bottomLevelAccelerationStructureAddress;
-		bottomLevelAccelerationStructureInstance.instanceCustomIndex = 0;
-		bottomLevelAccelerationStructureInstance.mask = 0xFF;
-		bottomLevelAccelerationStructureInstance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
-		//Get the queueFamiies
-		QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
-		uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value(),indices.presentFamily.value() };
-		uint32_t simultaniousIndex = findSimultaniousGraphicsAndPresentIndex(physicalDevice);
-		VkBufferCreateInfo bottomLevelGeometryStructureReference;
-		bottomLevelGeometryStructureReference.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-		bottomLevelGeometryStructureReference.flags = 0;
-		bottomLevelGeometryStructureReference.size = sizeof(VkAccelerationStructureInstanceKHR);
-		bottomLevelGeometryStructureReference.usage = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
-			VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-		bottomLevelGeometryStructureReference.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		bottomLevelGeometryStructureReference.queueFamilyIndexCount = 1;
-		bottomLevelGeometryStructureReference.pQueueFamilyIndices = &simultaniousIndex;
-		bottomLevelGeometryStructureReference.pNext = NULL;
-		VkBuffer bottomLevelGeometryInstanceBuffer;
-		if (vkCreateBuffer(logicalDevice, &bottomLevelGeometryStructureReference, nullptr, &bottomLevelGeometryInstanceBuffer) != VK_SUCCESS) {
-			throw std::runtime_error("Buffer for building Bottom Level Acc. Struct. instance cannot be made!");
-		}
-#ifndef NDEBUG
-		ResourceManager::setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(bottomLevelGeometryInstanceBuffer)
-			, "Bottom Level Geo. Instance Buffer");
-#endif
-		//Get memory requirements for instance
-		VkMemoryRequirements bottomLevelGeometryInstanceMemReq;
-		vkGetBufferMemoryRequirements(logicalDevice, bottomLevelGeometryInstanceBuffer, &bottomLevelGeometryInstanceMemReq);
-		//Check to see what memory our graphics card has for the buffer
-		uint32_t bottomLevelGeometryInstanceMemoryTypeIndex = findBufferMemoryTypeIndex(logicalDevice, physicalDevice,
-			bottomLevelGeometryInstanceBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-		VkMemoryAllocateFlagsInfo defaultFlags = getDefaultAllocationFlags();
-		VkMemoryAllocateInfo bottomLevelGeometryInstanceMemoryAllocateInfo;
-		bottomLevelGeometryInstanceMemoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		bottomLevelGeometryInstanceMemoryAllocateInfo.pNext = &defaultFlags;
-		bottomLevelGeometryInstanceMemoryAllocateInfo.allocationSize = bottomLevelGeometryInstanceMemReq.size;
-		bottomLevelGeometryInstanceMemoryAllocateInfo.memoryTypeIndex = bottomLevelGeometryInstanceMemoryTypeIndex;
-
-		VkDeviceMemory bottomLevelGeometryInstanceDeviceMemoryHandle;
-		if (vkAllocateMemory(logicalDevice, &bottomLevelGeometryInstanceMemoryAllocateInfo
-			, nullptr, &bottomLevelGeometryInstanceDeviceMemoryHandle) != VK_SUCCESS) {
-			throw std::runtime_error("Can't allocate memory for device");
-		}
-		if (vkBindBufferMemory(logicalDevice,bottomLevelGeometryInstanceBuffer,bottomLevelGeometryInstanceDeviceMemoryHandle,0) != VK_SUCCESS) {
-			throw std::runtime_error("Can't bind memory for device");
-		}
-#ifndef NDEBUG
-		ResourceManager::setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_DEVICE_MEMORY
-			, reinterpret_cast<uint64_t>(bottomLevelGeometryInstanceDeviceMemoryHandle)
-			, "Bottom Level Geometery Instance Device Memory");
-#endif
-		//Host Device blGeoInstance buffer creation
-		//We trying to copy from GPU to CPU
-		void* hostbottomLevelGeometryInstanceMemoryBuffer;
-		VkResult result =
-			vkMapMemory(logicalDevice, bottomLevelGeometryInstanceDeviceMemoryHandle,
-				0, sizeof(VkAccelerationStructureInstanceKHR), 0,
-				&hostbottomLevelGeometryInstanceMemoryBuffer);
-
-		memcpy(hostbottomLevelGeometryInstanceMemoryBuffer,
-			&bottomLevelAccelerationStructureInstance,
-			sizeof(VkAccelerationStructureInstanceKHR));
-
-		if (result != VK_SUCCESS) {
-			throw std::runtime_error("Can't map memory");
-		}
-
-		vkUnmapMemory(logicalDevice, bottomLevelGeometryInstanceDeviceMemoryHandle);
+		//We assume that we already have initalized the instances for each model
 		//We have the instance data, so now we are going to get the geometry data to pass into topLevelAccelerationStructure
 		VkBufferDeviceAddressInfo bottomLevelGeometryInstanceDeviceAddressInfo;
 		bottomLevelGeometryInstanceDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
-		bottomLevelGeometryInstanceDeviceAddressInfo.buffer = bottomLevelGeometryInstanceBuffer;
+		bottomLevelGeometryInstanceDeviceAddressInfo.buffer = bottomLevelModelInstanceInfo.modelBottomLevelInstanceBuffer;
 		bottomLevelGeometryInstanceDeviceAddressInfo.pNext = NULL;
-		bottomLevelAccelerationStructureAddress = pvkGetBufferDeviceAddressKHR(logicalDevice, &bottomLevelGeometryInstanceDeviceAddressInfo);
+		bottomLevelModelInstanceInfo.modelBottomLevelInstanceAddress = pvkGetBufferDeviceAddressKHR(logicalDevice, &bottomLevelGeometryInstanceDeviceAddressInfo);
 		//Geo data setup for top level 
 		VkAccelerationStructureGeometryDataKHR topLevelGeometryData;
 		topLevelGeometryData.instances.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
 		topLevelGeometryData.instances.arrayOfPointers = VK_FALSE;
-		topLevelGeometryData.instances.data.deviceAddress = bottomLevelAccelerationStructureAddress;
+		topLevelGeometryData.instances.data.deviceAddress = bottomLevelModelInstanceInfo.modelBottomLevelInstanceAddress;
 		topLevelGeometryData.instances.pNext = NULL;
 		//top level structure being preped to be built
 		VkAccelerationStructureGeometryKHR topLevelAccelerationStructureGeometry;

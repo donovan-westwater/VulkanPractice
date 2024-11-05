@@ -13,12 +13,12 @@ struct RayTracerMeshInfo {
 	uint32_t referenceMeshIndex; //Index to the mesh in the resource manager this is using
 };
 //Instance info assioated with models
-struct RayTracerModelInfo {
+struct RayTracerModelInstancesInfo {
 	VkBuffer modelBottomLevelInstanceBuffer;
-	VkAccelerationStructureInstanceKHR modelBottomLevelInstance;
+	std::vector<VkAccelerationStructureInstanceKHR> modelBottomLevelInstances;
 	VkDeviceMemory modelBottomLevelInstanceMemory;
 	VkDeviceAddress modelBottomLevelInstanceAddress;
-	uint32_t referenceModelIndex; //Index to the model in the resource manager this is using
+	std::vector<uint32_t> referenceModelIndices; //Indices to the models in the resource manager this is using
 };
 class RayTracer {
 	const int MAX_FRAMES_IN_FLIGHT = 2; //The amount of frames that can be processed concurrently
@@ -30,7 +30,7 @@ class RayTracer {
 	VkAccelerationStructureKHR topLevelAccelerationStructure; //This is the entry point for ray tracing. SHould represent a scene!
 	//Trying out having RayTracer manager ray tracer resources and we just sync them up with the resource manager
 	std::vector <RayTracerMeshInfo> bottomLevelMeshInfoList; //BLAS Info stored here
-	std::vector <RayTracerModelInfo> bottomLevelModelInfoList; //INstance info for top level acc
+	RayTracerModelInstancesInfo bottomLevelModelInstanceInfo; //INstance info for top level acc
 	//std::vector <VkBuffer> bottomLevelAccelerationStructureBufferList; //should be Vector contiang buffer for each model
 	//std::vector <VkDeviceMemory> bottomLevelAccelerationStructureDeviceMemoryList; //Should becontaing device memory for each model
 	//std::vector<VkAccelerationStructureKHR> bottomLevelAccelerationStructureList; //Should be a vector contining the struct for each model
