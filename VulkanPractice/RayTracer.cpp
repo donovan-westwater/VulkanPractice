@@ -521,6 +521,52 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		vkUnmapMemory(ResourceManager::manager->device
 			, bottomLevelModelInstanceInfo.modelBottomLevelInstanceMemory);
 	}
+	void RayTracer::refreshMeshInstances() {
+		//If we get more models, rebuild from scratch
+		//We should avoid dynamic memory but it couldnt hurt to add a refresh
+		if (bottomLevelModelInstanceInfo.modelBottomLevelInstances.size()
+			!= ResourceManager::manager->modelList.size()) {
+			vkDestroyBuffer(ResourceManager::manager->device,
+				bottomLevelModelInstanceInfo.modelBottomLevelInstanceBuffer
+			,nullptr);
+			vkFreeMemory(ResourceManager::manager->device,
+				bottomLevelModelInstanceInfo.modelBottomLevelInstanceMemory
+				, nullptr);
+			bottomLevelModelInstanceInfo.referenceModelIndices.clear();
+			bottomLevelModelInstanceInfo.modelBottomLevelInstances.clear();
+			InitalizeMeshInstances();
+		}
+		else {
+			//COPY OVER INFO FROM MODELS TO INSTANCES
+			for (int k = 0; k < ResourceManager::manager->modelList.size();k++) {
+				//Setup transform matrix
+				for (int i = 0; i < 3; i++) {
+					for (int j = 0; j < 4; j++) {
+						bottomLevelModelInstanceInfo.modelBottomLevelInstances[k].transform.matrix[i][j] 
+							= ResourceManager::manager->modelList[k].modelMatrix[j][i];
+					}
+				}
+			}
+			//COPY OVER INFO FROM INSTANCES TO GPU
+			int modelListSize = ResourceManager::manager->modelList.size();
+			void* hostbottomLevelGeometryInstanceMemoryBuffer;
+			VkResult result =
+				vkMapMemory(ResourceManager::manager->device
+					, bottomLevelModelInstanceInfo.modelBottomLevelInstanceMemory,
+					0, sizeof(VkAccelerationStructureInstanceKHR) * modelListSize, 0,
+					&hostbottomLevelGeometryInstanceMemoryBuffer);
+			if (result != VK_SUCCESS) {
+				throw std::runtime_error("Can't map memory");
+			}
+
+			memcpy(hostbottomLevelGeometryInstanceMemoryBuffer,
+				bottomLevelModelInstanceInfo.modelBottomLevelInstances.data(),
+				sizeof(VkAccelerationStructureInstanceKHR) * modelListSize);
+
+			vkUnmapMemory(ResourceManager::manager->device
+				, bottomLevelModelInstanceInfo.modelBottomLevelInstanceMemory);
+		}
+	}
 	void RayTracer::createTopLevelAccelerationStructure() {
 		if (mainLogicalDevice == nullptr) {
 			throw std::runtime_error("Main Logical Device is expired / null!\n");
@@ -576,6 +622,7 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 			&topLevelAccelerationStructureBuildGeoInfo,
 			topLevelMaxPrimitiveCountList.data(),
 			&topLevelAccelerationStructureBuildSizesInfo);
+		uint32_t simultaniousIndex = findSimultaniousGraphicsAndPresentIndex(ResourceManager::manager->physicalDevice);
 		VkBufferCreateInfo topLevelAccelerationStructureBufferCreateInfo;
 		topLevelAccelerationStructureBufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		topLevelAccelerationStructureBufferCreateInfo.size = topLevelAccelerationStructureBuildSizesInfo.accelerationStructureSize;
@@ -717,10 +764,10 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		VkAccelerationStructureBuildRangeInfoKHR* topLevelAccelerationStructureSBuildRangeInfos = &topLevelAccelerationStructureSBuildRangeInfo;
 		//We need to now create a command buffer and submit our memory transfer so we can build the topLevelAccelerationStructure
 		//Allocate memory for command buffer
-		if (mainCommandPool.expired()) {
+		if (mainCommandPool == nullptr) {
 			throw std::runtime_error("Commaned pool has expired or is null!\n");
 		}
-		VkCommandPool commandPool = *mainCommandPool.lock();
+		VkCommandPool commandPool = *mainCommandPool;
 		VkCommandBufferAllocateInfo allocInfo{};
 		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -760,10 +807,10 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		topLevelFenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 		topLevelFenceInfo.pNext = NULL;
 		topLevelFenceInfo.flags = 0;
-		if (mainGraphicsQueue.expired()) {
+		if (mainGraphicsQueue == nullptr) {
 			throw std::runtime_error("Graphics Queue expired\n");
 		}
-		VkQueue graphicsQueue = *mainGraphicsQueue.lock();
+		VkQueue graphicsQueue = *mainGraphicsQueue;
 		VkFence topLevelFence;
 		if (vkCreateFence(logicalDevice, &topLevelFenceInfo, nullptr, &topLevelFence) != VK_SUCCESS) {
 			throw std::runtime_error("Couldn't make the fence for the topLevelAccelerationStructure!");
@@ -777,15 +824,22 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 			throw std::runtime_error("Failed to wait for fences");
 		}
 		//Free up scratch buffers
-		vkDestroyBuffer(logicalDevice, bottomLevelGeometryInstanceBuffer, NULL);
 		vkDestroyBuffer(logicalDevice, topLevelAccelerationStructureScratchBuffer, NULL);
 		vkFreeMemory(logicalDevice,topLevelAccelerationStructureDeviceScratchMemoryHandle, NULL);
-		vkFreeMemory(logicalDevice, bottomLevelGeometryInstanceDeviceMemoryHandle, NULL);
 		//Free up our one time command buffer submission
 		vkDestroyFence(logicalDevice, topLevelFence, NULL);
 		vkFreeCommandBuffers(logicalDevice, commandPool, 1, &commandBuffer);
 	}
-	
+	void RayTracer::recreateTopLevelAccelerationStrucuture() {
+		vkDestroyBuffer(ResourceManager::manager->device,
+			topLevelAccelerationStructureBuffer,
+			nullptr);
+		vkDestroyAccelerationStructureKHR(ResourceManager::manager->device,
+			topLevelAccelerationStructure,
+			nullptr);
+		createTopLevelAccelerationStructure();
+
+	}
 	void RayTracer::rayTrace(VkCommandBuffer& cmdBuf,std::vector<void *>& uniBufferMMap, glm::vec4 clearColor) {
 		if (mainLogicalDevice.expired()) {
 			throw std::runtime_error("Main Logical Device is expired / null!\n");
@@ -1126,10 +1180,10 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 
 	}
 	uint32_t RayTracer::findSimultaniousGraphicsAndPresentIndex(VkPhysicalDevice phyDevice) {
-		if (mainSurface.expired()) {
+		if (mainSurface == nullptr) {
 			throw std::runtime_error("main Surface is null or expired\n");
 		}
-		VkSurfaceKHR surface = *mainSurface.lock();
+		VkSurfaceKHR surface = *mainSurface;
 
 		uint32_t simultQueueFamilyIndex = -1;
 		//Retrive a list of queue familes

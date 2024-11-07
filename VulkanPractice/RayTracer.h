@@ -40,7 +40,9 @@ class RayTracer {
 	uint32_t findBufferMemoryTypeIndex(VkDevice logicalDevice, VkPhysicalDevice physicalDevice
 		, VkBuffer buffer, VkMemoryPropertyFlagBits flagBits);
 	void createTopLevelAccelerationStructure();
+	void recreateTopLevelAccelerationStrucuture();
 	void InitalizeMeshInstances();
+	void refreshMeshInstances();
 	void modelToBottomLevelAccelerationStructure(Mesh& mesh);
 	void initRayTracing();
 
