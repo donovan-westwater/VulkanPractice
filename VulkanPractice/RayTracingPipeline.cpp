@@ -93,7 +93,7 @@ void RayTracingPipeline::createRayTracerDescriptorPool() {
 		throw std::runtime_error("failed to create descriptor pool!");
 	}
 }
-//Create Descriptor Sets for a single model
+//Create Descriptor Sets for all possible models -- See if we can reduce this!
 void RayTracingPipeline::createRayTracerDescriptorSets() {
 	//Allocate data for the descriptor sets
 	//Creating the layout
@@ -105,14 +105,25 @@ void RayTracingPipeline::createRayTracerDescriptorSets() {
 	VkDescriptorSetAllocateInfo allocInfo{};
 	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	allocInfo.descriptorPool = descriptorPool;
-	allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+	allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT*ResourceManager::manager->maxModelCount);
 	allocInfo.pSetLayouts = layouts.data();
-	descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+	descriptorSets.resize(allocInfo.descriptorSetCount);
 	if (vkAllocateDescriptorSets(logicalDevice, &allocInfo, descriptorSets.data()) != VK_SUCCESS) {
 		throw std::runtime_error("failed to allocate descriptor sets!");
 	}
+}
+//Call this to update the descriptor sets based on how many models currently exist
+void RayTracingPipeline::updateRayTracerDescriptorSets() {
+	if (refRayTracer->mainLogicalDevice == nullptr) {
+		throw std::runtime_error("Main Logical Device is expired / null!\n");
+	}
+	VkDevice logicalDevice = *refRayTracer->mainLogicalDevice;
+	uint32_t rayDescCount = MAX_FRAMES_IN_FLIGHT * ResourceManager::manager->modelList.size();
+
 	//Configure the sets and pass them to sets
-	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+	for (size_t i = 0; i < rayDescCount; i++) {
+		Model *m = &ResourceManager::manager->modelList[i];
+		Mesh* refMesh = &ResourceManager::manager->meshList[m->referenceMeshIndex];
 		VkDescriptorImageInfo imageInfo;
 		imageInfo.imageLayout = {};
 		imageInfo.imageView = refRayTracer->rayTracerImageView;
@@ -122,25 +133,25 @@ void RayTracingPipeline::createRayTracerDescriptorSets() {
 		writeStuct.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
 		writeStuct.pNext = NULL;
 		writeStuct.accelerationStructureCount = 1;
-		writeStuct.pAccelerationStructures = &topLevelAccelerationStructure; //Have a getter for top level
+		writeStuct.pAccelerationStructures = refRayTracer->getTopLevelAccelerationStructure(); //Have a getter for top level
 
 		VkDescriptorBufferInfo vertexInfo;
-		vertexInfo.buffer = vertexBuffer;
+		vertexInfo.buffer = refMesh->vertexBuffer;
 		vertexInfo.offset = 0;
 		vertexInfo.range = VK_WHOLE_SIZE;
 
 		VkDescriptorBufferInfo indexInfo;
-		indexInfo.buffer = indexBuffer;
+		indexInfo.buffer = refMesh->indexBuffer;
 		indexInfo.offset = 0;
 		indexInfo.range = VK_WHOLE_SIZE;
 
 		VkDescriptorBufferInfo materialInfo;
-		materialInfo.buffer = materialBuffer;
+		materialInfo.buffer = refMesh->materialBuffer;
 		materialInfo.offset = 0;
 		materialInfo.range = VK_WHOLE_SIZE;
 
 		VkDescriptorBufferInfo materialIndexInfo;
-		materialIndexInfo.buffer = materialIndexBuffer;
+		materialIndexInfo.buffer = refMesh->materialIndexBuffer;
 		materialIndexInfo.offset = 0;
 		materialIndexInfo.range = VK_WHOLE_SIZE;
 		//Assigning Descriptor infomation to bindings in layout
@@ -198,41 +209,20 @@ void RayTracingPipeline::createRayTracerDescriptorSets() {
 			, 0, nullptr);
 	}
 }
-//Call this in the resizing callback function to rebuild image on resize
-void RayTracingPipeline::updateRayTracerDescriptorSets() {
-	if (refRayTracer->mainLogicalDevice.expired()) {
-		throw std::runtime_error("Main Logical Device is expired / null!\n");
-	}
-	VkDevice logicalDevice = *refRayTracer->mainLogicalDevice.lock();
-	//Relink output image in case of change in window size
-	VkDescriptorImageInfo rayTraceImageDescriptorInfo;
-	rayTraceImageDescriptorInfo.sampler = VK_NULL_HANDLE;
-	rayTraceImageDescriptorInfo.imageView = refRayTracer->rayTracerImageView;
-	rayTraceImageDescriptorInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-	VkWriteDescriptorSet writeSet;
-	writeSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	writeSet.dstSet = descriptorSets[0];
-	writeSet.dstBinding = 1;
-	writeSet.dstArrayElement = 0;
-	writeSet.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-	writeSet.descriptorCount = 1;
-	writeSet.pImageInfo = &rayTraceImageDescriptorInfo;
-	vkUpdateDescriptorSets(logicalDevice, 1, &writeSet, 0, nullptr);
-}
 
 void RayTracingPipeline::createRayTracingPipeline() {
-	if (refRayTracer->mainLogicalDevice.expired()) {
+	if (refRayTracer->mainLogicalDevice == nullptr) {
 		throw std::runtime_error("Main Logical Device is expired / null!\n");
 	}
-	if (refRayTracer->mainPhysicalDevice.expired()) {
+	if (refRayTracer->mainPhysicalDevice == nullptr) {
 		throw std::runtime_error("Main Physical Device is expired / null!\n");
 	}
-	if (refRayTracer->mainDescSetLayout.expired()) {
+	if (refRayTracer->mainDescSetLayout == nullptr) {
 		throw std::runtime_error("Main Desc. Set Layout Device is expired / null!\n");
 	}
-	VkDevice logicalDevice = *refRayTracer->mainLogicalDevice.lock();
-	VkPhysicalDevice physicalDevice = *refRayTracer->mainPhysicalDevice.lock();
-	VkDescriptorSetLayout descSetLayout = *refRayTracer->mainDescSetLayout.lock();
+	VkDevice logicalDevice = *refRayTracer->mainLogicalDevice;
+	VkPhysicalDevice physicalDevice = *refRayTracer->mainPhysicalDevice;
+	VkDescriptorSetLayout descSetLayout = *refRayTracer->mainDescSetLayout;
 	VkRayTracingPipelineCreateInfoKHR rayTracerPipeline;
 	enum StagesIndies {
 		eRaygen,
@@ -333,14 +323,14 @@ void RayTracingPipeline::createShaderBindingTable() {
 	//Maps which shaders we should call for different entrypoints
 	//Setting up buffer offsets to store the shader handles in
 	//32bit for RG, 16 for miss,padd out another 16, and finally 16 for hit
-	if (refRayTracer->mainLogicalDevice.expired()) {
+	if (refRayTracer->mainLogicalDevice == nullptr) {
 		throw std::runtime_error("Main Logical Device is expired / null!\n");
 	}
-	if (refRayTracer->mainPhysicalDevice.expired()) {
+	if (refRayTracer->mainPhysicalDevice == nullptr) {
 		throw std::runtime_error("Main Physical Device is expired / null!\n");
 	}
-	VkDevice logicalDevice = *refRayTracer->mainLogicalDevice.lock();
-	VkPhysicalDevice physicalDevice = *refRayTracer->mainPhysicalDevice.lock();
+	VkDevice logicalDevice = *refRayTracer->mainLogicalDevice;
+	VkPhysicalDevice physicalDevice = *refRayTracer->mainPhysicalDevice;
 	const uint32_t missCount = 1;
 	const uint32_t hitCount = 1;
 	const auto handleCount = 1 + missCount + hitCount;

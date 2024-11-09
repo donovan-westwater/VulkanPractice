@@ -35,10 +35,6 @@ class RayTracer {
 	//std::vector <VkDeviceMemory> bottomLevelAccelerationStructureDeviceMemoryList; //Should becontaing device memory for each model
 	//std::vector<VkAccelerationStructureKHR> bottomLevelAccelerationStructureList; //Should be a vector contining the struct for each model
 	//Functions
-	QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
-	uint32_t findSimultaniousGraphicsAndPresentIndex(VkPhysicalDevice phyDevice);
-	uint32_t findBufferMemoryTypeIndex(VkDevice logicalDevice, VkPhysicalDevice physicalDevice
-		, VkBuffer buffer, VkMemoryPropertyFlagBits flagBits);
 	void createTopLevelAccelerationStructure();
 	void recreateTopLevelAccelerationStrucuture();
 	void InitalizeMeshInstances();
@@ -103,6 +99,13 @@ public:
 	void createRayTracerImageAndImageView();
 
 	void cleanup();
+	//Common useful raytrace specfic functions
+	uint32_t findSimultaniousGraphicsAndPresentIndex(VkPhysicalDevice phyDevice);
+
+	QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
+
+	uint32_t findBufferMemoryTypeIndex(VkDevice logicalDevice, VkPhysicalDevice physicalDevice
+		, VkBuffer buffer, VkMemoryPropertyFlagBits flagBits);
 
 	static std::vector<char> readFile(const std::string& filename) {
 		std::ifstream file(filename, std::ios::ate | std::ios::binary);
