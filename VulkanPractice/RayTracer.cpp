@@ -841,48 +841,48 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 
 	}
 	void RayTracer::rayTrace(VkCommandBuffer& cmdBuf,std::vector<void *>& uniBufferMMap, glm::vec4 clearColor) {
-		if (mainLogicalDevice.expired()) {
+		if (mainLogicalDevice == nullptr) {
 			throw std::runtime_error("Main Logical Device is expired / null!\n");
 		}
-		if (mainPhysicalDevice.expired()) {
+		if (mainPhysicalDevice == nullptr) {
 			throw std::runtime_error("Main Physical Device is expired / null!\n");
 		}
-		if (rayTracerFences.expired()) {
+		if (rayTracerFences == nullptr) {
 			throw std::runtime_error("In flight fences are expired / null!\n");
 		}
-		if (rayTracerSwapchain.expired()) {
+		if (rayTracerSwapchain == nullptr) {
 			throw std::runtime_error("swapchain reference has expired / null!\n");
 		}
-		if (rayTracerImageAvailableSemaphores.expired()) {
+		if (rayTracerImageAvailableSemaphores == nullptr) {
 			throw std::runtime_error("available semaphores ref has expired / null!\n");
 		}
-		if (rayTracerFinishedSemaphores.expired()) {
+		if (rayTracerFinishedSemaphores == nullptr) {
 			throw std::runtime_error("finished semaphores ref has expired / null!\n");
 		}
-		if (rayTracerPresentQueue.expired()) {
+		if (rayTracerPresentQueue == nullptr) {
 			throw std::runtime_error("Present Queue has expired / null!\n");
 		}
-		if (mainLightSource.expired()) {
+		if (mainLightSource == nullptr) {
 			throw std::runtime_error("main light source has expired / null!\n");
 		}
-		if (mainGraphicsQueue.expired()) {
+		if (mainGraphicsQueue == nullptr) {
 			throw std::runtime_error("Graphics Queue has expired\n");
 		}
-		if (rayTracerSwapchainImages.expired()) {
+		if (rayTracerSwapchainImages == nullptr) {
 			throw std::runtime_error("swachain images has expired / null!\n");
 		}
-		VkDevice logicalDevice = *mainLogicalDevice.lock();
-		VkPhysicalDevice physicalDevice = *mainPhysicalDevice.lock();
-		std::vector<VkFence> fences = *rayTracerFences.lock();
-		uint32_t currentFrame = *currentFrameRef.lock();
-		VkSwapchainKHR swapChain = *rayTracerSwapchain.lock();
-		std::vector<VkDescriptorSet> mainDescSetVector = *mainDescSets.lock();
-		std::vector <VkSemaphore> availableSemaphores = *rayTracerImageAvailableSemaphores.lock();
-		std::vector <VkSemaphore> finishedSemaphores = *rayTracerFinishedSemaphores.lock();
-		VkQueue presentQueue = *rayTracerPresentQueue.lock();
-		VkQueue graphicsQueue = *mainGraphicsQueue.lock();
-		LightSource lightSource = *mainLightSource.lock();
-		std::vector<VkImage> swapchainImages = *rayTracerSwapchainImages.lock();
+		VkDevice logicalDevice = *mainLogicalDevice;
+		VkPhysicalDevice physicalDevice = *mainPhysicalDevice;
+		std::vector<VkFence> fences = *rayTracerFences;
+		uint32_t currentFrame = *currentFrameRef;
+		VkSwapchainKHR swapChain = *rayTracerSwapchain;
+		std::vector<VkDescriptorSet> mainDescSetVector = *mainDescSets;
+		std::vector <VkSemaphore> availableSemaphores = *rayTracerImageAvailableSemaphores;
+		std::vector <VkSemaphore> finishedSemaphores = *rayTracerFinishedSemaphores;
+		VkQueue presentQueue = *rayTracerPresentQueue;
+		VkQueue graphicsQueue = *mainGraphicsQueue;
+		LightSource lightSource = *mainLightSource;
+		std::vector<VkImage> swapchainImages = *rayTracerSwapchainImages;
 		//submit queue
 		//Wait for frame to be finished drawing
 		VkResult fenceResult = vkWaitForFences(logicalDevice, 1, &(fences[currentFrame]), VK_TRUE, UINT64_MAX);
@@ -902,44 +902,25 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 			throw std::runtime_error("failed to acquire swap chain image!");
 		}
 		vkResetFences(logicalDevice, 1, &fences[currentFrame]);
-		//Copied From draw frame -- update unform buffers
-		//Using chrono to keep track of time independent of framerate
-		static auto startTime = std::chrono::high_resolution_clock::now();
+		//update unform buffers and descriptor sets
 
-		auto currentTime = std::chrono::high_resolution_clock::now();
-		float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-		UniformBufferObject ubo{};
-		//TODO: INVERT THIS MATRIX!
-		//We create an indentity matrix and rotate based on the time
-		ubo.model = glm::mat4(0.25f);
-		ubo.model[3][3] = 1.0f;
-		ubo.model[3][2] = -1.0f;
-		ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-		ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-		ubo.model = glm::rotate(ubo.model, time * glm::radians(5.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-		//Create a camera matrix at pos 2,2,2 look at 0 0 0, with up being Z
-		ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-		ubo.view = glm::rotate(ubo.view, time * glm::radians(5.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-
-		//Create a perspective based projection matrix for our camera
-		ubo.proj = glm::perspective(glm::radians(45.0f), widthRef / (float)heightRef, 0.1f, 10.0f);
-		ubo.proj[1][1] *= -1; //Y-coord for clip coords is inverted. This fixes that (GLM designed for openGL)
-		
-		ubo.proj = glm::inverse(ubo.proj);
-		ubo.view = glm::inverse(ubo.view);
-		ubo.model = glm::inverse(ubo.model);
-							  
-		//ubo.colorAdd = glm::vec4(abs(cos(time)), abs(sin(time)), abs(tan(time)), 1);
-		memcpy(uniBufferMMap[currentFrame], &ubo, sizeof(ubo));
-		vkResetCommandBuffer(cmdBuf, 0);
-
-		//Building pipeline and layout
+		for (int i = 0; i < ResourceManager::manager->modelList.size(); i++) {
+			Model* m = &ResourceManager::manager->modelList[i];
+			m->testUpdate();
+			m->updateUniformBuffers(currentFrame);
+		}
+		refRayTracingPipeline->updateRayTracerDescriptorSets(currentFrame);
+		//Setup light source
 		pushConstantRay.clearColor = clearColor;
 		pushConstantRay.lightPos = lightSource.pos;
 		pushConstantRay.lightIntensity = lightSource.intensity;
 		pushConstantRay.lightType = lightSource.type;
-		//Desc sets to bind
-		std::vector<VkDescriptorSet> descSets{ descriptorSets.at(currentFrame), (mainDescSetVector.at(currentFrame)) };
+		//Recreate top level structure after updating models and descriptor sets
+		recreateTopLevelAccelerationStrucuture();
+		//Command buffer setup
+		vkResetCommandBuffer(cmdBuf, 0);
+
+		//Building pipeline and layout
 		VkCommandBufferBeginInfo beginInfo{};
 		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 		beginInfo.flags = 0; // Optional Controls how command buffer will be used
@@ -972,15 +953,24 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 			VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
 			VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, NULL, 0, NULL,
 			1, &rayTraceBarrier);
-		
-		//TODO: More barriers and transitions need to be made it seems. Trying to figure out why
-		vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, raytracingPipeline);
-		vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
-			rayPipelineLayout, 0, (uint32_t)descSets.size(), descSets.data(), 0, nullptr);
-		vkCmdPushConstants(cmdBuf, rayPipelineLayout
+		vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, refRayTracingPipeline->pipeline);
+		//Bind all of our descriptor sets we updated earlier
+		for (int i = 0; i < ResourceManager::manager->modelList.size(); i++) {
+			//Desc sets to bind
+			std::vector<VkDescriptorSet> descSets{ 
+				refRayTracingPipeline->descriptorSets.at(2*i+currentFrame)
+				, (mainDescSetVector.at(2 * i + currentFrame))
+			};
+			vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
+			refRayTracingPipeline->pipelineLayout, 0, (uint32_t)descSets.size(), descSets.data(), 0, nullptr);
+		}
+		vkCmdPushConstants(cmdBuf, refRayTracingPipeline->pipelineLayout
 			, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_MISS_BIT_KHR,
 			0, sizeof(PushConstantRay), &pushConstantRay);
-		pvkCmdTraceRaysKHR(cmdBuf, &rayGenerationRegion,&rayMissRegion, &rayHitRegion, &rayCallRegion
+		pvkCmdTraceRaysKHR(cmdBuf, refRayTracingPipeline->getShaderRegionAddress(0)
+			, refRayTracingPipeline->getShaderRegionAddress(1)
+			, refRayTracingPipeline->getShaderRegionAddress(2)
+			, refRayTracingPipeline->getShaderRegionAddress(3)
 			, widthRef, heightRef, 1);
 		//Once the ray is traced, we can start copying the results over into the swap chain
 		//We make a barrier so we can copy the rtImage into the swapChain

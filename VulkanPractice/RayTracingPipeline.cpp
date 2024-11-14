@@ -113,16 +113,17 @@ void RayTracingPipeline::createRayTracerDescriptorSets() {
 	}
 }
 //Call this to update the descriptor sets based on how many models currently exist
-void RayTracingPipeline::updateRayTracerDescriptorSets() {
+void RayTracingPipeline::updateRayTracerDescriptorSets(uint32_t frameIndex) {
 	if (refRayTracer->mainLogicalDevice == nullptr) {
 		throw std::runtime_error("Main Logical Device is expired / null!\n");
 	}
 	VkDevice logicalDevice = *refRayTracer->mainLogicalDevice;
-	uint32_t rayDescCount = MAX_FRAMES_IN_FLIGHT * ResourceManager::manager->modelList.size();
+	uint32_t rayDescCount = ResourceManager::manager->modelList.size();
 
 	//Configure the sets and pass them to sets
-	for (size_t i = 0; i < rayDescCount; i++) {
-		Model *m = &ResourceManager::manager->modelList[i];
+	for (size_t i = 0; i < rayDescCount; i+= 2) {
+		int descIndex = i + frameIndex;
+		Model *m = &ResourceManager::manager->modelList[descIndex];
 		Mesh* refMesh = &ResourceManager::manager->meshList[m->referenceMeshIndex];
 		VkDescriptorImageInfo imageInfo;
 		imageInfo.imageLayout = {};
@@ -158,7 +159,7 @@ void RayTracingPipeline::updateRayTracerDescriptorSets() {
 		std::array<VkWriteDescriptorSet, 6> descriptorWrites{};
 
 		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[0].dstSet = descriptorSets[i];
+		descriptorWrites[0].dstSet = descriptorSets[descIndex];
 		descriptorWrites[0].dstBinding = 0;
 		descriptorWrites[0].dstArrayElement = 0;
 		descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
@@ -166,7 +167,7 @@ void RayTracingPipeline::updateRayTracerDescriptorSets() {
 		descriptorWrites[0].pNext = &writeStuct;
 
 		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[1].dstSet = descriptorSets[i];
+		descriptorWrites[1].dstSet = descriptorSets[descIndex];
 		descriptorWrites[1].dstBinding = 1;
 		descriptorWrites[1].dstArrayElement = 0;
 		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
@@ -174,7 +175,7 @@ void RayTracingPipeline::updateRayTracerDescriptorSets() {
 		descriptorWrites[1].pImageInfo = &imageInfo;
 
 		descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[2].dstSet = descriptorSets[i];
+		descriptorWrites[2].dstSet = descriptorSets[descIndex];
 		descriptorWrites[2].dstBinding = 2;
 		descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 		descriptorWrites[2].descriptorCount = 1;
@@ -182,7 +183,7 @@ void RayTracingPipeline::updateRayTracerDescriptorSets() {
 		descriptorWrites[2].pBufferInfo = &vertexInfo;
 
 		descriptorWrites[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[3].dstSet = descriptorSets[i];
+		descriptorWrites[3].dstSet = descriptorSets[descIndex];
 		descriptorWrites[3].dstBinding = 3;
 		descriptorWrites[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 		descriptorWrites[3].descriptorCount = 1;
@@ -190,7 +191,7 @@ void RayTracingPipeline::updateRayTracerDescriptorSets() {
 		descriptorWrites[3].pBufferInfo = &indexInfo;
 
 		descriptorWrites[4].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[4].dstSet = descriptorSets[i];
+		descriptorWrites[4].dstSet = descriptorSets[descIndex];
 		descriptorWrites[4].dstBinding = 4;
 		descriptorWrites[4].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 		descriptorWrites[4].descriptorCount = 1;
@@ -198,7 +199,7 @@ void RayTracingPipeline::updateRayTracerDescriptorSets() {
 		descriptorWrites[4].pBufferInfo = &materialInfo;
 
 		descriptorWrites[5].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[5].dstSet = descriptorSets[i];
+		descriptorWrites[5].dstSet = descriptorSets[descIndex];
 		descriptorWrites[5].dstBinding = 5;
 		descriptorWrites[5].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 		descriptorWrites[5].descriptorCount = 1;
@@ -444,4 +445,25 @@ void RayTracingPipeline::createShaderBindingTable() {
 	}
 	//CLeanup resources
 	vkUnmapMemory(logicalDevice, shaderBindingTableDeviceMemory);
+}
+
+VkStridedDeviceAddressRegionKHR* RayTracingPipeline::getShaderRegionAddress(int regionNumber) {
+	switch (regionNumber)
+	{
+	case 0:
+		return &rayGenerationRegion;
+		break;
+	case 1:
+		return &rayMissRegion;
+		break;
+	case 2:
+		return &rayHitRegion;
+		break;
+	case 3:
+		return &rayCallRegion;
+		break;
+	default:
+		return &rayGenerationRegion;
+		break;
+	}
 }
