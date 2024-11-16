@@ -183,7 +183,6 @@ private:
         createInstance();
         setupDebugMessenger();
         ResourceManager::manager->initVulkan();
-        ResourceManager::manager->initUniversalResourcePool();
     }
 
     

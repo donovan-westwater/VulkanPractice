@@ -1,4 +1,5 @@
 #include "RayTracer.h"
+#include "RayTracingPipeline.h"
 
 //Using the following link as a referencce: https://github.com/WilliamLewww/vulkan_ray_tracing_minimal_abstraction/blob/master/ray_pipeline/src/main.cpp	
 	//GO THROUGH EVERYTHING AND MAKE SURE SCRATCH BUFFERS ARE FREED!!!!
@@ -223,7 +224,7 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		bottomLevelAccelerationStructureInfo.size = bottomLevelAccelerationBuildSizesInfo.accelerationStructureSize;
 		bottomLevelAccelerationStructureInfo.deviceAddress = 0;
 		bottomLevelAccelerationStructureInfo.pNext = NULL;
-		VkAccelerationStructureKHR bottomLevelAccelerationStructure;
+	
 		if (pvkCreateAccelerationStructureKHR(logicalDevice, &bottomLevelAccelerationStructureInfo, nullptr, &meshInfo.bottomLevelAccelerationStructure) != VK_SUCCESS) {
 			throw std::runtime_error("Couldnt create bottom acceleration structure");
 		}
@@ -232,7 +233,7 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		VkAccelerationStructureDeviceAddressInfoKHR bottomLevelAccelerationStructureDeviceAddressInfo;
 		bottomLevelAccelerationStructureDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
 		bottomLevelAccelerationStructureDeviceAddressInfo.pNext = NULL;
-		bottomLevelAccelerationStructureDeviceAddressInfo.accelerationStructure = bottomLevelAccelerationStructure;
+		bottomLevelAccelerationStructureDeviceAddressInfo.accelerationStructure = meshInfo.bottomLevelAccelerationStructure;
 		VkDeviceAddress bottomLevelAddress;
 		bottomLevelAddress = pvkGetAccelerationStructureDeviceAddressKHR(logicalDevice, &bottomLevelAccelerationStructureDeviceAddressInfo);
 		VkBufferCreateInfo bottomLevelAccelerationStructureScratchBufferCreateInfo;
@@ -285,7 +286,7 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		//Building the actual geometry
 		//Set where we want the data to be saved to
 		bottomLevelAccelerationBuildGeometryInfoKHR.pNext = NULL;
-		bottomLevelAccelerationBuildGeometryInfoKHR.dstAccelerationStructure = bottomLevelAccelerationStructure;
+		bottomLevelAccelerationBuildGeometryInfoKHR.dstAccelerationStructure = meshInfo.bottomLevelAccelerationStructure;
 		bottomLevelAccelerationBuildGeometryInfoKHR.scratchData.deviceAddress = blASScratchBuffeDeviceAddress;
 		//BuildRangeInfo: the indices within the vertex arrays to source input geometry for the BLAS.
 		VkAccelerationStructureBuildRangeInfoKHR blASBuildRangeInfo;
@@ -834,11 +835,17 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		vkDestroyBuffer(ResourceManager::manager->device,
 			topLevelAccelerationStructureBuffer,
 			nullptr);
-		vkDestroyAccelerationStructureKHR(ResourceManager::manager->device,
+		pvkDestroyAccelerationStructureKHR(ResourceManager::manager->device,
 			topLevelAccelerationStructure,
 			nullptr);
 		createTopLevelAccelerationStructure();
 
+	}
+	VkAccelerationStructureKHR* RayTracer::getTopLevelAccelerationStructure() {
+		return &topLevelAccelerationStructure;
+	}
+	VkAccelerationStructureKHR* RayTracer::getBottomLevelAccelerationStructure(int index) {
+		return &bottomLevelMeshInfoList.at(index).bottomLevelAccelerationStructure;
 	}
 	void RayTracer::rayTrace(VkCommandBuffer& cmdBuf,std::vector<void *>& uniBufferMMap, glm::vec4 clearColor) {
 		if (mainLogicalDevice == nullptr) {
@@ -1138,10 +1145,10 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 	}
 	//From Main: FIGURE OUT HOW TO REPLACE THIS AND AVOID COPYING CODE!
 	QueueFamilyIndices RayTracer::findQueueFamilies(VkPhysicalDevice device) {
-		if (mainSurface.expired()) {
+		if (mainSurface == nullptr) {
 			throw std::runtime_error("main Surface is null or expired\n");
 		}
-		VkSurfaceKHR surface = *mainSurface.lock();
+		VkSurfaceKHR surface = *mainSurface;
 		QueueFamilyIndices indices;
 		//Retrive a list of queue familes
 		uint32_t queueFamilyCount = 0;
@@ -1201,26 +1208,26 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 	}
 	
 	void RayTracer::cleanup() {
-		if (mainLogicalDevice.expired()) {
+		if (mainLogicalDevice == nullptr) {
 			throw std::runtime_error("main Logical Device is null or expired\n");
 		}
-		VkDevice logicalDevice = *mainLogicalDevice.lock();
+		VkDevice logicalDevice = *mainLogicalDevice;
 
 		//Acceleration Structures
 		pvkDestroyAccelerationStructureKHR(logicalDevice, topLevelAccelerationStructure, nullptr);
-		pvkDestroyAccelerationStructureKHR(logicalDevice, bottomLevelAccelerationStructure, nullptr);
 		vkDestroyBuffer(logicalDevice, topLevelAccelerationStructureBuffer, nullptr);
-		vkFreeMemory(logicalDevice,topLevelAccelerationStructureDeviceMemory , nullptr);
-		vkDestroyBuffer(logicalDevice, bottomLevelAccelerationStructureBuffer, nullptr);
-		vkFreeMemory(logicalDevice, bottomLevelAccelerationStructureDeviceMemory, nullptr);
-		//Ray Tracing Pipeline
-		vkDestroyDescriptorSetLayout(logicalDevice, descriptorSetLayout, nullptr);
-		vkDestroyDescriptorPool(logicalDevice, descriptorPool, nullptr);
-		vkDestroyPipeline(logicalDevice, raytracingPipeline, nullptr);
-		vkDestroyPipelineLayout(logicalDevice, rayPipelineLayout, nullptr);
-		//Shader Binding Table and Ray Trace Image
-		vkDestroyBuffer(logicalDevice, shaderBindingTableBuffer, nullptr);
-		vkFreeMemory(logicalDevice, shaderBindingTableDeviceMemory, nullptr);
+		vkFreeMemory(logicalDevice, topLevelAccelerationStructureDeviceMemory, nullptr);
+		for (RayTracerMeshInfo rMeshInfo : bottomLevelMeshInfoList) {
+			pvkDestroyAccelerationStructureKHR(logicalDevice, rMeshInfo.bottomLevelAccelerationStructure, nullptr);
+			vkDestroyBuffer(logicalDevice, rMeshInfo.bottomLevelAccelerationStructureBuffer, nullptr);
+			vkFreeMemory(logicalDevice, rMeshInfo.bottomLevelAccelerationStructureDeviceMemory, nullptr);
+		}
+		//Model top level instances
+		vkDestroyBuffer(logicalDevice, bottomLevelModelInstanceInfo.modelBottomLevelInstanceBuffer, nullptr);
+		vkFreeMemory(logicalDevice, bottomLevelModelInstanceInfo.modelBottomLevelInstanceMemory, nullptr);
+		//Cleanup the raytracing pipeline we are using
+		refRayTracingPipeline->cleanup();
+		// Ray Trace Image
 		vkDestroyImageView(logicalDevice, rayTracerImageView, nullptr);
 		vkDestroyImage(logicalDevice, rayTracerImage, nullptr);
 		vkFreeMemory(logicalDevice, rayTracerImageDeviceMemory, nullptr);

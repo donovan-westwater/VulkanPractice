@@ -3,7 +3,10 @@
 #define RAYTRACER_H
 #include "common.h"
 #include "ResourceManager.h"
-#include "RayTracingPipeline.h"
+
+//forward declaration
+class RayTracingPipeline;
+
 //BLAS Info assioated with the mesh
 struct RayTracerMeshInfo {
 	VkBuffer bottomLevelAccelerationStructureBuffer; //contiang buffer for each model

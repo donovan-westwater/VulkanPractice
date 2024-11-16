@@ -4,7 +4,10 @@
 
 #include "common.h"
 #include "ResourceManager.h"
-#include "RayTracer.h"
+
+//Forward declaring to avoid circular dependendeices
+class RayTracer;
+
 class RayTracingPipeline : public Pipeline {
 	//This class should handle the shader resources that come with ray tracing pipelines!
 	std::vector<VkRayTracingShaderGroupCreateInfoKHR> raytracingShaderGroups;
@@ -23,6 +26,7 @@ public:
 	void createRayTracingPipeline();
 	void updateRayTracerDescriptorSets(uint32_t frameIndex);
 	VkStridedDeviceAddressRegionKHR* getShaderRegionAddress(int regionNumber);
+	void cleanup();
 
 };
 #endif

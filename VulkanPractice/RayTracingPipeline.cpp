@@ -1,6 +1,7 @@
 #include "common.h"
 #include "ResourceManager.h"
 #include "RayTracingPipeline.h"
+#include "RayTracer.h"
 
 void RayTracingPipeline::createRayTracerDescriptorSetLayout() {
 	//Creating the layout
@@ -466,4 +467,15 @@ VkStridedDeviceAddressRegionKHR* RayTracingPipeline::getShaderRegionAddress(int 
 		return &rayGenerationRegion;
 		break;
 	}
+}
+
+void RayTracingPipeline::cleanup() {
+	//Ray Tracing Pipeline
+	vkDestroyDescriptorSetLayout(ResourceManager::manager->device, descriptorSetLayout, nullptr);
+	vkDestroyDescriptorPool(ResourceManager::manager->device, descriptorPool, nullptr);
+	vkDestroyPipeline(ResourceManager::manager->device, pipeline, nullptr);
+	vkDestroyPipelineLayout(ResourceManager::manager->device, pipelineLayout, nullptr);
+	//Shader Binding Table
+	vkDestroyBuffer(ResourceManager::manager->device, shaderBindingTableBuffer, nullptr);
+	vkFreeMemory(ResourceManager::manager->device, shaderBindingTableDeviceMemory, nullptr);
 }
