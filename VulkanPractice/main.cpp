@@ -16,7 +16,10 @@ public:
         initWindow();
         initVulkan();
         //Setup RayTracer
-        //CreateLightAndPassVarsToRayTracer();
+        if(ResourceManager::manager->useRayTracing){
+            rayTracer.CreateLightAndPassVarsToRayTracer();
+            rayTracer.setupRayTracer();
+        }
         //DEBUG: LOOK FOR BAD / UNITALIZIED COMMAND BUFFERS or ONES WHICH WERENT COMPLETELY CLEANED!
         //rayTracer.setupRayTracer(vertexBuffer, indexBuffer, vertices.size(),materialBuffer,materialIndexBuffer);
         mainLoop();

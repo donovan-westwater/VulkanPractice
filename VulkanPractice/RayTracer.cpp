@@ -484,12 +484,9 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		int modelListSize = ResourceManager::manager->modelList.size();
 		VkBufferUsageFlags usageFlags = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
 			VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-		//Check to see what memory our graphics card has for the buffer
-		VkMemoryPropertyFlags bottomLevelGeometryInstanceMemoryTypeIndex = findBufferMemoryTypeIndex(*mainLogicalDevice, *mainPhysicalDevice,
-		bottomLevelModelInstanceInfo.modelBottomLevelInstanceBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 		//Create buffer for all of the instances of the for the models
 		ResourceManager::manager->createBuffer(sizeof(VkAccelerationStructureInstanceKHR
-				) * modelListSize, usageFlags,bottomLevelGeometryInstanceMemoryTypeIndex,
+				) * modelListSize, usageFlags, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
 				bottomLevelModelInstanceInfo.modelBottomLevelInstanceBuffer,
 				bottomLevelModelInstanceInfo.modelBottomLevelInstanceMemory,
 				true);
@@ -525,7 +522,13 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 	void RayTracer::refreshMeshInstances() {
 		//If we get more models, rebuild from scratch
 		//We should avoid dynamic memory but it couldnt hurt to add a refresh
-		if (bottomLevelModelInstanceInfo.modelBottomLevelInstances.size()
+		//CASE A: We haven't initalized anything yet
+		if (bottomLevelModelInstanceInfo.modelBottomLevelInstanceBuffer == NULL
+			|| bottomLevelModelInstanceInfo.modelBottomLevelInstanceMemory == NULL) {
+			InitalizeMeshInstances();
+		}
+		//CASE B: Changed size after buffer already initalized 
+		else if (bottomLevelModelInstanceInfo.modelBottomLevelInstances.size()
 			!= ResourceManager::manager->modelList.size()) {
 			vkDestroyBuffer(ResourceManager::manager->device,
 				bottomLevelModelInstanceInfo.modelBottomLevelInstanceBuffer
@@ -537,6 +540,7 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 			bottomLevelModelInstanceInfo.modelBottomLevelInstances.clear();
 			InitalizeMeshInstances();
 		}
+		//CASE C: No change in model amount -> just update matrices
 		else {
 			//COPY OVER INFO FROM MODELS TO INSTANCES
 			for (int k = 0; k < ResourceManager::manager->modelList.size();k++) {
@@ -577,6 +581,8 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		}
 		VkDevice logicalDevice = *mainLogicalDevice;
 		VkPhysicalDevice physicalDevice = *mainPhysicalDevice;
+		//Setup mesh instances / update mesh instances
+		refreshMeshInstances();
 		//We assume that we already have initalized the instances for each model
 		//We have the instance data, so now we are going to get the geometry data to pass into topLevelAccelerationStructure
 		VkBufferDeviceAddressInfo bottomLevelGeometryInstanceDeviceAddressInfo;
