@@ -48,8 +48,9 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		//For now we will just add them to the resource managaer since that seems fitting
 		RayTracingPipeline pipeline;
 		ResourceManager::manager->pipelineList.push_back(pipeline);
-		int endIndex = ResourceManager::manager->pipelineList.size();
+		int endIndex = ResourceManager::manager->pipelineList.size()-1;
 		refRayTracingPipeline = (RayTracingPipeline *) &ResourceManager::manager->pipelineList[endIndex];
+		refRayTracingPipeline->refRayTracer = this;
 		refRayTracingPipeline->createRayTracerDescriptorSetLayout();
 		refRayTracingPipeline->createRayTracerDescriptorPool();
 		refRayTracingPipeline->createRayTracerDescriptorSets();
