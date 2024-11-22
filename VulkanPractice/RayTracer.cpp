@@ -44,12 +44,10 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		}
 		createTopLevelAccelerationStructure();
 		createRayTracerImageAndImageView();
-		//We might need to let the ray tracer handle the ray tracing pipelines instead of resource manager
-		//For now we will just add them to the resource managaer since that seems fitting
-		RayTracingPipeline pipeline;
-		ResourceManager::manager->pipelineList.push_back(pipeline);
-		int endIndex = ResourceManager::manager->pipelineList.size()-1;
-		refRayTracingPipeline = (RayTracingPipeline *) &ResourceManager::manager->pipelineList[endIndex];
+		//The Ray Tracer should handle the the ray tracing pipelines since we dont want them to 
+		//get used by a the rasterization based system on accident!
+		//Might get replaced with an array of ray Tracing Pipelines later!
+		refRayTracingPipeline = new RayTracingPipeline();
 		refRayTracingPipeline->refRayTracer = this;
 		refRayTracingPipeline->createRayTracerDescriptorSetLayout();
 		refRayTracingPipeline->createRayTracerDescriptorPool();
@@ -1234,6 +1232,7 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		vkFreeMemory(logicalDevice, bottomLevelModelInstanceInfo.modelBottomLevelInstanceMemory, nullptr);
 		//Cleanup the raytracing pipeline we are using
 		refRayTracingPipeline->cleanup();
+		delete refRayTracingPipeline;
 		// Ray Trace Image
 		vkDestroyImageView(logicalDevice, rayTracerImageView, nullptr);
 		vkDestroyImage(logicalDevice, rayTracerImage, nullptr);

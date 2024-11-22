@@ -266,6 +266,7 @@ void RayTracingPipeline::createRayTracingPipeline() {
 	//Raygen
 	group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
 	group.generalShader = eRaygen;
+
 	raytracingShaderGroups.push_back(group);
 	//Miss
 	group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
