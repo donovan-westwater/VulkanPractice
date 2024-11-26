@@ -921,7 +921,7 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 			m->testUpdate();
 			m->updateUniformBuffers(currentFrame);
 		}
-		refRayTracingPipeline->updateRayTracerDescriptorSets(currentFrame);
+		refRayTracingPipeline->updateDescriptorSets(currentFrame);
 		//Setup light source
 		pushConstantRay.clearColor = clearColor;
 		pushConstantRay.lightPos = lightSource.pos;

@@ -108,25 +108,34 @@ void RayTracingPipeline::createRayTracerDescriptorSets() {
 	VkDescriptorSetAllocateInfo allocInfo{};
 	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	allocInfo.descriptorPool = descriptorPool;
-	allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT*ResourceManager::manager->maxModelCount);
+	allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT * ResourceManager::manager->maxModelCount);
 	allocInfo.pSetLayouts = layouts.data();
 	descriptorSets.resize(allocInfo.descriptorSetCount);
 	if (vkAllocateDescriptorSets(logicalDevice, &allocInfo, descriptorSets.data()) != VK_SUCCESS) {
 		throw std::runtime_error("failed to allocate descriptor sets!");
 	}
+#ifndef NDEBUG
+	for (int i = 0; i < allocInfo.descriptorSetCount;i++) {
+		std::string name = "Descriptor Set ";
+		name += std::to_string(i/2);
+		name += " frame ";
+		name += std::to_string(i % 2);
+		ResourceManager::setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_DESCRIPTOR_SET, reinterpret_cast<uint64_t>(descriptorSets[i])
+			, name);
+	}
+#endif
 }
 //Call this to update the descriptor sets based on how many models currently exist
-void RayTracingPipeline::updateRayTracerDescriptorSets(uint32_t frameIndex) {
+void RayTracingPipeline::updateDescriptorSets(uint32_t frameIndex) {
 	if (refRayTracer->mainLogicalDevice == nullptr) {
 		throw std::runtime_error("Main Logical Device is expired / null!\n");
 	}
 	VkDevice logicalDevice = *refRayTracer->mainLogicalDevice;
 	uint32_t rayDescCount = ResourceManager::manager->modelList.size();
-
 	//Configure the sets and pass them to sets
-	for (size_t i = 0; i < rayDescCount; i+= 2) {
+	for (size_t i = 0; i < rayDescCount*MAX_FRAMES_IN_FLIGHT; i+= 2) {
 		int descIndex = i + frameIndex;
-		Model *m = &ResourceManager::manager->modelList[descIndex];
+		Model *m = &ResourceManager::manager->modelList[i/MAX_FRAMES_IN_FLIGHT];
 		Mesh* refMesh = &ResourceManager::manager->meshList[m->referenceMeshIndex];
 		VkDescriptorImageInfo imageInfo;
 		imageInfo.imageLayout = {};

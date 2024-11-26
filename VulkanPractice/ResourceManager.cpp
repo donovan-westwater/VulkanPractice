@@ -27,7 +27,7 @@ void ResourceManager::initVulkan() {
     //Load in the model -- TODO: add function to add a blank model to vector and then load it
     Model test1;
     modelList.push_back(test1);
-    modelList[0].loadModel("Models/dino.obj",MATERIALS_PATH,TEXTURES_PATH+"dino.png");
+    modelList[0].loadModel("Models/dino.obj",MATERIALS_PATH, TEXTURES_PATH + "dino.png");
     modelList[0].setScale(glm::vec3(.25f));
     modelList[0].setPosition(glm::vec3(0, 0, 0));
     //modelList[0].setRotation(glm::vec3(0, glm::radians(90.0f), 0));

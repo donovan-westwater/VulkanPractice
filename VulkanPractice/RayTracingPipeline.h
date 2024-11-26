@@ -24,7 +24,7 @@ public:
 	void createRayTracerDescriptorSetLayout();
 	void createShaderBindingTable();
 	void createRayTracingPipeline();
-	void updateRayTracerDescriptorSets(uint32_t frameIndex);
+	void updateDescriptorSets(uint32_t frameIndex);
 	VkStridedDeviceAddressRegionKHR* getShaderRegionAddress(int regionNumber);
 	void cleanup();
 
