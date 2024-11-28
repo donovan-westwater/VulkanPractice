@@ -769,7 +769,7 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		//We need to tell the pipeline what offsets to expect for the geometry 
 		VkAccelerationStructureBuildRangeInfoKHR topLevelAccelerationStructureSBuildRangeInfo;
 		topLevelAccelerationStructureSBuildRangeInfo.firstVertex = 0;
-		topLevelAccelerationStructureSBuildRangeInfo.primitiveCount = 1;
+		topLevelAccelerationStructureSBuildRangeInfo.primitiveCount = bottomLevelModelInstanceInfo.modelBottomLevelInstances.size();
 		topLevelAccelerationStructureSBuildRangeInfo.primitiveOffset = 0;
 		topLevelAccelerationStructureSBuildRangeInfo.transformOffset = 0;
 		//We only have an array of 1 since there is only 1 primative here
