@@ -279,7 +279,7 @@ private:
         vkResetFences(ResourceManager::manager->device, 1, &ResourceManager::manager->inFlightFences[ResourceManager::manager->currentFrame]);
         //Acquire the image we waited on
         //vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
-        ResourceManager::manager->mainCamera.updateCamera();
+        //ResourceManager::manager->mainCamera.updateCamera();
         vkResetCommandBuffer(ResourceManager::manager->commandBuffers[ResourceManager::manager->currentFrame], 0);
         ResourceManager::manager->beginMainRenderPass(ResourceManager::manager->commandBuffers[ResourceManager::manager->currentFrame], imageIndex);
         //record the draw calls onto the command buffer for rendering.

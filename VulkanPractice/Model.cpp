@@ -179,9 +179,24 @@ void Model::setRotation(glm::vec3 eulerAngles) {
 
     modelMatrix  = translateMat * rotateMat * scaleMat;
 }
+void Model::rotateInPlace(glm::vec3 deltaAngles) {
+    glm::vec3 scale;
+    glm::quat rotation;
+    glm::vec3 translation;
+    glm::vec3 skew;
+    glm::vec4 perspective;
+    glm::decompose(modelMatrix, scale, rotation, translation, skew, perspective);
+    rotation *= glm::quat(deltaAngles);
+    glm::mat4 translateMat = glm::translate(glm::mat4(1.0), translation);
+    glm::mat4 rotateMat = glm::mat4_cast(rotation);
+    glm::mat4 scaleMat = glm::scale(glm::mat4(1.0), scale);
+
+    modelMatrix = translateMat * rotateMat * scaleMat;
+}
 void Model::testUpdate() {
     float delta = ResourceManager::manager->deltaTime;
+    rotateInPlace(glm::vec3(0.0, delta, 0.0));
    // modelMatrix = glm::rotate(modelMatrix, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
    // modelMatrix = glm::rotate(modelMatrix, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    modelMatrix = glm::rotate(modelMatrix, delta * glm::radians(10.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    //modelMatrix = glm::rotate(modelMatrix, delta * glm::radians(10.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 }

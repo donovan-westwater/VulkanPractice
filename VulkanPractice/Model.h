@@ -28,6 +28,7 @@ public:
 	void setScale(glm::vec3 scale);
 	void setPosition(glm::vec3 pos);
 	void setRotation(glm::vec3 eulerAngles);
+	void rotateInPlace(glm::vec3 deltaAngles);
 };
 //Make a manager class?
 

@@ -931,6 +931,7 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		}
 		
 		//update unform buffers and descriptor sets
+		ResourceManager::manager->mainCamera.updateCamera();
 		for (int i = 0; i < ResourceManager::manager->modelList.size(); i++) {
 			Model* m = &ResourceManager::manager->modelList[i];
 			Pipeline* refPipeline = &ResourceManager::manager->pipelineList[m->referencePipelineIndex];
