@@ -39,7 +39,7 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 				*mainLogicalDevice, "vkSetDebugUtilsObjectNameEXT");
 #endif
 		initRayTracing();
-		for (Mesh mesh : ResourceManager::manager->meshList) {
+		for (Mesh &mesh : ResourceManager::manager->meshList) {
 			modelToBottomLevelAccelerationStructure(mesh);
 		}
 		for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
@@ -116,7 +116,7 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		}
 		RayTracerMeshInfo meshInfo;
 		meshInfo.referenceMeshIndex = mesh.resourceListIndex;
-		mesh.referenceRayTracerMeshInfoIndex = bottomLevelMeshInfoList.size() + 1;
+		mesh.referenceRayTracerMeshInfoIndex = bottomLevelMeshInfoList.size();
 		VkDevice logicalDevice = *mainLogicalDevice;
 		VkPhysicalDevice physicalDevice = *mainPhysicalDevice;
 		VkBufferDeviceAddressInfo vInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};

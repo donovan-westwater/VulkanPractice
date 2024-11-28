@@ -19,6 +19,7 @@ void Model::loadModel(std::string modelPath, std::string materialPath,std::strin
     ResourceManager::manager->meshList.push_back(initMesh);
     int endIndex = ResourceManager::manager->meshList.size()-1;
     Mesh* modelMesh = &ResourceManager::manager->meshList[endIndex];
+    resourceListIndex = ResourceManager::manager->modelList.size();
     referenceMeshIndex = endIndex;
     referencePipelineIndex = 0;
     allocatedDescSetIndex = ResourceManager::manager->pipelineList[referencePipelineIndex].allocatedSets*2;
