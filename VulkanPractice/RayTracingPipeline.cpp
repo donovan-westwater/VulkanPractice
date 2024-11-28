@@ -146,7 +146,7 @@ void RayTracingPipeline::updateDescriptorSets(uint32_t frameIndex) {
 		writeStuct.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
 		writeStuct.pNext = NULL;
 		writeStuct.accelerationStructureCount = 1;
-		writeStuct.pAccelerationStructures = refRayTracer->getTopLevelAccelerationStructure(); //Have a getter for top level
+		writeStuct.pAccelerationStructures = refRayTracer->getTopLevelAccelerationStructure(frameIndex); //Have a getter for top level
 
 		VkDescriptorBufferInfo vertexInfo;
 		vertexInfo.buffer = refMesh->vertexBuffer;

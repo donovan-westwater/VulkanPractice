@@ -28,9 +28,9 @@ class RayTracer {
 	RayTracingPipeline *refRayTracingPipeline; //Pointer to a pipeline in the resource manager
 	//VkPipeline raytracingPipeline; //Should be placed into the pipeline system?
 	//VkPipelineLayout rayPipelineLayout; //SEE ABOVE 
-	VkBuffer topLevelAccelerationStructureBuffer;
-	VkDeviceMemory topLevelAccelerationStructureDeviceMemory;
-	VkAccelerationStructureKHR topLevelAccelerationStructure; //This is the entry point for ray tracing. SHould represent a scene!
+	std::vector < VkBuffer> topLevelAccelerationStructureBuffer;
+	std::vector < VkDeviceMemory> topLevelAccelerationStructureDeviceMemory;
+	std::vector < VkAccelerationStructureKHR> topLevelAccelerationStructure; //This is the entry point for ray tracing. SHould represent a scene!
 	//Trying out having RayTracer manager ray tracer resources and we just sync them up with the resource manager
 	std::vector <RayTracerMeshInfo> bottomLevelMeshInfoList; //BLAS Info stored here
 	RayTracerModelInstancesInfo bottomLevelModelInstanceInfo; //INstance info for top level acc
@@ -38,8 +38,8 @@ class RayTracer {
 	//std::vector <VkDeviceMemory> bottomLevelAccelerationStructureDeviceMemoryList; //Should becontaing device memory for each model
 	//std::vector<VkAccelerationStructureKHR> bottomLevelAccelerationStructureList; //Should be a vector contining the struct for each model
 	//Functions
-	void createTopLevelAccelerationStructure();
-	void recreateTopLevelAccelerationStrucuture();
+	void createTopLevelAccelerationStructure(uint32_t frameIndex);
+	void recreateTopLevelAccelerationStrucuture(uint32_t frameIndex);
 	void InitalizeMeshInstances();
 	void refreshMeshInstances();
 	void modelToBottomLevelAccelerationStructure(Mesh& mesh);
@@ -136,7 +136,7 @@ public:
 
 	void rayTrace(VkCommandBuffer& cmdBuf, std::vector<void*>& uniBufferMMap, glm::vec4 clearColor);
 
-	VkAccelerationStructureKHR* getTopLevelAccelerationStructure();
+	VkAccelerationStructureKHR* getTopLevelAccelerationStructure(uint32_t frameIndex);
 
 	VkAccelerationStructureKHR* getBottomLevelAccelerationStructure(int index);
 

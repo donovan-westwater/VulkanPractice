@@ -42,7 +42,12 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		for (Mesh mesh : ResourceManager::manager->meshList) {
 			modelToBottomLevelAccelerationStructure(mesh);
 		}
-		createTopLevelAccelerationStructure();
+		for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+			topLevelAccelerationStructure.push_back(VK_NULL_HANDLE);
+			topLevelAccelerationStructureBuffer.push_back(VK_NULL_HANDLE);
+			topLevelAccelerationStructureDeviceMemory.push_back(VK_NULL_HANDLE);
+			createTopLevelAccelerationStructure(i);
+		}
 		createRayTracerImageAndImageView();
 		//The Ray Tracer should handle the the ray tracing pipelines since we dont want them to 
 		//get used by a the rasterization based system on accident!
@@ -571,7 +576,7 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 				, bottomLevelModelInstanceInfo.modelBottomLevelInstanceMemory);
 		}
 	}
-	void RayTracer::createTopLevelAccelerationStructure() {
+	void RayTracer::createTopLevelAccelerationStructure(uint32_t frameIndex) {
 		if (mainLogicalDevice == nullptr) {
 			throw std::runtime_error("Main Logical Device is expired / null!\n");
 		}
@@ -639,21 +644,22 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		topLevelAccelerationStructureBufferCreateInfo.pNext = NULL;
 		topLevelAccelerationStructureBufferCreateInfo.flags = 0;
 		//VkBuffer topLevelAccelerationStructureBufferHandle = VK_NULL_HANDLE;
-		if (vkCreateBuffer(logicalDevice, &topLevelAccelerationStructureBufferCreateInfo, nullptr, &topLevelAccelerationStructureBuffer) != VK_SUCCESS) {
+		if (vkCreateBuffer(logicalDevice, &topLevelAccelerationStructureBufferCreateInfo, nullptr, &topLevelAccelerationStructureBuffer[frameIndex]) != VK_SUCCESS) {
 			throw std::runtime_error("Buffer for topLevelAccelerationStructure cannot be made!");
 		}
 #ifndef NDEBUG
-		ResourceManager::setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(topLevelAccelerationStructureBuffer)
-			, "Top Level Accelertation Structure Buffer");
+		std::string name = "Top level Acceleration Structure Buffer " + frameIndex;
+		ResourceManager::setDebugObjectName(logicalDevice, VkObjectType::VK_OBJECT_TYPE_BUFFER, reinterpret_cast<uint64_t>(topLevelAccelerationStructureBuffer[frameIndex])
+			, name);
 #endif
 		//Check to see what memory our graphics card has for the buffer
 		VkMemoryRequirements topLevelAccelerationStructureMemoryRequirements;
 		vkGetBufferMemoryRequirements(
-			logicalDevice, topLevelAccelerationStructureBuffer,
+			logicalDevice, topLevelAccelerationStructureBuffer[frameIndex],
 			&topLevelAccelerationStructureMemoryRequirements);
 
 		uint32_t topLevelAccelerationStructureMemoryTypeIndex = findBufferMemoryTypeIndex(logicalDevice
-			, physicalDevice, topLevelAccelerationStructureBuffer, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+			, physicalDevice, topLevelAccelerationStructureBuffer[frameIndex], VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 		//Allocate memory to buffer the topLevelAccelerationStructure will be stored on
 		VkMemoryAllocateInfo topLevelAccelerationStructureMemoryAllocateInfo;
 		topLevelAccelerationStructureMemoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -666,7 +672,7 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 			, NULL, &topLevelAccelerationStructureDeviceMemoryHandle) != VK_SUCCESS) {
 			throw std::runtime_error("Failed to allocate memory for the topLevelAccelerationStructure buffer");
 		}
-		if (vkBindBufferMemory(logicalDevice, topLevelAccelerationStructureBuffer,topLevelAccelerationStructureDeviceMemoryHandle,0) != VK_SUCCESS) {
+		if (vkBindBufferMemory(logicalDevice, topLevelAccelerationStructureBuffer[frameIndex],topLevelAccelerationStructureDeviceMemoryHandle,0) != VK_SUCCESS) {
 			throw std::runtime_error("Failed to bind the memory to the buffer from the device");
 		}
 #ifndef NDEBUG
@@ -674,18 +680,18 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 			, reinterpret_cast<uint64_t>(topLevelAccelerationStructureDeviceMemoryHandle)
 			, "Top Level Acceleration Structure Device Memory");
 #endif
-		topLevelAccelerationStructureDeviceMemory = topLevelAccelerationStructureDeviceMemoryHandle;
+		topLevelAccelerationStructureDeviceMemory[frameIndex] = topLevelAccelerationStructureDeviceMemoryHandle;
 		//The settings for the topLevelAccelerationStructure
 		VkAccelerationStructureCreateInfoKHR topLevelAccelerationStructureCreateInfo;
 		topLevelAccelerationStructureCreateInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
 		topLevelAccelerationStructureCreateInfo.createFlags = 0;
-		topLevelAccelerationStructureCreateInfo.buffer = topLevelAccelerationStructureBuffer;
+		topLevelAccelerationStructureCreateInfo.buffer = topLevelAccelerationStructureBuffer[frameIndex];
 		topLevelAccelerationStructureCreateInfo.offset = 0;
 		topLevelAccelerationStructureCreateInfo.size = topLevelAccelerationStructureBuildSizesInfo.accelerationStructureSize;
 		topLevelAccelerationStructureCreateInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
 		topLevelAccelerationStructureCreateInfo.deviceAddress = 0;
 		topLevelAccelerationStructureCreateInfo.pNext = NULL;
-		if (pvkCreateAccelerationStructureKHR(logicalDevice, &topLevelAccelerationStructureCreateInfo, NULL, &topLevelAccelerationStructure) != VK_SUCCESS) {
+		if (pvkCreateAccelerationStructureKHR(logicalDevice, &topLevelAccelerationStructureCreateInfo, NULL, &topLevelAccelerationStructure[frameIndex]) != VK_SUCCESS) {
 			throw std::runtime_error("Failed to create the topLevelAccelerationStructure");
 		}
 		//Building the topLevelAccelerationStructure
@@ -693,7 +699,7 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		//Building here means populating the structure with data and such
 		VkAccelerationStructureDeviceAddressInfoKHR topLevelAccelerationStructureDeviceAddressInfo;
 		topLevelAccelerationStructureDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
-		topLevelAccelerationStructureDeviceAddressInfo.accelerationStructure = topLevelAccelerationStructure;
+		topLevelAccelerationStructureDeviceAddressInfo.accelerationStructure = topLevelAccelerationStructure[frameIndex];
 		topLevelAccelerationStructureDeviceAddressInfo.pNext = NULL;
 
 		VkDeviceAddress topLevelAccelerationStructureDeviceAddress =
@@ -758,7 +764,7 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		topLevelAccelerationStructureScratchBufferDeviceAddressInfo.buffer = topLevelAccelerationStructureScratchBuffer;
 		//Time to actually get the device address and use it to tell the scratch buffer where to build the topLevelAccelerationStructure
 		VkDeviceAddress topLevelAccelerationStructureScratchBufferDeviceAddress = pvkGetBufferDeviceAddressKHR(logicalDevice, &topLevelAccelerationStructureScratchBufferDeviceAddressInfo);
-		topLevelAccelerationStructureBuildGeoInfo.dstAccelerationStructure = topLevelAccelerationStructure;
+		topLevelAccelerationStructureBuildGeoInfo.dstAccelerationStructure = topLevelAccelerationStructure[frameIndex];
 		topLevelAccelerationStructureBuildGeoInfo.scratchData.deviceAddress = topLevelAccelerationStructureScratchBufferDeviceAddress;
 		//We need to tell the pipeline what offsets to expect for the geometry 
 		VkAccelerationStructureBuildRangeInfoKHR topLevelAccelerationStructureSBuildRangeInfo;
@@ -836,21 +842,21 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		vkDestroyFence(logicalDevice, topLevelFence, NULL);
 		vkFreeCommandBuffers(logicalDevice, commandPool, 1, &commandBuffer);
 	}
-	void RayTracer::recreateTopLevelAccelerationStrucuture() {
+	void RayTracer::recreateTopLevelAccelerationStrucuture(uint32_t frameIndex) {
 		vkDestroyBuffer(ResourceManager::manager->device,
-			topLevelAccelerationStructureBuffer,
+			topLevelAccelerationStructureBuffer[frameIndex],
 			nullptr);
 		vkFreeMemory(ResourceManager::manager->device,
-			topLevelAccelerationStructureDeviceMemory, nullptr);
+			topLevelAccelerationStructureDeviceMemory[frameIndex], nullptr);
 
 		pvkDestroyAccelerationStructureKHR(ResourceManager::manager->device,
-			topLevelAccelerationStructure,
+			topLevelAccelerationStructure[frameIndex],
 			nullptr);
-		createTopLevelAccelerationStructure();
+		createTopLevelAccelerationStructure(frameIndex);
 
 	}
-	VkAccelerationStructureKHR* RayTracer::getTopLevelAccelerationStructure() {
-		return &topLevelAccelerationStructure;
+	VkAccelerationStructureKHR* RayTracer::getTopLevelAccelerationStructure(uint32_t frameIndex) {
+		return &topLevelAccelerationStructure[frameIndex];
 	}
 	VkAccelerationStructureKHR* RayTracer::getBottomLevelAccelerationStructure(int index) {
 		return &bottomLevelMeshInfoList.at(index).bottomLevelAccelerationStructure;
@@ -908,9 +914,11 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 
 		//Recreate top level structure while they arent being used!
 		//Want the tlas ready for other bits to use it
-		recreateTopLevelAccelerationStrucuture();
+		recreateTopLevelAccelerationStrucuture(currentFrame);
 
 		uint32_t imageIndex;
+		
+		vkResetFences(logicalDevice, 1, &fences[currentFrame]);
 		//Make sure the chain is fresh so we know we can use it. This allows us to delay a fense reset and stop a deadlock
 		VkResult result = vkAcquireNextImageKHR(logicalDevice, swapChain, UINT64_MAX, availableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
 
@@ -921,7 +929,7 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
 			throw std::runtime_error("failed to acquire swap chain image!");
 		}
-		vkResetFences(logicalDevice, 1, &fences[currentFrame]);
+		
 		//update unform buffers and descriptor sets
 		for (int i = 0; i < ResourceManager::manager->modelList.size(); i++) {
 			Model* m = &ResourceManager::manager->modelList[i];
@@ -1227,9 +1235,11 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		VkDevice logicalDevice = *mainLogicalDevice;
 
 		//Acceleration Structures
-		pvkDestroyAccelerationStructureKHR(logicalDevice, topLevelAccelerationStructure, nullptr);
-		vkDestroyBuffer(logicalDevice, topLevelAccelerationStructureBuffer, nullptr);
-		vkFreeMemory(logicalDevice, topLevelAccelerationStructureDeviceMemory, nullptr);
+		for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+			pvkDestroyAccelerationStructureKHR(logicalDevice, topLevelAccelerationStructure[i], nullptr);
+			vkDestroyBuffer(logicalDevice, topLevelAccelerationStructureBuffer[i], nullptr);
+			vkFreeMemory(logicalDevice, topLevelAccelerationStructureDeviceMemory[i], nullptr);
+		}
 		for (RayTracerMeshInfo rMeshInfo : bottomLevelMeshInfoList) {
 			pvkDestroyAccelerationStructureKHR(logicalDevice, rMeshInfo.bottomLevelAccelerationStructure, nullptr);
 			vkDestroyBuffer(logicalDevice, rMeshInfo.bottomLevelAccelerationStructureBuffer, nullptr);
