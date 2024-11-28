@@ -840,6 +840,9 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		vkDestroyBuffer(ResourceManager::manager->device,
 			topLevelAccelerationStructureBuffer,
 			nullptr);
+		vkFreeMemory(ResourceManager::manager->device,
+			topLevelAccelerationStructureDeviceMemory, nullptr);
+
 		pvkDestroyAccelerationStructureKHR(ResourceManager::manager->device,
 			topLevelAccelerationStructure,
 			nullptr);
@@ -902,6 +905,11 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 			std::cout << "Ray trace function failure!\n";
 			throw std::runtime_error("failed to wait for fences!");
 		}
+
+		//Recreate top level structure while they arent being used!
+		//Want the tlas ready for other bits to use it
+		recreateTopLevelAccelerationStrucuture();
+
 		uint32_t imageIndex;
 		//Make sure the chain is fresh so we know we can use it. This allows us to delay a fense reset and stop a deadlock
 		VkResult result = vkAcquireNextImageKHR(logicalDevice, swapChain, UINT64_MAX, availableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
@@ -915,11 +923,13 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		}
 		vkResetFences(logicalDevice, 1, &fences[currentFrame]);
 		//update unform buffers and descriptor sets
-
 		for (int i = 0; i < ResourceManager::manager->modelList.size(); i++) {
 			Model* m = &ResourceManager::manager->modelList[i];
+			Pipeline* refPipeline = &ResourceManager::manager->pipelineList[m->referencePipelineIndex];
 			m->testUpdate();
 			m->updateUniformBuffers(currentFrame);
+			//We need up update our other rasterization pipeline desc set too since we are sill using it!
+			refPipeline->updateDescriptorSet(m, ResourceManager::manager->currentFrame);
 		}
 		refRayTracingPipeline->updateDescriptorSets(currentFrame);
 		//Setup light source
@@ -927,8 +937,6 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		pushConstantRay.lightPos = lightSource.pos;
 		pushConstantRay.lightIntensity = lightSource.intensity;
 		pushConstantRay.lightType = lightSource.type;
-		//Recreate top level structure after updating models and descriptor sets
-		recreateTopLevelAccelerationStrucuture();
 		//Command buffer setup
 		vkResetCommandBuffer(cmdBuf, 0);
 
