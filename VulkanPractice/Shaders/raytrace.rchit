@@ -85,10 +85,8 @@ void main()
         hitP.hitValue *= 0.5*finalColor;
     }
     //Skipping Emission for now until noise is better dealt with
-    //hitP.hitValue += materialBuffer.data[matIndex].emission.xyz;
+    hitP.hitValue += materialBuffer.data[matIndex].emission.xyz;
     hitP.rngState = state;
-    //DEBUG
-    hitP.hitValue = vec3(0,1,0);
     //TO DO: Should pass in max depth from CPU side. Pipeline controls depth!
     //Glossy Step: Goaling to coopt Ni parameter as a specular probablity and use that method for glossy
     //Based off this: https://blog.demofox.org/2020/06/06/casual-shadertoy-path-tracing-2-image-improvement-and-glossy-reflections/
