@@ -1,0 +1,11 @@
+prefix=C:/Users/donov/Desktop/OpenUSD-Folder/USD-Fileformat-plugins-main/bin
+exec_prefix=C:/Users/donov/Desktop/OpenUSD-Folder/USD-Fileformat-plugins-main/bin
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: fmt
+Description: A modern formatting library
+Version: 10.1.0
+Libs: -L${libdir} -lfmt
+Cflags: -I${includedir}
+

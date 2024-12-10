@@ -1,0 +1,47 @@
+{
+    "Plugins": [
+        {
+            "Info": {
+                "SdfMetadata": {
+                    "objAssetsPath": {
+                        "appliesTo": [ "prims" ], 
+                        "displayGroup": "Core", 
+                        "documentation:": "Path to store assets to, instead of resolving from the source file", 
+                        "type": "string"
+                    },
+                    "objPhong": {
+                        "appliesTo": [ "prims" ], 
+                        "displayGroup": "Core", 
+                        "documentation:": "Whether to import phong (by default conversion only keeps the diffuse component)", 
+                        "type": "bool"
+                    },
+                    "objOriginalColorSpace": {
+                        "appliesTo": [ "prims" ],
+                        "displayGroup": "Core",
+                        "documentation:": "Is the original colorspace in linear or sRGB",
+                        "type": "string"
+                    }
+                },
+                "Types": {
+                    "UsdObjFileFormat": {
+                        "bases": ["SdfFileFormat"],
+                        "displayName": "Wavefront OBJ",
+                        "extensions": [ "obj" ],
+                        "formatId": "obj",
+                        "primary": true,
+                        "target": "usd"
+                    },
+                    "adobe::usd::ObjResolver" : {
+                        "bases": [ "ArPackageResolver" ],
+                        "extensions": [ "obj", "OBJ", "Obj" ]
+                    }
+                }
+            },
+            "LibraryPath": "../usdObj.dll",
+            "Name": "usdObj_plugin",
+            "ResourcePath": "resources",
+            "Root": "..",
+            "Type": "library"
+        }
+    ]
+}
