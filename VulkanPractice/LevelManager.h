@@ -9,7 +9,7 @@
 
 class LevelManager {
 public:
-	UsdStageRefPointer testPointer;
+	//UsdStageRefPointer testPointer;
 
 	void testImport();
 };
