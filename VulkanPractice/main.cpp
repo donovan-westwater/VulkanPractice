@@ -5,10 +5,14 @@
 #include "Mesh.h"
 #include "Model.h"
 #include "RayTracer.h"
+#include "LevelManager.h"
 
 class GameApplication {
 public:
     void run() {
+        LevelManager levelTest;
+        levelTest.testImport();
+        /*
         //Create Resource manager
         ResourceManager::manager = new ResourceManager();
         ResourceManager::manager->width = WIDTH;
@@ -26,6 +30,7 @@ public:
         cleanup();
         //Delete manager when we are done
         delete ResourceManager::manager;
+        */
     }
 
 private:

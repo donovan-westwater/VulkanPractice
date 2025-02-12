@@ -81,14 +81,14 @@
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <CodeAnalysisRuleSet>CppCoreCheckRules.ruleset</CodeAnalysisRuleSet>
     <IncludePath>$(SolutionDir)VulkanPractice\Libraries\OpenUSD\include;$(IncludePath)</IncludePath>
-    <LibraryPath>$(SolutionDir)VulkanPractice\Libraries\OpenUSD\lib;$(LibraryPath)</LibraryPath>
+    <LibraryPath>$(SolutionDir)VulkanPractice\Libraries\OpenUSD\lib;$(SolutionDir)VulkanPractice\VulkanPractice\Libraries\OpenUSD\plugin\usd;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <CodeAnalysisRuleSet>CppCoreCheckRules.ruleset</CodeAnalysisRuleSet>
     <IncludePath>$(SolutionDir)VulkanPractice\Libraries\OpenUSD\include;$(IncludePath)</IncludePath>
-    <LibraryPath>$(SolutionDir)VulkanPractice\Libraries\OpenUSD\lib;$(LibraryPath)</LibraryPath>
+    <LibraryPath>$(SolutionDir)VulkanPractice\Libraries\OpenUSD\lib;$(SolutionDir)VulkanPractice\Libraries\OpenUSD\plugin\usd;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
