@@ -13,17 +13,20 @@
 #include "LevelManager.h"
 
 void LevelManager::testImport() {
+	//The Local Library Dlls seem to be breaking the plugins?
 	pxr::PlugRegistry::GetInstance().RegisterPlugins(
 		"C:/Users/donov/Desktop/Coding Area/Rendering Practice/VulkanPractice/VulkanPractice/Libraries/OpenUSD/plugin/usd/pluginfo.json");
 	pxr::PlugPluginPtrVector test = pxr::PlugRegistry::GetInstance().GetAllPlugins();
 	for (int i = 0; i < test.size(); i++) {
 		std::cout << test[i]->GetName() << "\n";
 	}
+	//usd is crashing when opening dino.obj --> I can open dino.obj when I run it via python
+	//Something is wrong with the C++ version specifically?
 	std::cout << "-------------------\n";
 	testPointer = pxr::UsdStage::Open("dino.obj");//"../../VulkanPratice/Models/dino.obj");
 	std::cout << "--Opened dino.obj!--\n";
-	testPointer->Export("dinoOut.usd");//"../../VulkanPratice/Models/dino.usd");
+	//testPointer->Export("dinoOut.usd");//"../../VulkanPratice/Models/dino.usd");
 	std::cout << "--Exported dino.obj!--\n";
-	testPointer->Save();
+	//testPointer->Save();
 	std::cout << "--Saved dino.obj!--\n";
 }
