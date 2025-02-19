@@ -25,8 +25,8 @@ void LevelManager::testImport() {
 	std::cout << "-------------------\n";
 	testPointer = pxr::UsdStage::Open("dino.obj");//"../../VulkanPratice/Models/dino.obj");
 	std::cout << "--Opened dino.obj!--\n";
-	//testPointer->Export("dinoOut.usd");//"../../VulkanPratice/Models/dino.usd");
+	testPointer->Export("dinoOut.usd");//"../../VulkanPratice/Models/dino.usd");
 	std::cout << "--Exported dino.obj!--\n";
-	//testPointer->Save();
+	testPointer->Save();
 	std::cout << "--Saved dino.obj!--\n";
 }
