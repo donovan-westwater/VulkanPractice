@@ -7,8 +7,11 @@
 #include <pxr/usd/ar/asset.h>
 #include <pxr/usd/ar/resolver.h>
 #include <pxr/usd/sdf/assetPath.h>
+#include <pxr/usd/sdf/path.h>
 #include <pxr/usd/usd/attribute.h>
 #include <pxr/usd/usd/prim.h>
+#include <pxr/usd/usdGeom/xform.h>
+#include <pxr/usd/usdGeom/xformOp.h>
 #include <pxr/usd/usd/stage.h>
 #include "LevelManager.h"
 
@@ -24,6 +27,12 @@ void LevelManager::testImport() {
 	//Something is wrong with the C++ version specifically?
 	std::cout << "-------------------\n";
 	testPointer = pxr::UsdStage::Open("dino.obj");//"../../VulkanPratice/Models/dino.obj");
+	pxr::UsdPrim dinoPrim = testPointer->GetPrimAtPath(pxr::SdfPath("/dino"));
+	pxr::UsdGeomXformable dinoXform = pxr::UsdGeomXformable(dinoPrim);
+	pxr::UsdGeomXformOp rot = dinoXform.AddRotateXOp(pxr::UsdGeomXformOp::PrecisionFloat
+		,pxr::TfToken("X_Rotation"));
+	rot.Set(90.0f);
+	//	testRotResult.Set(90);
 	std::cout << "--Opened dino.obj!--\n";
 	testPointer->Export("dinoOut.usd");//"../../VulkanPratice/Models/dino.usd");
 	std::cout << "--Exported dino.obj!--\n";
