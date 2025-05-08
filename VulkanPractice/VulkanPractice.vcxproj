@@ -81,7 +81,7 @@
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <CodeAnalysisRuleSet>CppCoreCheckRules.ruleset</CodeAnalysisRuleSet>
     <IncludePath>$(SolutionDir)VulkanPractice\Libraries\OpenUSD\include;$(IncludePath)</IncludePath>
-    <LibraryPath>$(SolutionDir)VulkanPractice\Libraries\OpenUSD\plugin\usd;$(SolutionDir)VulkanPractice\Libraries\OpenUSD\lib\;$(LibraryPath)</LibraryPath>
+    <LibraryPath>$(SolutionDir)VulkanPractice\VulkanPractice\Libraries\Debug\OpenUSD\Lib;$(SolutionDir)VulkanPractice\VulkanPractice\Libraries\Debug\OpenUSD\plugin\usd;$(LibraryPath)</LibraryPath>
     <ExcludePath>$(SolutionDir)VulkanPractice\Libraries\OpenUSD\lib\boost_python312-vc142-mt-x64-1_82.lib;$(SolutionDir)VulkanPractice\Libraries\OpenUSD\lib\boost_python312-vc142-mt-x64-1_82.dll;$(SolutionDir)VulkanPractice\Libraries\OpenUSD\lib\64-Bit-Libs\release\*;$(ExcludePath)</ExcludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -140,10 +140,11 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\Users\donov\Documents\Visual Studio 2019\Libraries\glfw-3.3.8.bin.WIN64\lib-vc2015;C:\VulkanSDK\1.3.239.0\Lib;$(SolutionDir)VulkanPractice\Libraries\OpenUSD\bin;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>vulkan-1.lib;glfw3.lib;$(SolutionDir)VulkanPractice\Libraries\OpenUSD\lib\tbb_debug.lib;$(SolutionDir)VulkanPractice\Libraries\OpenUSD\lib\64-Bit-Libs\debug_libs\*.lib;$(SolutionDir)VulkanPractice\Libraries\OpenUSD\lib\python3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>C:\Users\donov\Documents\Visual Studio 2019\Libraries\glfw-3.3.8.bin.WIN64\lib-vc2015;C:\VulkanSDK\1.3.239.0\Lib;$(SolutionDir)VulkanPractice\Libraries\Debug\OpenUSD\bin;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>vulkan-1.lib;glfw3.lib;$(SolutionDir)VulkanPractice\Libraries\Debug\OpenUSD\Lib\*.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>/VERBOSE %(AdditionalOptions)</AdditionalOptions>
-      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <IgnoreSpecificDefaultLibraries>
+      </IgnoreSpecificDefaultLibraries>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
