@@ -13,6 +13,18 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="DebugSection">
+      <UniqueIdentifier>{54954767-c6ab-47c5-bba5-bca66312df54}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DebugSection\Lib">
+      <UniqueIdentifier>{4efa2c78-a685-4242-8b57-6afedf35f147}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DebugSection\Bin">
+      <UniqueIdentifier>{20cc570f-47a6-4c20-88b4-b5bd7c892dd6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DebugSection\Plugin">
+      <UniqueIdentifier>{283484c3-fe90-4a12-81c5-0730cbdf5ab6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -68,6 +80,69 @@
     <None Include="Shaders\raycommon.glsl">
       <Filter>Header Files</Filter>
     </None>
+    <None Include="Libraries\OpenUSD-Debug\OpenUSD\bin\zlibd.dll">
+      <Filter>DebugSection\Bin</Filter>
+    </None>
+    <None Include="Libraries\OpenUSD-Debug\OpenUSD\bin\tbbmalloc_proxy_debug.dll">
+      <Filter>DebugSection\Bin</Filter>
+    </None>
+    <None Include="Libraries\OpenUSD-Debug\OpenUSD\bin\tbbmalloc_proxy.dll">
+      <Filter>DebugSection\Bin</Filter>
+    </None>
+    <None Include="Libraries\OpenUSD-Debug\OpenUSD\bin\tbbmalloc_debug.dll">
+      <Filter>DebugSection\Bin</Filter>
+    </None>
+    <None Include="Libraries\OpenUSD-Debug\OpenUSD\bin\tbbmalloc.dll">
+      <Filter>DebugSection\Bin</Filter>
+    </None>
+    <None Include="Libraries\OpenUSD-Debug\OpenUSD\bin\tbbbind_debug.dll">
+      <Filter>DebugSection\Bin</Filter>
+    </None>
+    <None Include="Libraries\OpenUSD-Debug\OpenUSD\bin\tbbbind.dll">
+      <Filter>DebugSection\Bin</Filter>
+    </None>
+    <None Include="Libraries\OpenUSD-Debug\OpenUSD\bin\tbb_preview_debug.dll">
+      <Filter>DebugSection\Bin</Filter>
+    </None>
+    <None Include="Libraries\OpenUSD-Debug\OpenUSD\bin\tbb_preview.dll">
+      <Filter>DebugSection\Bin</Filter>
+    </None>
+    <None Include="Libraries\OpenUSD-Debug\OpenUSD\bin\tbb_debug.dll">
+      <Filter>DebugSection\Bin</Filter>
+    </None>
+    <None Include="Libraries\OpenUSD-Debug\OpenUSD\bin\tbb.dll">
+      <Filter>DebugSection\Bin</Filter>
+    </None>
+    <None Include="Libraries\OpenUSD-Debug\OpenUSD\bin\MaterialXRenderOsl.dll">
+      <Filter>DebugSection\Bin</Filter>
+    </None>
+    <None Include="Libraries\OpenUSD-Debug\OpenUSD\bin\MaterialXRenderHw.dll">
+      <Filter>DebugSection\Bin</Filter>
+    </None>
+    <None Include="Libraries\OpenUSD-Debug\OpenUSD\bin\MaterialXRenderGlsl.dll">
+      <Filter>DebugSection\Bin</Filter>
+    </None>
+    <None Include="Libraries\OpenUSD-Debug\OpenUSD\bin\MaterialXRender.dll">
+      <Filter>DebugSection\Bin</Filter>
+    </None>
+    <None Include="Libraries\OpenUSD-Debug\OpenUSD\bin\MaterialXGenShader.dll">
+      <Filter>DebugSection\Bin</Filter>
+    </None>
+    <None Include="Libraries\OpenUSD-Debug\OpenUSD\bin\MaterialXGenOsl.dll">
+      <Filter>DebugSection\Bin</Filter>
+    </None>
+    <None Include="Libraries\OpenUSD-Debug\OpenUSD\bin\MaterialXGenMsl.dll">
+      <Filter>DebugSection\Bin</Filter>
+    </None>
+    <None Include="Libraries\OpenUSD-Debug\OpenUSD\bin\MaterialXGenMdl.dll">
+      <Filter>DebugSection\Bin</Filter>
+    </None>
+    <None Include="Libraries\OpenUSD-Debug\OpenUSD\bin\MaterialXGenGlsl.dll">
+      <Filter>DebugSection\Bin</Filter>
+    </None>
+    <None Include="Libraries\OpenUSD-Debug\OpenUSD\bin\MaterialXFormat.dll">
+      <Filter>DebugSection\Bin</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="common.h">
@@ -100,5 +175,226 @@
     <ClInclude Include="LevelManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\bin\MaterialXCore.dll">
+      <Filter>DebugSection\Bin</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\plugin\usd\hdStorm.dll">
+      <Filter>DebugSection\Plugin</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\plugin\usd\hioAvif.dll">
+      <Filter>DebugSection\Plugin</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\plugin\usd\hioOiio.dll">
+      <Filter>DebugSection\Plugin</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\plugin\usd\sdrGlslfx.dll">
+      <Filter>DebugSection\Plugin</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\plugin\usd\usdDraco.dll">
+      <Filter>DebugSection\Plugin</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\plugin\usd\usdFbx.dll">
+      <Filter>DebugSection\Plugin</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\plugin\usd\usdGltf.dll">
+      <Filter>DebugSection\Plugin</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\plugin\usd\usdObj.dll">
+      <Filter>DebugSection\Plugin</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\plugin\usd\usdPly.dll">
+      <Filter>DebugSection\Plugin</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\plugin\usd\usdShaders.dll">
+      <Filter>DebugSection\Plugin</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\plugin\usd\usdStl.dll">
+      <Filter>DebugSection\Plugin</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_work.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\boost_atomic-vc142-mt-gd-x64-1_82.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\boost_numpy312-vc142-mt-gd-x64-1_82.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\boost_python312-vc142-mt-gd-x64-1_82.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\boost_regex-vc142-mt-gd-x64-1_82.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_ar.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_arch.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_cameraUtil.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_garch.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_geomUtil.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_gf.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_glf.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_hd.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_hdar.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_hdGp.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_hdMtlx.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_hdsi.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_hdSt.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_hdx.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_hf.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_hgi.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_hgiGL.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_hgiInterop.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_hio.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_js.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_kind.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_ndr.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_pcp.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_pegtl.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_plug.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_pxOsd.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_sdf.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_sdr.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_tf.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_trace.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_ts.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_usd.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_usdAppUtils.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_usdBakeMtlx.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_usdGeom.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_usdHydra.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_usdImaging.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_usdImagingGL.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_usdLux.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_usdMedia.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_usdMtlx.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_usdPhysics.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_usdProc.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_usdProcImaging.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_usdRender.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_usdRi.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_usdRiPxrImaging.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_usdShade.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_usdSkel.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_usdSkelImaging.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_usdUI.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_usdUtils.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_usdviewq.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_usdVol.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_usdVolImaging.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
+    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\lib\usd_vt.dll">
+      <Filter>DebugSection\Lib</Filter>
+    </CopyFileToFolders>
   </ItemGroup>
 </Project>
