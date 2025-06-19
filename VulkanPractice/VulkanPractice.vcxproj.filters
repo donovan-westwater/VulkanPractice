@@ -143,6 +143,7 @@
     <None Include="Libraries\OpenUSD-Debug\OpenUSD\bin\MaterialXFormat.dll">
       <Filter>DebugSection\Bin</Filter>
     </None>
+    <None Include="Libraries\OpenUSD-Debug\OpenUSD\bin\MaterialXCore.dll" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="common.h">
@@ -177,9 +178,6 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\bin\MaterialXCore.dll">
-      <Filter>DebugSection\Bin</Filter>
-    </CopyFileToFolders>
     <CopyFileToFolders Include="Libraries\OpenUSD-Debug\OpenUSD\plugin\usd\hdStorm.dll">
       <Filter>DebugSection\Plugin</Filter>
     </CopyFileToFolders>
