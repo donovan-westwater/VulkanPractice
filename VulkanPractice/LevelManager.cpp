@@ -17,8 +17,13 @@
 
 void LevelManager::testImport() {
 	//The Local Library Dlls seem to be breaking the plugins?
+#ifdef NDEBUG
+	pxr::PlugRegistry::GetInstance().RegisterPlugins(
+	"C:/Users/donov/Desktop/Coding Area/Rendering Practice/VulkanPractice/VulkanPractice/Libraries/OpenUSD/plugin/usd/pluginfo.json");
+#else
 	pxr::PlugRegistry::GetInstance().RegisterPlugins(
 		"C:/Users/donov/Desktop/Coding Area/Rendering Practice/VulkanPractice/VulkanPractice/Libraries/OpenUSD-Debug/OpenUSD/plugin/usd/pluginfo.json");
+#endif
 	pxr::PlugPluginPtrVector test = pxr::PlugRegistry::GetInstance().GetAllPlugins();
 	for (int i = 0; i < test.size(); i++) {
 		std::cout << test[i]->GetName() << "\n";
