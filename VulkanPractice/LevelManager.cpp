@@ -14,6 +14,7 @@
 #include <pxr/usd/usdGeom/xformOp.h>
 #include <pxr/usd/usd/stage.h>
 #include "LevelManager.h"
+#include <filesystem>
 
 void LevelManager::testImport() {
 	//The Local Library Dlls seem to be breaking the plugins?
@@ -31,7 +32,13 @@ void LevelManager::testImport() {
 	//usd is crashing when opening dino.obj --> I can open dino.obj when I run it via python
 	//Something is wrong with the C++ version specifically?
 	std::cout << "-------------------\n";
-	testPointer = pxr::UsdStage::Open("dino.obj");//"../../VulkanPratice/Models/dino.obj");
+	bool supported = pxr::UsdStage::IsSupportedFile("dino.obj");
+	if (!supported) {
+		std::cout << "NOT SUPPORTED!\n";
+	}
+	std::cout << std::filesystem::current_path()<<"\n";
+	if(std::filesystem::exists("Models/dino.obj")) std::cout << "Found";
+	testPointer = pxr::UsdStage::Open("Models/dino.obj");//"../../VulkanPratice/Models/dino.obj");
 	pxr::UsdPrim dinoPrim = testPointer->GetPrimAtPath(pxr::SdfPath("/dino"));
 	pxr::UsdGeomXformable dinoXform = pxr::UsdGeomXformable(dinoPrim);
 	pxr::UsdGeomXformOp rot = dinoXform.AddRotateXOp(pxr::UsdGeomXformOp::PrecisionFloat
