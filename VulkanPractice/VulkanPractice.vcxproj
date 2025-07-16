@@ -148,7 +148,8 @@
       </IgnoreSpecificDefaultLibraries>
     </Link>
     <PostBuildEvent>
-      <Command>XCOPY "$(SolutionDir)VulkanPractice\Libraries\OpenUSD-Debug\OpenUSD\lib\usd" "$(TargetDir)\usd\" /S /Y</Command>
+      <Command>XCOPY "$(SolutionDir)VulkanPractice\Libraries\OpenUSD-Debug\OpenUSD\lib\usd" "$(TargetDir)\usd\" /S /Y
+XCOPY "$(SolutionDir)VulkanPractice\Libraries\OpenUSD-Debug\OpenUSD\lib\*.dll" "$(TargetDir)\*.dll" /S /Y</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
