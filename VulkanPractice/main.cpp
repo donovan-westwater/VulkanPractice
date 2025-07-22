@@ -11,7 +11,9 @@ class GameApplication {
 public:
     void run() {
         LevelManager levelTest;
-        levelTest.testImport();
+        LevelManager::loadPlugins();
+        //levelTest.testImportAndExport();
+        levelTest.loadLevel("levelFormatTest.usda");
         /*
         //Create Resource manager
         ResourceManager::manager = new ResourceManager();
