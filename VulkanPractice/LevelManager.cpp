@@ -57,8 +57,6 @@ void LevelManager::loadPrim(pxr::UsdPrim prim) {
 	glm::decompose(glmMat, scale, rotation, translation, skew, perspective);
 	std::cout << prim.GetName() << " POS: " << translation.x << " " << translation.y << " " << translation.z << "\n";
 	//Extract Mesh Info
-	//BUG: your using the wrong prim, you need to find the child prim that is a mesh!
-	//See this link: https://docs.omniverse.nvidia.com/dev-guide/latest/programmer_ref/usd/hierarchy-traversal/get-prim-child.html
 	pxr::UsdPrim meshPrim;
 	for (pxr::UsdPrim prim : prim.GetAllChildren()) {
 		if (prim.IsA<pxr::UsdGeomMesh>()) {
