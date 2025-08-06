@@ -16,6 +16,8 @@
 #include "LevelManager.h"
 #include <filesystem>
 #include <glm/gtx/matrix_decompose.hpp>
+#include <pxr/usd/usdGeom/mesh.h>
+#include <pxr/base/gf/vec3f.h>
 
 void LevelManager::testImportAndExport() {
 	std::cout << "-------------------\n";
@@ -54,6 +56,27 @@ void LevelManager::loadPrim(pxr::UsdPrim prim) {
 	glm::vec4 perspective;
 	glm::decompose(glmMat, scale, rotation, translation, skew, perspective);
 	std::cout << prim.GetName() << " POS: " << translation.x << " " << translation.y << " " << translation.z << "\n";
+	//Extract Mesh Info
+	//BUG: your using the wrong prim, you need to find the child prim that is a mesh!
+	//See this link: https://docs.omniverse.nvidia.com/dev-guide/latest/programmer_ref/usd/hierarchy-traversal/get-prim-child.html
+	pxr::UsdPrim meshPrim;
+	for (pxr::UsdPrim prim : prim.GetAllChildren()) {
+		if (prim.IsA<pxr::UsdGeomMesh>()) {
+			meshPrim = prim;
+			break;
+		}
+	}
+	pxr::UsdGeomMesh mesh = pxr::UsdGeomMesh(meshPrim);
+	pxr::UsdAttribute pointAttr = mesh.GetPointsAttr();
+	pxr::VtArray<pxr::GfVec3f> pointArray = pxr::VtArray<pxr::GfVec3f>();
+	bool gotPoints = pointAttr.Get(&pointArray);
+	if(gotPoints) std::cout << "SUCCESS" << "\n";
+	else std::cout << "FAIL" << "\n";
+	std::cout << mesh.GetFaceCount() << "\n";
+	std::cout << "\nPOINTS| ";
+	for (pxr::GfVec3f p : pointArray) {
+		std::cout << p[0] << " " << p[1] << " " << p[2]<<" " << "\n";
+	}
 }
 void LevelManager::loadLevel(std::string levelName) {
 	testPointer = pxr::UsdStage::Open(levelName);
