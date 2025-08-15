@@ -18,6 +18,7 @@
 #include <glm/gtx/matrix_decompose.hpp>
 #include <pxr/usd/usdGeom/mesh.h>
 #include <pxr/base/gf/vec3f.h>
+#include <pxr/usd/usdGeom/primvarsAPI.h>
 
 void LevelManager::testImportAndExport() {
 	std::cout << "-------------------\n";
@@ -66,14 +67,46 @@ void LevelManager::loadPrim(pxr::UsdPrim prim) {
 	}
 	pxr::UsdGeomMesh mesh = pxr::UsdGeomMesh(meshPrim);
 	pxr::UsdAttribute pointAttr = mesh.GetPointsAttr();
+	pxr::UsdGeomPrimvarsAPI meshPrimvars = pxr::UsdGeomPrimvarsAPI(meshPrim);
+	//Retrive data from meshPrimvars API var (UVMap is the name for uv coords)
+	pxr::UsdGeomPrimvar meshUVMapvar = meshPrimvars.GetPrimvar(pxr::TfToken("UVMap"));
+	pxr::UsdAttribute normalAttr = mesh.GetNormalsAttr();
+	pxr::UsdAttribute triIndicesAttr = mesh.GetFaceVertexIndicesAttr();
+
+	pxr::VtArray<pxr::GfVec2f> uvArray = pxr::VtArray<pxr::GfVec2f>();
+	pxr::VtArray<pxr::GfVec3f> normalArray = pxr::VtArray<pxr::GfVec3f>();
+	pxr::VtArray <int> triIndexArray = pxr::VtArray<int>();
 	pxr::VtArray<pxr::GfVec3f> pointArray = pxr::VtArray<pxr::GfVec3f>();
+
+	bool gotUvs = meshUVMapvar.Get(&uvArray);
+	bool gotNormals = normalAttr.Get(&normalArray);
+	bool gotTriIndices = triIndicesAttr.Get(&triIndexArray);
 	bool gotPoints = pointAttr.Get(&pointArray);
-	if(gotPoints) std::cout << "SUCCESS" << "\n";
+	if(gotPoints) std::cout << "POINTS SUCCESS" << "\n";
 	else std::cout << "FAIL" << "\n";
+	if (gotNormals) std::cout << "NORMALS SUCCESS" << "\n";
+	else std::cout << "FAIL" << "\n";
+	if (gotTriIndices) std::cout << "TRI INDICES SUCCESS" << "\n";
+	else std::cout << "FAIL" << "\n";
+	if (gotUvs) std::cout << "UVS SUCCESS" << "\n";
+	else std::cout << "FAIL" << "\n";
+
 	std::cout << mesh.GetFaceCount() << "\n";
 	std::cout << "\nPOINTS| ";
 	for (pxr::GfVec3f p : pointArray) {
 		std::cout << p[0] << " " << p[1] << " " << p[2]<<" " << "\n";
+	}
+	std::cout << "\nUvs| ";
+	for (pxr::GfVec2f p : uvArray) {
+		std::cout << p[0] << " " << p[1] << " " << "\n";
+	}
+	std::cout << "\nNormals| ";
+	for (pxr::GfVec3f p : normalArray) {
+		std::cout << p[0] << " " << p[1] << " " << p[2] << " " << "\n";
+	}
+	std::cout << "\nTriangle Indices| ";
+	for (int p : triIndexArray) {
+		std::cout << p << "\n";
 	}
 }
 void LevelManager::loadLevel(std::string levelName) {
