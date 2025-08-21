@@ -13,7 +13,7 @@ public:
         LevelManager levelTest;
         LevelManager::loadPlugins();
         //levelTest.testImportAndExport();
-        levelTest.loadLevel("levelFormatTest.usda");
+        levelTest.loadLevel("levelFormatTestV2.usda");
         /*
         //Create Resource manager
         ResourceManager::manager = new ResourceManager();

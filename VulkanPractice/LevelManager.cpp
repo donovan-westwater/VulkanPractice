@@ -19,6 +19,7 @@
 #include <pxr/usd/usdGeom/mesh.h>
 #include <pxr/base/gf/vec3f.h>
 #include <pxr/usd/usdGeom/primvarsAPI.h>
+#include <pxr/usd/usdShade/materialBindingAPI.h>
 
 void LevelManager::testImportAndExport() {
 	std::cout << "-------------------\n";
@@ -57,8 +58,10 @@ void LevelManager::loadPrim(pxr::UsdPrim prim) {
 	glm::vec4 perspective;
 	glm::decompose(glmMat, scale, rotation, translation, skew, perspective);
 	std::cout << prim.GetName() << " POS: " << translation.x << " " << translation.y << " " << translation.z << "\n";
+	int meshIndex = 0;
 	//Extract Mesh Info
 	pxr::UsdPrim meshPrim;
+	pxr::UsdPrim matPrim = testPointer->GetPrimAtPath(pxr::SdfPath("/_materials"));
 	for (pxr::UsdPrim prim : prim.GetAllChildren()) {
 		if (prim.IsA<pxr::UsdGeomMesh>()) {
 			meshPrim = prim;
@@ -66,6 +69,13 @@ void LevelManager::loadPrim(pxr::UsdPrim prim) {
 		}
 	}
 	pxr::UsdGeomMesh mesh = pxr::UsdGeomMesh(meshPrim);
+	pxr::UsdShadeMaterialBindingAPI meshMatBindApi = pxr::UsdShadeMaterialBindingAPI(meshPrim);
+	pxr::UsdShadeMaterial mat;
+	bool hasMatBinding = false;
+	if (meshPrim.HasAPI(pxr::TfToken("MaterialBindingAPI"))) {
+		mat = meshMatBindApi.ComputeBoundMaterial();
+		hasMatBinding = true;
+	}
 	pxr::UsdAttribute pointAttr = mesh.GetPointsAttr();
 	pxr::UsdGeomPrimvarsAPI meshPrimvars = pxr::UsdGeomPrimvarsAPI(meshPrim);
 	//Retrive data from meshPrimvars API var (UVMap is the name for uv coords)
@@ -91,8 +101,11 @@ void LevelManager::loadPrim(pxr::UsdPrim prim) {
 	if (gotUvs) std::cout << "UVS SUCCESS" << "\n";
 	else std::cout << "FAIL" << "\n";
 
+	if (hasMatBinding) std::cout << mat.GetPath().GetString()<<"\n";
+
 	std::cout << mesh.GetFaceCount() << "\n";
 	std::cout << "\nPOINTS| ";
+	/*
 	for (pxr::GfVec3f p : pointArray) {
 		std::cout << p[0] << " " << p[1] << " " << p[2]<<" " << "\n";
 	}
@@ -108,6 +121,7 @@ void LevelManager::loadPrim(pxr::UsdPrim prim) {
 	for (int p : triIndexArray) {
 		std::cout << p << "\n";
 	}
+	*/
 }
 void LevelManager::loadLevel(std::string levelName) {
 	testPointer = pxr::UsdStage::Open(levelName);
