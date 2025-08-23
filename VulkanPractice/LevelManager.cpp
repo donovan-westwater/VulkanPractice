@@ -76,6 +76,21 @@ void LevelManager::loadPrim(pxr::UsdPrim prim) {
 		mat = meshMatBindApi.ComputeBoundMaterial();
 		hasMatBinding = true;
 	}
+	pxr::UsdShadeShader image;
+	pxr::UsdShadeInput inputFile;
+	if (hasMatBinding) {
+		pxr::UsdPrim matPrim = mat.GetPrim();
+		pxr::UsdPrim imagePrim;// = matPrim.GetPrimAtPath(pxr::SdfPath("/Image_Texture"));
+		for (pxr::UsdPrim prim : matPrim.GetAllChildren()) {
+			if (prim.IsA<pxr::UsdShadeShader>() && prim.GetName() == "Image_Texture") {
+				imagePrim = prim;
+				break;
+			}
+		}
+		image = pxr::UsdShadeShader(imagePrim);
+		inputFile = image.GetInput(pxr::TfToken("file"));
+		std::cout << "\nMat Texture File Path: "<<inputFile.GetFullName().GetString();
+	}
 	pxr::UsdAttribute pointAttr = mesh.GetPointsAttr();
 	pxr::UsdGeomPrimvarsAPI meshPrimvars = pxr::UsdGeomPrimvarsAPI(meshPrim);
 	//Retrive data from meshPrimvars API var (UVMap is the name for uv coords)
