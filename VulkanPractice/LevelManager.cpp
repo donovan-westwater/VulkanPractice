@@ -89,7 +89,9 @@ void LevelManager::loadPrim(pxr::UsdPrim prim) {
 		}
 		image = pxr::UsdShadeShader(imagePrim);
 		inputFile = image.GetInput(pxr::TfToken("file"));
-		std::cout << "\nMat Texture File Path: "<<inputFile.GetFullName().GetString();
+		pxr::SdfAssetPath path;
+		inputFile.Get(&path);
+		std::cout << "\nMat Texture File Path: "<<path<<" | " << inputFile.GetFullName().GetString();
 	}
 	pxr::UsdAttribute pointAttr = mesh.GetPointsAttr();
 	pxr::UsdGeomPrimvarsAPI meshPrimvars = pxr::UsdGeomPrimvarsAPI(meshPrim);
