@@ -42,6 +42,7 @@ void LevelManager::testImportAndExport() {
 	testPointer->Save();
 	std::cout << "--Saved dino.obj!--\n";
 }
+
 void LevelManager::loadPrim(pxr::UsdPrim prim) {
 	pxr::UsdGeomXformable primXform = pxr::UsdGeomXformable(prim);
 	pxr::GfMatrix4d pxrMat = primXform.GetTransformOp().GetOpTransform(pxr::UsdTimeCode(0.0));
@@ -77,21 +78,42 @@ void LevelManager::loadPrim(pxr::UsdPrim prim) {
 		hasMatBinding = true;
 	}
 	pxr::UsdShadeShader image;
+	pxr::UsdShadeShader bsdfValues;
 	pxr::UsdShadeInput inputFile;
 	if (hasMatBinding) {
 		pxr::UsdPrim matPrim = mat.GetPrim();
 		pxr::UsdPrim imagePrim;// = matPrim.GetPrimAtPath(pxr::SdfPath("/Image_Texture"));
+		pxr::UsdPrim bsdfPrim;
 		for (pxr::UsdPrim prim : matPrim.GetAllChildren()) {
 			if (prim.IsA<pxr::UsdShadeShader>() && prim.GetName() == "Image_Texture") {
 				imagePrim = prim;
-				break;
+			}
+			if (prim.IsA<pxr::UsdShadeShader>() && prim.GetName() == "Principled_BSDF") {
+				bsdfPrim = prim;
 			}
 		}
 		image = pxr::UsdShadeShader(imagePrim);
+		bsdfValues = pxr::UsdShadeShader(bsdfPrim);
 		inputFile = image.GetInput(pxr::TfToken("file"));
 		pxr::SdfAssetPath path;
 		inputFile.Get(&path);
 		std::cout << "\nMat Texture File Path: "<<path<<" | " << inputFile.GetFullName().GetString();
+		float ior;
+		float metallic;
+		float opacity;
+		float roughness;
+		float specular;
+		ior = loadMatValue<float>(bsdfValues,"ior");
+		metallic = loadMatValue<float>(bsdfValues,"metallic");
+		opacity = loadMatValue<float>(bsdfValues,"opacity");
+		roughness = loadMatValue<float>(bsdfValues,"roughness");
+		specular = loadMatValue<float>(bsdfValues,"specular");
+		std::cout << "\nMat Values ";
+		std::cout << "IOR: "<<ior;
+		std::cout << " metallic: " << metallic;
+		std::cout << " opacity: " << opacity;
+		std::cout << " roughness: " << roughness;
+		std::cout << " specular: " << specular << "\n";
 	}
 	pxr::UsdAttribute pointAttr = mesh.GetPointsAttr();
 	pxr::UsdGeomPrimvarsAPI meshPrimvars = pxr::UsdGeomPrimvarsAPI(meshPrim);

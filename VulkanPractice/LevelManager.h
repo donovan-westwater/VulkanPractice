@@ -9,6 +9,7 @@
 #include <pxr/base/plug/plugin.h>
 #include <pxr/base/plug/registry.h>
 #include <pxr/usd/usd/prim.h>
+#include <pxr/usd/usdShade/materialBindingAPI.h>
 
 class LevelManager {
 public:
@@ -32,6 +33,13 @@ public:
 	void testImportAndExport();
 	void loadLevel(std::string levelName);
 private:
+	template<typename T>
+	T loadMatValue(pxr::UsdShadeShader shader, std::string propName) {
+		T outValue;
+		pxr::UsdShadeInput input = shader.GetInput(pxr::TfToken(propName));
+		input.Get(&outValue);
+		return outValue;
+	}
 	void loadPrim(pxr::UsdPrim prim);
 };
 #endif // !LEVEL_MANAGER_H
