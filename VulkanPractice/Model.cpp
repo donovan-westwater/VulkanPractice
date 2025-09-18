@@ -6,6 +6,13 @@
 #include "Mesh.h"
 #include "Model.h"
 #include <glm/gtx/matrix_decompose.hpp>
+#include <pxr/usd/usd/attribute.h>
+#include <pxr/usd/usdGeom/xform.h>
+#include <pxr/usd/usdGeom/xformOp.h>
+#include <pxr/usd/usdGeom/mesh.h>
+#include <pxr/base/gf/vec3f.h>
+#include <pxr/usd/usdGeom/primvarsAPI.h>
+#include <pxr/usd/usdShade/materialBindingAPI.h>
 //Load Model should go here!
 
     //This is more like a resource function. Move it to a resource manager when that is made
@@ -118,6 +125,163 @@ void Model::loadModel(std::string modelPath, std::string materialPath,std::strin
     }
     createUniformBuffers();
 }
+
+void Model::loadModel(pxr::UsdPrim prim, pxr::UsdPrim matPrim) {
+    pxr::UsdGeomXformable primXform = pxr::UsdGeomXformable(prim);
+    pxr::GfMatrix4d pxrMat = primXform.GetTransformOp().GetOpTransform(pxr::UsdTimeCode(0.0));
+    double* pxrMatArray = pxrMat.GetArray();
+    glm::mat4x4 glmMat = glm::mat4x4();
+    //Convert info a format that we can use!
+    for (int i = 0; i < 4; i++) {
+        glmMat[i] = glm::vec4(pxrMatArray[4 * i], pxrMatArray[4 * i + 1], pxrMatArray[4 * i + 2], pxrMatArray[4 * i + 3]);
+    }
+    glm::vec3 scale;
+    glm::quat rotation;
+    glm::vec3 translation;
+    glm::vec3 skew;
+    glm::vec4 perspective;
+    glm::decompose(glmMat, scale, rotation, translation, skew, perspective);
+    std::cout << prim.GetName() << " POS: " << translation.x << " " << translation.y << " " << translation.z << "\n";
+    modelMatrix = glmMat;
+
+    //Extract Mesh Info
+    pxr::UsdPrim meshPrim;
+    bool meshFound = false;
+    for (pxr::UsdPrim prim : prim.GetAllChildren()) {
+        if (prim.IsA<pxr::UsdGeomMesh>()) {
+            meshPrim = prim;
+            meshFound = true;
+            break;
+        }
+    }
+    if (!meshFound) {
+        std::cout << "Mesh not found\n";
+        return;
+    }
+    Mesh initMesh;
+    ResourceManager::manager->meshList.push_back(initMesh);
+    int endIndex = ResourceManager::manager->meshList.size() - 1;
+    Mesh* modelMesh = &ResourceManager::manager->meshList[endIndex];
+    resourceListIndex = ResourceManager::manager->modelList.size();
+    referenceMeshIndex = endIndex;
+    referencePipelineIndex = 0;
+    allocatedDescSetIndex = ResourceManager::manager->pipelineList[referencePipelineIndex].allocatedSets * 2;
+    ResourceManager::manager->pipelineList[referencePipelineIndex].allocatedSets++;
+
+    pxr::UsdGeomMesh mesh = pxr::UsdGeomMesh(meshPrim);
+    pxr::UsdShadeMaterialBindingAPI meshMatBindApi = pxr::UsdShadeMaterialBindingAPI(meshPrim);
+    pxr::UsdShadeMaterial mat;
+    bool hasMatBinding = false;
+    if (meshPrim.HasAPI(pxr::TfToken("MaterialBindingAPI"))) {
+        mat = meshMatBindApi.ComputeBoundMaterial();
+        hasMatBinding = true;
+    }
+    pxr::UsdShadeShader image;
+    pxr::UsdShadeShader bsdfValues;
+    pxr::UsdShadeInput inputFile;
+    if (hasMatBinding) {
+        Material m;
+        pxr::UsdPrim matPrim = mat.GetPrim();
+        pxr::UsdPrim imagePrim;// = matPrim.GetPrimAtPath(pxr::SdfPath("/Image_Texture"));
+        pxr::UsdPrim bsdfPrim;
+        for (pxr::UsdPrim prim : matPrim.GetAllChildren()) {
+            if (prim.IsA<pxr::UsdShadeShader>() && prim.GetName() == "Image_Texture") {
+                imagePrim = prim;
+            }
+            if (prim.IsA<pxr::UsdShadeShader>() && prim.GetName() == "Principled_BSDF") {
+                bsdfPrim = prim;
+            }
+        }
+        image = pxr::UsdShadeShader(imagePrim);
+        bsdfValues = pxr::UsdShadeShader(bsdfPrim);
+        inputFile = image.GetInput(pxr::TfToken("file"));
+        pxr::SdfAssetPath path;
+        inputFile.Get(&path);
+        std::cout << "\nMat Texture File Path: " << path << " | " << inputFile.GetFullName().GetString();
+        //TODO: Load texture
+        
+        
+        float ior;
+        float metallic;
+        float opacity;
+        float roughness;
+        float specular;
+        ior = loadMatValue<float>(bsdfValues, "ior");
+        metallic = loadMatValue<float>(bsdfValues, "metallic");
+        opacity = loadMatValue<float>(bsdfValues, "opacity");
+        roughness = loadMatValue<float>(bsdfValues, "roughness");
+        specular = loadMatValue<float>(bsdfValues, "specular");
+        
+        //TODO: Ambient, emission, and diffuse need values
+        m.ambient = glm::vec4(0,0,0,0);
+        m.diffuse = glm::vec4(0, 0, 0, 0);
+        //Using IOR Is stored in ambient
+        m.ambient.x = ior;
+        m.ambient.y = metallic;
+        float clampProb = m.ambient.x;
+        if (clampProb < 0) clampProb = 0.0;
+        if (clampProb > 1.0) clampProb = 1.0;
+        m.diffuse.a = clampProb;
+        m.specular = glm::vec4(specular, specular, specular, specular);
+        float clampedShininess = roughness;
+        //Use shininess as a blending value for reflective surfaces
+        if (clampedShininess < 0) clampedShininess = 0.0;
+        if (clampedShininess > 1.0) clampedShininess = 1.0;
+        m.specular.a = clampedShininess;
+        m.emission = glm::vec4(0, 0, 0, 0);
+        std::cout << "\nMat Values ";
+        std::cout << "IOR: " << ior;
+        std::cout << " metallic: " << metallic;
+        std::cout << " opacity: " << opacity;
+        std::cout << " roughness: " << roughness;
+        std::cout << " specular: " << specular << "\n";
+        modelMesh->materials.push_back(m);
+    }
+
+
+    pxr::UsdAttribute pointAttr = mesh.GetPointsAttr();
+    pxr::UsdGeomPrimvarsAPI meshPrimvars = pxr::UsdGeomPrimvarsAPI(meshPrim);
+    //Retrive data from meshPrimvars API var (UVMap is the name for uv coords)
+    pxr::UsdGeomPrimvar meshUVMapvar = meshPrimvars.GetPrimvar(pxr::TfToken("UVMap"));
+    pxr::UsdAttribute normalAttr = mesh.GetNormalsAttr();
+    pxr::UsdAttribute triIndicesAttr = mesh.GetFaceVertexIndicesAttr();
+
+    pxr::VtArray<pxr::GfVec2f> uvArray = pxr::VtArray<pxr::GfVec2f>();
+    pxr::VtArray<pxr::GfVec3f> normalArray = pxr::VtArray<pxr::GfVec3f>();
+    pxr::VtArray <int> triIndexArray = pxr::VtArray<int>();
+    pxr::VtArray<pxr::GfVec3f> pointArray = pxr::VtArray<pxr::GfVec3f>();
+
+    //TODO: Copy array data into empty mesh
+    bool gotUvs = meshUVMapvar.Get(&uvArray);
+    bool gotNormals = normalAttr.Get(&normalArray);
+    bool gotTriIndices = triIndicesAttr.Get(&triIndexArray);
+    bool gotPoints = pointAttr.Get(&pointArray);
+    if (gotPoints) {
+        std::cout << "PLACEHOLDER FOR LOADING MESH INFO"
+    }
+    else std::cout << "FAIL" << "\n";
+    if (gotNormals) std::cout << "NORMALS SUCCESS" << "\n";
+    else std::cout << "FAIL" << "\n";
+    if (gotTriIndices) std::cout << "TRI INDICES SUCCESS" << "\n";
+    else std::cout << "FAIL" << "\n";
+    if (gotUvs) std::cout << "UVS SUCCESS" << "\n";
+    else std::cout << "FAIL" << "\n";
+
+    referenceMeshIndex = ResourceManager::manager->meshList.size() - 1;
+    modelMesh->vertexCount = modelMesh->vertices.size();
+    modelMesh->indexCount = modelMesh->indices.size();
+
+    //Create Buffers
+    modelMesh->createVertexBuffer();
+    modelMesh->createIndexBuffer();
+    //Create material buffers if materials exist
+    if (modelMesh->materials.size() > 0) {
+        modelMesh->createMaterialBuffer();
+        modelMesh->createMaterialIndexBuffer();
+    }
+    createUniformBuffers();
+}
+
 void Model::createUniformBuffers() {
     VkDeviceSize bufferSize = sizeof(UniformBufferObject);
 

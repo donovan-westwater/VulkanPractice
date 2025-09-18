@@ -5,6 +5,8 @@
 #include "ResourceManager.h"
 #include "Pipeline.h"
 #include "Mesh.h"
+#include <pxr/usd/usd/prim.h>
+#include <pxr/usd/usdShade/materialBindingAPI.h>
 //Make a manager class?
 class Model
 {
@@ -22,6 +24,7 @@ public:
 	//Add RayTracing Instance info for top level acceleration struct here
 
 	void loadModel(std::string modelPath, std::string materialPath, std::string texturePath);
+	void loadModel(pxr::UsdPrim prim,pxr::UsdPrim matPrim);
 	void createUniformBuffers();
 	void updateUniformBuffers(uint32_t frameNum);
 	void testUpdate();
@@ -29,6 +32,14 @@ public:
 	void setPosition(glm::vec3 pos);
 	void setRotation(glm::vec3 eulerAngles);
 	void rotateInPlace(glm::vec3 deltaAngles);
+private:
+	template<typename T>
+	T loadMatValue(pxr::UsdShadeShader shader, std::string propName) {
+		T outValue;
+		pxr::UsdShadeInput input = shader.GetInput(pxr::TfToken(propName));
+		input.Get(&outValue);
+		return outValue;
+	}
 };
 //Make a manager class?
 
