@@ -198,9 +198,17 @@ void Model::loadModel(pxr::UsdPrim prim, pxr::UsdPrim matPrim) {
         pxr::SdfAssetPath path;
         inputFile.Get(&path);
         std::cout << "\nMat Texture File Path: " << path << " | " << inputFile.GetFullName().GetString();
-        //TODO: Load texture
-        
-        
+        //Load Texture
+        Texture texture;
+        bool hasLoaded = false;
+        hasLoaded = texture.loadTexture(path.GetAssetPath(), ResourceManager::manager->device, ResourceManager::manager->physicalDevice);
+        if (hasLoaded) {
+            ResourceManager::manager->textureList.push_back(texture);
+            int textEndIndex = ResourceManager::manager->textureList.size() - 1;
+            referenceTextureIndex = textEndIndex;
+        }
+
+
         float ior;
         float metallic;
         float opacity;
@@ -236,6 +244,7 @@ void Model::loadModel(pxr::UsdPrim prim, pxr::UsdPrim matPrim) {
         std::cout << " roughness: " << roughness;
         std::cout << " specular: " << specular << "\n";
         modelMesh->materials.push_back(m);
+        modelMesh->materialIndices.push_back(0);
     }
 
 
@@ -245,19 +254,48 @@ void Model::loadModel(pxr::UsdPrim prim, pxr::UsdPrim matPrim) {
     pxr::UsdGeomPrimvar meshUVMapvar = meshPrimvars.GetPrimvar(pxr::TfToken("UVMap"));
     pxr::UsdAttribute normalAttr = mesh.GetNormalsAttr();
     pxr::UsdAttribute triIndicesAttr = mesh.GetFaceVertexIndicesAttr();
+    pxr::UsdAttribute triFaceCountAttr = mesh.GetFaceVertexCountsAttr();
 
     pxr::VtArray<pxr::GfVec2f> uvArray = pxr::VtArray<pxr::GfVec2f>();
     pxr::VtArray<pxr::GfVec3f> normalArray = pxr::VtArray<pxr::GfVec3f>();
     pxr::VtArray <int> triIndexArray = pxr::VtArray<int>();
+    pxr::VtArray <int> faceCountArray = pxr::VtArray<int>();
     pxr::VtArray<pxr::GfVec3f> pointArray = pxr::VtArray<pxr::GfVec3f>();
 
     //TODO: Copy array data into empty mesh
     bool gotUvs = meshUVMapvar.Get(&uvArray);
     bool gotNormals = normalAttr.Get(&normalArray);
     bool gotTriIndices = triIndicesAttr.Get(&triIndexArray);
+    bool gotFaceCounts = triFaceCountAttr.Get(&faceCountArray);
     bool gotPoints = pointAttr.Get(&pointArray);
     if (gotPoints) {
-        std::cout << "PLACEHOLDER FOR LOADING MESH INFO"
+        std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+        for (int i = 0; i < faceCountArray.size(); i++) {
+            modelMesh->primativeCount += faceCountArray[i];
+        }
+        for (int i = 0; i < triIndexArray.size(); i++) {
+            Vertex vertex{};
+            vertex.pos = {
+                pointArray[triIndexArray[i]][0],
+                    pointArray[triIndexArray[i]][1],
+                    pointArray[triIndexArray[i]][2]
+            };
+            vertex.normal = {
+                normalArray[triIndexArray[i]][0],
+                    normalArray[triIndexArray[i]][1],
+                    normalArray[triIndexArray[i]][2]
+            };
+            vertex.texCoord = {
+                    uvArray[triIndexArray[i]][0],
+                    1.0f - uvArray[triIndexArray[i]][1]
+            };
+            //Load in the indcies and vertices
+            if (uniqueVertices.count(vertex) == 0) {
+                uniqueVertices[vertex] = static_cast<uint32_t>(modelMesh->vertices.size());
+                modelMesh->vertices.push_back(vertex);
+            }
+            modelMesh->indices.push_back(uniqueVertices[vertex]);
+        }
     }
     else std::cout << "FAIL" << "\n";
     if (gotNormals) std::cout << "NORMALS SUCCESS" << "\n";
@@ -270,7 +308,6 @@ void Model::loadModel(pxr::UsdPrim prim, pxr::UsdPrim matPrim) {
     referenceMeshIndex = ResourceManager::manager->meshList.size() - 1;
     modelMesh->vertexCount = modelMesh->vertices.size();
     modelMesh->indexCount = modelMesh->indices.size();
-
     //Create Buffers
     modelMesh->createVertexBuffer();
     modelMesh->createIndexBuffer();
