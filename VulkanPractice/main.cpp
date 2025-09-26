@@ -12,13 +12,14 @@ public:
     void run() {
         LevelManager levelTest;
         LevelManager::loadPlugins();
-        //levelTest.testImportAndExport();
-        levelTest.loadLevel("levelFormatTestV2.usda");
-        /*
+
         //Create Resource manager
         ResourceManager::manager = new ResourceManager();
         ResourceManager::manager->width = WIDTH;
         ResourceManager::manager->height = HEIGHT;
+
+        levelTest.loadLevel("levelFormatTestV2.usda");
+
         initWindow();
         initVulkan();
         //Setup RayTracer
@@ -32,7 +33,7 @@ public:
         cleanup();
         //Delete manager when we are done
         delete ResourceManager::manager;
-        */
+        
     }
 
 private:

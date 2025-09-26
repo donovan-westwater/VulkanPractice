@@ -165,12 +165,21 @@ void LevelManager::loadPrim(pxr::UsdPrim prim) {
 void LevelManager::loadLevel(std::string levelName) {
 	testPointer = pxr::UsdStage::Open(levelName);
 	pxr::UsdPrim levelPrim = testPointer->GetPrimAtPath(pxr::SdfPath("/Level"));
+	pxr::UsdPrim matPrim = testPointer->GetPrimAtPath(pxr::SdfPath("/_materials"));
+	int count = 0;
 	for(pxr::UsdPrim prim : levelPrim.GetAllChildren()) {
-		loadPrim(prim);
+		Model m;
+		ResourceManager::manager->modelList.push_back(m);
+		ResourceManager::manager->modelList[count].loadModel(prim, matPrim);
+		count++;
 	}
 	std::cout << "_________________\n";
 	levelPrim = testPointer->GetPrimAtPath(pxr::SdfPath("/Entities"));
+	count = 0;
 	for (pxr::UsdPrim prim : levelPrim.GetAllChildren()) {
-		loadPrim(prim);
+		Model m;
+		ResourceManager::manager->modelList.push_back(m);
+		ResourceManager::manager->modelList[count].loadModel(prim, matPrim);
+		count++;
 	}
 }
