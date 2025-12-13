@@ -108,6 +108,8 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 	}//BUG: I think the BLAS scratch buffers are setup wrong. there is a bottomLevelAccelerationStructureBuffer and buffer handle. Investigate
 	void RayTracer::modelToBottomLevelAccelerationStructure(Mesh& mesh) {
 
+		std::cout << mesh.resourceListIndex<<"\n";
+
 		if (mainLogicalDevice == nullptr) {
 			throw std::runtime_error("Main Logical Device is null or expired\n");
 		}

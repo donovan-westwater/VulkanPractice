@@ -18,10 +18,12 @@ public:
         ResourceManager::manager->width = WIDTH;
         ResourceManager::manager->height = HEIGHT;
 
-        levelTest.loadLevel("levelFormatTestV2.usda");
-
         initWindow();
         initVulkan();
+       
+       // levelTest.loadLevel("levelFormatTestV2.usda");
+        levelTest.loadLevel("LevelFormatDebug.usda");
+
         //Setup RayTracer
         if(ResourceManager::manager->useRayTracing){
             rayTracer.CreateLightAndPassVarsToRayTracer();
@@ -236,7 +238,7 @@ private:
     //float timer = 0;
     void mainLoop() {
         ResourceManager::manager->lastElapsedTime = std::clock();
-        ResourceManager::manager->deltaTime = ResourceManager::manager->lastElapsedTime;
+        //ResourceManager::manager->deltaTime = ResourceManager::manager->lastElapsedTime;
         while (!glfwWindowShouldClose(ResourceManager::manager->window)) {
             glfwPollEvents();
             //This is a quick and dirty way to animate the triangle. I don't think it is remotely ideal for a bunch of reasons

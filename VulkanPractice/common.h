@@ -27,6 +27,7 @@
 #include <chrono>
 #include <array>
 #include <unordered_map>
+#include <cmath>
 //All of the includes we wanted are already handled by the ResourceHeader
 const int MAX_FRAMES_IN_FLIGHT = 2; //The amount of frames that can be processed concurrently
 const std::string MODEL_PATH = "Models/CornellBox-Original.obj";//"Models/CrappyCornellBox_TriVersion.obj";//"Models/Guilmon.obj";

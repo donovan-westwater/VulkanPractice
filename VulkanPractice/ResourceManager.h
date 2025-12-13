@@ -31,7 +31,7 @@ public:
 #else
     const bool enableValidationLayers = true;
 #endif
-    bool useRayTracing = true;
+    bool useRayTracing = false;
 	//Game life resources
     inline static ResourceManager *manager;
     PFN_vkSetDebugUtilsObjectNameEXT pvkSetDebugUtilsObjectNameEXT;

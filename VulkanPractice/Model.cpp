@@ -26,6 +26,7 @@ void Model::loadModel(std::string modelPath, std::string materialPath,std::strin
     ResourceManager::manager->meshList.push_back(initMesh);
     int endIndex = ResourceManager::manager->meshList.size()-1;
     Mesh* modelMesh = &ResourceManager::manager->meshList[endIndex];
+    modelMesh->resourceListIndex = endIndex;
     resourceListIndex = ResourceManager::manager->modelList.size();
     referenceMeshIndex = endIndex;
     referencePipelineIndex = 0;
@@ -162,6 +163,7 @@ void Model::loadModel(pxr::UsdPrim prim, pxr::UsdPrim matPrim) {
     ResourceManager::manager->meshList.push_back(initMesh);
     int endIndex = ResourceManager::manager->meshList.size() - 1;
     Mesh* modelMesh = &ResourceManager::manager->meshList[endIndex];
+    modelMesh->resourceListIndex = endIndex;
     resourceListIndex = ResourceManager::manager->modelList.size();
     referenceMeshIndex = endIndex;
     referencePipelineIndex = 0;
@@ -274,6 +276,28 @@ void Model::loadModel(pxr::UsdPrim prim, pxr::UsdPrim matPrim) {
             modelMesh->primativeCount += faceCountArray[i];
         }
         for (int i = 0; i < triIndexArray.size(); i++) {
+            modelMesh->indices.push_back(triIndexArray[i]);
+        }
+        for (int i = 0; i < pointArray.size(); i++) {
+            Vertex vertex{};
+            vertex.pos = {
+                pointArray[i][0],
+                    pointArray[i][1],
+                    pointArray[i][2]
+            };
+            vertex.normal = {
+                normalArray[i][0],
+                    normalArray[i][1],
+                    normalArray[i][2]
+            };
+            vertex.texCoord = {
+                    uvArray[i][0],
+                    1.0f - uvArray[i][1]
+            };
+            modelMesh->vertices.push_back(vertex);
+        }
+        /*
+        for (int i = 0; i < triIndexArray.size(); i++) {
             Vertex vertex{};
             vertex.pos = {
                 pointArray[triIndexArray[i]][0],
@@ -296,6 +320,7 @@ void Model::loadModel(pxr::UsdPrim prim, pxr::UsdPrim matPrim) {
             }
             modelMesh->indices.push_back(uniqueVertices[vertex]);
         }
+        */
     }
     else std::cout << "FAIL" << "\n";
     if (gotNormals) std::cout << "NORMALS SUCCESS" << "\n";
@@ -395,9 +420,12 @@ void Model::rotateInPlace(glm::vec3 deltaAngles) {
 
     modelMatrix = translateMat * rotateMat * scaleMat;
 }
+static float totalT = 0;
 void Model::testUpdate() {
     float delta = ResourceManager::manager->deltaTime;
+    totalT += delta;
     rotateInPlace(glm::vec3(0.0, delta, 0.0));
+    //setPosition(glm::vec3(0.0, 10.0 * sin(totalT),0.0));
    // modelMatrix = glm::rotate(modelMatrix, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
    // modelMatrix = glm::rotate(modelMatrix, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     //modelMatrix = glm::rotate(modelMatrix, delta * glm::radians(10.0f), glm::vec3(0.0f, 0.0f, 1.0f));

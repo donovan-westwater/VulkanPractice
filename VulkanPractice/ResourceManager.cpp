@@ -15,6 +15,7 @@ void ResourceManager::initVulkan() {
     pipelineList[0].createMainDescriptorSetLayout();
     //This is where you would start to make pipelines for different shaders 
     pipelineList[0].createDefaultGraphicsPipeline();
+
     //create command pool for command buffers
     createCommandPool();
     //Create color buffer
@@ -30,7 +31,12 @@ void ResourceManager::initVulkan() {
     pipelineList[0].createMainDescriptorSets();
     createCommandBuffers();
     //Raytracing pipeline section
-
+    //Model test1;
+    //modelList.push_back(test1);
+    //modelList[0].loadModel("Models/Guilmon.obj", MATERIALS_PATH, TEXTURES_PATH + "guilmon.png");
+    //modelList[0].setScale(glm::vec3(1.0));
+    //modelList[0].setRotation(glm::vec3(90, 0, 0));
+    //modelList[0].setPosition(glm::vec3(10, 10, -5));
     createSyncObjects(); //create objects for syncing cpu with gpu
 
     //Player Logic Initalization
