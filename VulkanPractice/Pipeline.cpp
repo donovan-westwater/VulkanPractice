@@ -252,7 +252,7 @@ void Pipeline::createDefaultGraphicsPipeline() {
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL; //Determiens if polygons are filled, drawn as outline, or are just points
     rasterizer.lineWidth = 1.0f; //determines the line width
     rasterizer.cullMode = VK_CULL_MODE_BACK_BIT; //enables back culling
-    rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE; //determines how to find the front face
+    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE; //determines how to find the front face
     rasterizer.depthBiasEnable = VK_FALSE; //Can create a bias to alter depth values based on frag slope
     rasterizer.depthBiasConstantFactor = 0.0f; //optional
     rasterizer.depthBiasClamp = 0.0; //optional

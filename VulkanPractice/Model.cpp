@@ -275,8 +275,10 @@ void Model::loadModel(pxr::UsdPrim prim, pxr::UsdPrim matPrim) {
         for (int i = 0; i < faceCountArray.size(); i++) {
             modelMesh->primativeCount += faceCountArray[i];
         }
-        for (int i = 0; i < triIndexArray.size(); i++) {
-            modelMesh->indices.push_back(triIndexArray[i]);
+        for (int i = 0; i < triIndexArray.size(); i+=3) {
+            modelMesh->indices.push_back(triIndexArray[i + 2]);
+            modelMesh->indices.push_back(triIndexArray[i + 1]);
+            modelMesh->indices.push_back(triIndexArray[i]);           
         }
         for (int i = 0; i < pointArray.size(); i++) {
             Vertex vertex{};
