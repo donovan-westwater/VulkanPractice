@@ -171,12 +171,12 @@ void LevelManager::loadLevel(std::string levelName) {
 		Model m;
 		m.loadModel(prim, matPrim);
 		ResourceManager::manager->modelList.push_back(m);
-		
+		/*
 		if (count < 1) {
 			//ResourceManager::manager->modelList[0].setScale(glm::vec3(1.25));
 			//ResourceManager::manager->modelList[0].setRotation(glm::vec3(00, 0, 0));
 			ResourceManager::manager->modelList[0].setPosition(glm::vec3(10, 10, 2));
-		}
+		}*/
 		count++;
 	}
 	std::cout << "_________________\n";

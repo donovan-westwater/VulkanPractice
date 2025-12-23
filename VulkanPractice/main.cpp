@@ -21,8 +21,8 @@ public:
         initWindow();
         initVulkan();
        
-       // levelTest.loadLevel("levelFormatTestV2.usda");
-        levelTest.loadLevel("LevelFormatDebug.usda");
+        levelTest.loadLevel("levelFormatTestV2.usda");
+        //levelTest.loadLevel("LevelFormatDebug.usda");
 
         //Setup RayTracer
         if(ResourceManager::manager->useRayTracing){
@@ -296,7 +296,7 @@ private:
         for (int i = 0; i < ResourceManager::manager->modelList.size(); i++) {
             Model* m = &ResourceManager::manager->modelList[i];
             Pipeline *refPipeline = &ResourceManager::manager->pipelineList[m->referencePipelineIndex];
-            m->testUpdate();
+            //m->testUpdate();
             m->updateUniformBuffers(ResourceManager::manager->currentFrame);
             refPipeline->updateDescriptorSet(m, ResourceManager::manager->currentFrame);
             refPipeline->recordDrawCallCommandBuffer(ResourceManager::manager->commandBuffers[ResourceManager::manager->currentFrame],
