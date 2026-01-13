@@ -296,7 +296,7 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		bottomLevelAccelerationBuildGeometryInfoKHR.scratchData.deviceAddress = blASScratchBuffeDeviceAddress;
 		//BuildRangeInfo: the indices within the vertex arrays to source input geometry for the BLAS.
 		VkAccelerationStructureBuildRangeInfoKHR blASBuildRangeInfo;
-		blASBuildRangeInfo.primitiveCount = mesh.primativeCount;
+		blASBuildRangeInfo.primitiveCount = mesh.primativeCount; //TODO FIX THIS COUNT! ITS WRONG!
 		blASBuildRangeInfo.primitiveOffset = 0;
 		blASBuildRangeInfo.transformOffset = 0;
 		blASBuildRangeInfo.firstVertex = 0;
@@ -339,6 +339,9 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		//Submit and free the command buffer
 		VkSubmitInfo submitInfo{};
 		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		submitInfo.waitSemaphoreCount = 0;
+		submitInfo.pWaitSemaphores = NULL;
+		submitInfo.pWaitDstStageMask = NULL;
 		submitInfo.commandBufferCount = 1;
 		submitInfo.pCommandBuffers = &commandBuffer;
 		submitInfo.pNext = NULL;
@@ -348,7 +351,8 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		bottomLevelAccelerationStructureBuildFenceInfo.pNext = NULL;
 		bottomLevelAccelerationStructureBuildFenceInfo.flags = 0;
 		VkFence bottomLevelAccelerationStructureFence;
-		if (vkCreateFence(logicalDevice, &bottomLevelAccelerationStructureBuildFenceInfo, nullptr, &bottomLevelAccelerationStructureFence) != VK_SUCCESS) {
+		VkResult fenceResult = vkCreateFence(logicalDevice, &bottomLevelAccelerationStructureBuildFenceInfo, nullptr, &bottomLevelAccelerationStructureFence);
+		if (fenceResult != VK_SUCCESS) {
 			throw std::runtime_error("Fence failed to be created!");
 		}
 		if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, bottomLevelAccelerationStructureFence) != VK_SUCCESS) {
@@ -357,6 +361,12 @@ void RayTracer::CreateLightAndPassVarsToRayTracer() {
 		VkResult r = vkWaitForFences(logicalDevice, 1, &bottomLevelAccelerationStructureFence, true, UINT32_MAX);
 		if (r != VK_SUCCESS && r != VK_TIMEOUT) {
 			throw std::runtime_error("Failed to wait for fences");
+		}
+		int waitCounter = 0;
+		while (waitCounter < 20) {
+			r = vkWaitForFences(logicalDevice, 1, &bottomLevelAccelerationStructureFence, true, UINT32_MAX);
+			if (r != VK_TIMEOUT) break;
+			waitCounter++;
 		}
 		vkDestroyFence(logicalDevice, bottomLevelAccelerationStructureFence, NULL);
 		vkDestroyBuffer(logicalDevice, bottomLevelAccelerationStructureScratchBufferHandle,NULL);

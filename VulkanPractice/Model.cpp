@@ -273,12 +273,28 @@ void Model::loadModel(pxr::UsdPrim prim, pxr::UsdPrim matPrim) {
     if (gotPoints) {
         std::unordered_map<Vertex, uint32_t> uniqueVertices{};
         for (int i = 0; i < faceCountArray.size(); i++) {
-            modelMesh->primativeCount += faceCountArray[i];
+            if(faceCountArray[i] == 3)modelMesh->primativeCount += 1;
+            else modelMesh->primativeCount += 2;
         }
-        for (int i = 0; i < triIndexArray.size(); i+=3) {
-            modelMesh->indices.push_back(triIndexArray[i + 2]);
-            modelMesh->indices.push_back(triIndexArray[i + 1]);
-            modelMesh->indices.push_back(triIndexArray[i]);           
+        int faceIndex = 0;
+        int faceVertCount = faceCountArray[faceIndex];
+        for (int i = 0; i < triIndexArray.size(); i+=faceVertCount) {
+            //If it is a quad, we need to trianglate it
+            if (faceVertCount == 4) {
+                modelMesh->indices.push_back(triIndexArray[i + 2]);
+                modelMesh->indices.push_back(triIndexArray[i + 1]);
+                modelMesh->indices.push_back(triIndexArray[i]);
+
+                modelMesh->indices.push_back(triIndexArray[i + 3]);
+                modelMesh->indices.push_back(triIndexArray[i + 2]);
+                modelMesh->indices.push_back(triIndexArray[i]);
+            }
+            else {
+                modelMesh->indices.push_back(triIndexArray[i + 2]);
+                modelMesh->indices.push_back(triIndexArray[i + 1]);
+                modelMesh->indices.push_back(triIndexArray[i]);
+            }         
+            if(faceIndex + 1 < faceCountArray.size())faceVertCount = faceCountArray[faceIndex++];
         }
         for (int i = 0; i < pointArray.size(); i++) {
             Vertex vertex{};
