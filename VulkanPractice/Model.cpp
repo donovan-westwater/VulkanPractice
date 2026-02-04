@@ -248,7 +248,36 @@ void Model::loadModel(pxr::UsdPrim prim, pxr::UsdPrim matPrim) {
         modelMesh->materials.push_back(m);
         modelMesh->materialIndices.push_back(0);
     }
-
+    if (!hasMatBinding) {
+        Texture texture;
+        bool hasLoaded = false;
+        std::string missingTextPath = TEXTURES_PATH + MISSING_TEXTURE_PATH;
+        hasLoaded = texture.loadTexture(missingTextPath, ResourceManager::manager->device, ResourceManager::manager->physicalDevice);
+        if (hasLoaded) {
+            ResourceManager::manager->textureList.push_back(texture);
+            int textEndIndex = ResourceManager::manager->textureList.size() - 1;
+            referenceTextureIndex = textEndIndex;
+        }
+        //Default material settings for default raytracing pipeline
+        Material m;
+        float ior = 1;
+        float metallic = 0;
+        float opacity = 1;
+        float roughness = 1;
+        float specular = 0;
+        m.ambient = glm::vec4(0, 0, 0, 0);
+        m.diffuse = glm::vec4(0, 0, 0, 0);
+        m.ambient.x = ior;
+        m.ambient.y = metallic;
+        float clampProb = m.ambient.x;
+        m.diffuse.a = clampProb;
+        m.specular = glm::vec4(specular, specular, specular, specular);
+        float clampedShininess = roughness;
+        m.specular.a = clampedShininess;
+        m.emission = glm::vec4(0, 0, 0, 0);
+        modelMesh->materials.push_back(m);
+        modelMesh->materialIndices.push_back(0);
+    }
 
     pxr::UsdAttribute pointAttr = mesh.GetPointsAttr();
     pxr::UsdGeomPrimvarsAPI meshPrimvars = pxr::UsdGeomPrimvarsAPI(meshPrim);

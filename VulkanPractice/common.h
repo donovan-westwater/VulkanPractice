@@ -33,7 +33,7 @@ const int MAX_FRAMES_IN_FLIGHT = 2; //The amount of frames that can be processed
 const std::string MODEL_PATH = "Models/CornellBox-Original.obj";//"Models/CrappyCornellBox_TriVersion.obj";//"Models/Guilmon.obj";
 const std::string TEXTURES_PATH = "Textures/";//"Textures/TestTex.png";
 const std::string MATERIALS_PATH = "Materials/";//"Materials/CrappyCornellBox_TriVersion.mtl";
-
+const std::string MISSING_TEXTURE_PATH = "MissingText.jpg";
 //TO DO: Seperate Camerea from model!
 struct UniformBufferObject {
     glm::mat4 model;
