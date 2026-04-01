@@ -238,7 +238,11 @@ void Model::loadModel(pxr::UsdPrim prim, pxr::UsdPrim matPrim) {
         if (clampedShininess < 0) clampedShininess = 0.0;
         if (clampedShininess > 1.0) clampedShininess = 1.0;
         m.specular.a = clampedShininess;
-        m.emission = glm::vec4(0, 0, 0, 0);
+        m.emission = glm::vec4(0, 0, 0, 1);
+        int debugIndex = ResourceManager::manager->meshList.size() - 1;
+        //if (debugIndex == 2) m.emission = glm::vec4(0, 0, 1, 1);
+        //if (debugIndex == 1) m.emission = glm::vec4(0, 1, 0, 1);
+        //if (debugIndex == 0) m.emission = glm::vec4(1, 0, 0, 1);
         std::cout << "\nMat Values ";
         std::cout << "IOR: " << ior;
         std::cout << " metallic: " << metallic;
@@ -247,6 +251,8 @@ void Model::loadModel(pxr::UsdPrim prim, pxr::UsdPrim matPrim) {
         std::cout << " specular: " << specular << "\n";
         modelMesh->materials.push_back(m);
         modelMesh->materialIndices.push_back(0);
+        modelMesh->materialIndices.push_back(1);
+        modelMesh->materialIndices.push_back(2);
     }
     if (!hasMatBinding) {
         Texture texture;
@@ -275,9 +281,19 @@ void Model::loadModel(pxr::UsdPrim prim, pxr::UsdPrim matPrim) {
         float clampedShininess = roughness;
         m.specular.a = clampedShininess;
         m.emission = glm::vec4(0, 0, 0, 0);
+        int debugIndex = ResourceManager::manager->meshList.size() - 1;
+        if (debugIndex == 2) m.emission = glm::vec4(0, 0, 1, 1);
+        if (debugIndex == 1) m.emission = glm::vec4(0, 1, 0, 1);
+        if (debugIndex == 0) m.emission = glm::vec4(1, 0, 0, 1);
         modelMesh->materials.push_back(m);
         modelMesh->materialIndices.push_back(0);
     }
+    Material testMat;
+    testMat.emission = glm::vec4(01, 0, 0, 1);
+    modelMesh->materials.push_back(testMat);
+    Material testMat2;
+    testMat2.emission = glm::vec4(0, 1, 0, 1);
+    modelMesh->materials.push_back(testMat2);
 
     pxr::UsdAttribute pointAttr = mesh.GetPointsAttr();
     pxr::UsdGeomPrimvarsAPI meshPrimvars = pxr::UsdGeomPrimvarsAPI(meshPrim);
@@ -471,7 +487,7 @@ static float totalT = 0;
 void Model::testUpdate() {
     float delta = ResourceManager::manager->deltaTime;
     totalT += delta;
-    rotateInPlace(glm::vec3(0.0, delta, 0.0));
+    //rotateInPlace(glm::vec3(0.0, delta, 0.0));
     //setPosition(glm::vec3(0.0, 10.0 * sin(totalT),0.0));
    // modelMatrix = glm::rotate(modelMatrix, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
    // modelMatrix = glm::rotate(modelMatrix, glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));

@@ -39,7 +39,7 @@ void main()
     vec3 lightDir = pcRay.lightPos - worldPos;
     float l = dot(lightDir,worldNormal);
     hitP.rayDepth += 1;
-    uint matIndex = materialIndexBuffer.data[gl_PrimitiveID];
+    uint matIndex = materialIndexBuffer.data[gl_InstanceID];
     vec3 hitcolor = materialBuffer.data[matIndex].diffuse.xyz;
     vec3 specColor = materialBuffer.data[matIndex].specular.xyz;
     float shininess = materialBuffer.data[matIndex].specular.w;
