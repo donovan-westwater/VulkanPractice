@@ -65,6 +65,7 @@ public:
 	std::vector<Mesh> meshList;
 	std::vector<Model> modelList;
     std::vector<LightSource> lightList;
+    std::vector<Material> materialList;
 	//Might move materials to be managed here rather than managed by mesh
     //Player related elements go here for now
     Camera mainCamera;
@@ -93,6 +94,21 @@ public:
     void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory, bool rayTracingMemAlloc);
 
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+    
+    template <typename T>
+    void copyDataIntoBuffer(VkBuffer dstBuffer, int length, VkDeviceSize elementSize, T* vData) {
+        VkDeviceSize bufferSize = elementSize * length;
+        //Staging buffer to transfer data between CPU and GPU
+        VkBuffer stagingBuffer;
+        VkDeviceMemory stagingBufferMemory;
+        createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory,
+            useRayTracing);
+        void* data;
+        vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+        memcpy(data, vData, (size_t)bufferSize);
+        vkUnmapMemory(device, stagingBufferMemory);
+        copyBuffer(stagingBuffer, dstBuffer, bufferSize);
+    }
 
     VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlag, uint32_t mipLevels);
 

@@ -189,3 +189,53 @@ void LevelManager::loadLevel(std::string levelName) {
 		count++;
 	}
 }
+void LevelManager::createSceneBuffers() {
+	for(Mesh m : ResourceManager::manager->meshList) {
+		for (Vertex v : m.vertices) {
+			this->sceneVertices.push_back(v);
+		}
+		for (uint32_t i : m.indices) {
+			this->sceneIndices.push_back(i);
+		}
+		for (Material mat : m.materials) {
+			this->sceneMaterials.push_back(mat);
+		}
+		for (uint32_t i : m.materialIndices) {
+			this->sceneMaterialIndices.push_back(i);
+		}
+		//Assume that each model will have 4 slots dedicated to offsets.
+		this->sceneOffsets.push_back(this->sceneVertices.size());
+		this->sceneOffsets.push_back(this->sceneIndices.size());
+		this->sceneOffsets.push_back(this->sceneMaterials.size());
+		this->sceneOffsets.push_back(this->sceneMaterialIndices.size());
+	}
+	VkBufferUsageFlags rayTracingFlags = // used also for building acceleration structures 
+		VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+	//Create Buffers
+	ResourceManager::manager->createBuffer(sizeof(Vertex) * this->sceneVertices.size(),
+		rayTracingFlags | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,vertexBuffer, vertexBufferMemory, ResourceManager::manager->useRayTracing);
+	ResourceManager::manager->createBuffer(sizeof(uint32_t) * this->sceneIndices.size(),
+		rayTracingFlags | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer, indexBufferMemory, ResourceManager::manager->useRayTracing);
+	ResourceManager::manager->createBuffer(sizeof(Material) * this->sceneMaterials.size(),
+		rayTracingFlags | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, materialBuffer, materialBufferMemory, ResourceManager::manager->useRayTracing);
+	ResourceManager::manager->createBuffer(sizeof(uint32_t) * this->sceneMaterialIndices.size(),
+		rayTracingFlags | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, materialIndexBuffer, materialIndexBufferMemory, ResourceManager::manager->useRayTracing);
+	ResourceManager::manager->createBuffer(sizeof(uint32_t) * this->sceneOffsets.size(),
+		rayTracingFlags | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,offsetBuffer, offsetBufferMemory, ResourceManager::manager->useRayTracing);
+	//Copy data over via memory map from copyDataIntoBuffer functions
+	ResourceManager::manager->copyDataIntoBuffer(vertexBuffer
+		, this->sceneVertices.size(), sizeof(Vertex), this->sceneVertices.data());
+	ResourceManager::manager->copyDataIntoBuffer(indexBuffer
+	, this->sceneIndices.size(), sizeof(uint32_t), this->sceneIndices.data());
+	ResourceManager::manager->copyDataIntoBuffer(materialBuffer
+	, this->sceneMaterials.size(), sizeof(Material), this->sceneMaterials.data());
+	ResourceManager::manager->copyDataIntoBuffer(materialIndexBuffer
+	, this->sceneMaterialIndices.size(), sizeof(uint32_t), this->sceneMaterialIndices.data());
+	ResourceManager::manager->copyDataIntoBuffer(offsetBuffer
+	, this->sceneOffsets.size(), sizeof(uint32_t), this->sceneOffsets.data());
+}

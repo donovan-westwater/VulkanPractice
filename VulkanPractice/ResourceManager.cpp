@@ -298,6 +298,20 @@ void ResourceManager::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDevic
     endSingleTimeCommands(commandBuffer);
 
 }
+/*
+template <typename T> void ResourceManager::copyDataIntoBuffer(VkBuffer dstBuffer, int length, VkDeviceSize elementSize, T* vData) {
+    VkDeviceSize bufferSize = elementSize * length;
+    //Staging buffer to transfer data between CPU and GPU
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory,
+        useRayTracing);
+    void* data;
+    vkMapMemory(ResourceManager::manager->device, stagingBufferMemory, 0, bufferSize, 0, &data);
+    memcpy(data, vData, (size_t)bufferSize);
+    vkUnmapMemory(ResourceManager::manager->device, stagingBufferMemory);
+    copyBuffer(stagingBuffer, dstBuffer, bufferSize);
+}*/
 
 //Creates an image view
 VkImageView ResourceManager::createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlag, uint32_t mipLevels) {
@@ -872,6 +886,7 @@ void ResourceManager::resourceCleanUp() {
     for (int i = 0; i < textureList.size(); i++) {
         textureList[i].free();
     }
+
     //Pipeline cleanup
     for(int i = 0; i < pipelineList.size();i++){
         pipelineList[i].free();

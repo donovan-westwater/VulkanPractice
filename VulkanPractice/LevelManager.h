@@ -14,7 +14,21 @@
 class LevelManager {
 public:
 	pxr::UsdStageRefPtr testPointer;
-	
+	std::vector<Vertex> sceneVertices;
+	std::vector<uint32_t> sceneIndices;
+	std::vector<Material> sceneMaterials;
+	std::vector<uint32_t> sceneMaterialIndices;
+	std::vector<uint32_t> sceneOffsets;
+	VkBuffer vertexBuffer; //The vertex buffer we pass during the vertex shader step
+	VkDeviceMemory vertexBufferMemory; //handle to deal with allocated memory to vertex buffer
+	VkBuffer indexBuffer; //Index buffer to prevent bloat in vertex buffer
+	VkDeviceMemory indexBufferMemory; //handle to deal with memory allocated with the index buffer
+	VkBuffer materialBuffer; //Material buffer we can pass to shaders
+	VkDeviceMemory materialBufferMemory; //handle to deal with memory allocated with the material buffer
+	VkBuffer materialIndexBuffer; //Index buffer to prevent bloat in material buffer
+	VkDeviceMemory materialIndexBufferMemory; //handle to deal with memory allocated with the material index buffer
+	VkBuffer offsetBuffer;
+	VkDeviceMemory offsetBufferMemory;
 	static void loadPlugins() {
 		//The Local Library Dlls seem to be breaking the plugins?
 #ifdef NDEBUG
@@ -41,5 +55,7 @@ private:
 		return outValue;
 	}
 	void loadPrim(pxr::UsdPrim prim);
+	void createSceneBuffers();
+	void recreateSceneBuffers();
 };
 #endif // !LEVEL_MANAGER_H
