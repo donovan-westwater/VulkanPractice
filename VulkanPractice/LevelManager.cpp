@@ -163,6 +163,7 @@ void LevelManager::loadPrim(pxr::UsdPrim prim) {
 	*/
 }
 void LevelManager::loadLevel(std::string levelName) {
+	currentLevel = this;
 	testPointer = pxr::UsdStage::Open(levelName);
 	pxr::UsdPrim levelPrim = testPointer->GetPrimAtPath(pxr::SdfPath("/Level"));
 	pxr::UsdPrim matPrim = testPointer->GetPrimAtPath(pxr::SdfPath("/_materials"));
@@ -188,6 +189,7 @@ void LevelManager::loadLevel(std::string levelName) {
 		ResourceManager::manager->modelList.push_back(m);
 		count++;
 	}
+	createSceneBuffers();
 }
 void LevelManager::createSceneBuffers() {
 	for(Mesh m : ResourceManager::manager->meshList) {

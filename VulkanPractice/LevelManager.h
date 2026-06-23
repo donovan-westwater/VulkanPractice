@@ -13,6 +13,7 @@
 
 class LevelManager {
 public:
+	inline static LevelManager* currentLevel = nullptr;
 	pxr::UsdStageRefPtr testPointer;
 	std::vector<Vertex> sceneVertices;
 	std::vector<uint32_t> sceneIndices;

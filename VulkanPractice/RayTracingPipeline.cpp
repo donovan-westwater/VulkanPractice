@@ -2,6 +2,7 @@
 #include "ResourceManager.h"
 #include "RayTracingPipeline.h"
 #include "RayTracer.h"
+#include "LevelManager.h"
 
 void RayTracingPipeline::createRayTracerDescriptorSetLayout() {
 	//Creating the layout
@@ -149,22 +150,22 @@ void RayTracingPipeline::updateDescriptorSets(uint32_t frameIndex) {
 		writeStuct.pAccelerationStructures = refRayTracer->getTopLevelAccelerationStructure(frameIndex); //Have a getter for top level
 
 		VkDescriptorBufferInfo vertexInfo;
-		vertexInfo.buffer = refMesh->vertexBuffer;
+		vertexInfo.buffer = LevelManager::currentLevel->vertexBuffer;
 		vertexInfo.offset = 0;
 		vertexInfo.range = VK_WHOLE_SIZE;
 
 		VkDescriptorBufferInfo indexInfo;
-		indexInfo.buffer = refMesh->indexBuffer;
+		indexInfo.buffer = LevelManager::currentLevel->indexBuffer;
 		indexInfo.offset = 0;
 		indexInfo.range = VK_WHOLE_SIZE;
 
 		VkDescriptorBufferInfo materialInfo;
-		materialInfo.buffer = refMesh->materialBuffer;
+		materialInfo.buffer = LevelManager::currentLevel->materialBuffer;
 		materialInfo.offset = 0;
 		materialInfo.range = VK_WHOLE_SIZE;
 
 		VkDescriptorBufferInfo materialIndexInfo;
-		materialIndexInfo.buffer = refMesh->materialIndexBuffer;
+		materialIndexInfo.buffer = LevelManager::currentLevel->materialIndexBuffer;
 		materialIndexInfo.offset = 0;
 		materialIndexInfo.range = VK_WHOLE_SIZE;
 		//Assigning Descriptor infomation to bindings in layout
