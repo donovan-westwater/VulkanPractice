@@ -192,6 +192,7 @@ void LevelManager::loadLevel(std::string levelName) {
 	createSceneBuffers();
 }
 void LevelManager::createSceneBuffers() {
+	int meshCount = 0;
 	for(Mesh m : ResourceManager::manager->meshList) {
 		for (Vertex v : m.vertices) {
 			this->sceneVertices.push_back(v);
@@ -203,13 +204,14 @@ void LevelManager::createSceneBuffers() {
 			this->sceneMaterials.push_back(mat);
 		}
 		for (uint32_t i : m.materialIndices) {
-			this->sceneMaterialIndices.push_back(i);
+			this->sceneMaterialIndices.push_back(i+meshCount);
 		}
 		//Assume that each model will have 4 slots dedicated to offsets.
 		this->sceneOffsets.push_back(this->sceneVertices.size());
 		this->sceneOffsets.push_back(this->sceneIndices.size());
 		this->sceneOffsets.push_back(this->sceneMaterials.size());
 		this->sceneOffsets.push_back(this->sceneMaterialIndices.size());
+		meshCount++;
 	}
 	VkBufferUsageFlags rayTracingFlags = // used also for building acceleration structures 
 		VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;

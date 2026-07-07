@@ -240,9 +240,9 @@ void Model::loadModel(pxr::UsdPrim prim, pxr::UsdPrim matPrim) {
         m.specular.a = clampedShininess;
         m.emission = glm::vec4(0, 0, 0, 1);
         int debugIndex = ResourceManager::manager->meshList.size() - 1;
-        //if (debugIndex == 2) m.emission = glm::vec4(0, 0, 1, 1);
-        //if (debugIndex == 1) m.emission = glm::vec4(0, 1, 0, 1);
-        //if (debugIndex == 0) m.emission = glm::vec4(1, 0, 0, 1);
+        if (debugIndex == 2) m.emission = glm::vec4(0, 0, 1, 1);
+        if (debugIndex == 1) m.emission = glm::vec4(0, 1, 0, 1);
+        if (debugIndex == 0) m.emission = glm::vec4(1, 0, 0, 1);
         std::cout << "\nMat Values ";
         std::cout << "IOR: " << ior;
         std::cout << " metallic: " << metallic;
@@ -250,9 +250,7 @@ void Model::loadModel(pxr::UsdPrim prim, pxr::UsdPrim matPrim) {
         std::cout << " roughness: " << roughness;
         std::cout << " specular: " << specular << "\n";
         modelMesh->materials.push_back(m);
-        //modelMesh->materialIndices.push_back(0);
-        modelMesh->materialIndices.push_back(1);
-        modelMesh->materialIndices.push_back(2);
+        modelMesh->materialIndices.push_back(0);
     }
     if (!hasMatBinding) {
         Texture texture;
@@ -288,12 +286,7 @@ void Model::loadModel(pxr::UsdPrim prim, pxr::UsdPrim matPrim) {
         modelMesh->materials.push_back(m);
         modelMesh->materialIndices.push_back(0);
     }
-    Material testMat;
-    testMat.emission = glm::vec4(01, 1, 1, 1);
-    modelMesh->materials.push_back(testMat);
-    Material testMat2;
-    testMat2.emission = glm::vec4(0, 1, 0, 1);
-    modelMesh->materials.push_back(testMat2);
+    
 
     pxr::UsdAttribute pointAttr = mesh.GetPointsAttr();
     pxr::UsdGeomPrimvarsAPI meshPrimvars = pxr::UsdGeomPrimvarsAPI(meshPrim);
