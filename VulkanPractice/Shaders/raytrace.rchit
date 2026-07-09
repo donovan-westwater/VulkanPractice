@@ -85,7 +85,7 @@ void main()
         hitP.hitValue *= 0.5*finalColor;
     }
     //Skipping Emission for now until noise is better dealt with
-    hitP.hitValue += materialBuffer.data[matIndex].emission.xyz;
+    //hitP.hitValue += materialBuffer.data[matIndex].emission.xyz;
     hitP.rngState = state;
     //TO DO: Should pass in max depth from CPU side. Pipeline controls depth!
     //Glossy Step: Goaling to coopt Ni parameter as a specular probablity and use that method for glossy
